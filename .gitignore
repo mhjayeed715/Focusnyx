@@ -1,0 +1,28 @@
+# Node
+node_modules/
+.npm/
+.pnpm-store/
+
+# Builds
+.next/
+dist/
+build/
+coverage/
+
+# Env
+.env
+.env.*
+!.env.example
+.venv/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
