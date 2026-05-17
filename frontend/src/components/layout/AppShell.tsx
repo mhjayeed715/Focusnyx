@@ -7,7 +7,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { BrainCircuit, BookOpen, CircleDollarSign, CirclePlay, HeartPulse, LayoutDashboard, LogOut, Menu, NotebookPen, Sparkles, X } from "lucide-react";
 import { APP_ROUTES } from "@/lib/constants/routes";
 import { createClient } from "@/lib/supabase/client";
-import { LanguageProvider, useLanguage } from "./language-context";
+import { LanguageProvider } from "./language-context";
+import { LanguageToggle } from "./LanguageToggle";
 
 const NAV_ITEMS = [
   { label: "Dashboard", href: APP_ROUTES.dashboard, icon: LayoutDashboard },
@@ -54,7 +55,6 @@ function ShellContent({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState<boolean>(initialCollapsed ?? false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const { lang, setLang } = useLanguage();
 
   const handleLogout = async () => {
     if (confirmLogout) {
@@ -74,6 +74,8 @@ function ShellContent({
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,#fff7d6_0%,#ffffff_40%,#f8fafc_100%)] text-[var(--foreground)] lg:flex">
+      <LanguageToggle className="fixed right-4 top-4 z-50" />
+
       <header className="sticky top-0 z-40 border-b-2 border-[var(--foreground)] bg-white/95 shadow-[0_4px_0_0_#1E293B] backdrop-blur lg:hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-3">
@@ -99,14 +101,6 @@ function ShellContent({
             </Link>
           </div>
 
-          <div className="inline-flex h-9 min-w-[7rem] items-center rounded-full border-2 border-[var(--foreground)] bg-white p-1 shadow-[4px_4px_0_0_#1E293B]">
-            <button onClick={() => setLang("en")} aria-pressed={lang === "en"} className={`nav-pill flex h-6 min-w-[3rem] items-center justify-center px-2 text-xs font-black ${lang === "en" ? "bg-[var(--foreground)] text-white" : ""}`}>
-              EN
-            </button>
-            <button onClick={() => setLang("bn")} aria-pressed={lang === "bn"} className={`nav-pill flex h-6 min-w-[3rem] items-center justify-center px-2 text-xs font-black ${lang === "bn" ? "bg-[var(--foreground)] text-white" : ""}`}>
-              BN
-            </button>
-          </div>
         </div>
       </header>
 
@@ -204,14 +198,6 @@ function ShellContent({
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">{title}</p>
                 <h1 className="mt-2 font-display text-3xl font-black sm:text-4xl">{title}</h1>
-              </div>
-              <div className="hidden h-10 items-center rounded-full border-2 border-[var(--foreground)] bg-white p-1 shadow-[4px_4px_0_0_#1E293B] sm:inline-flex">
-                <button onClick={() => setLang("en")} aria-pressed={lang === "en"} className={`nav-pill flex h-7 min-w-[3.25rem] items-center justify-center px-3 text-xs font-black ${lang === "en" ? "bg-[var(--foreground)] text-white" : ""}`}>
-                  EN
-                </button>
-                <button onClick={() => setLang("bn")} aria-pressed={lang === "bn"} className={`nav-pill flex h-7 min-w-[3.25rem] items-center justify-center px-3 text-xs font-black ${lang === "bn" ? "bg-[var(--foreground)] text-white" : ""}`}>
-                  BN
-                </button>
               </div>
             </div>
           </header>

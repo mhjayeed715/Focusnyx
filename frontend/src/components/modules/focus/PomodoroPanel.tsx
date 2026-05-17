@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle2, Clock3, Pause, Play, Plus, RotateCcw, ShieldAlert, Sparkles, Target, TimerReset, X } from "lucide-react";
+import { CheckCircle2, ChevronDown, Clock3, FileText, Image as ImageIcon, LibraryBig, Link2, Maximize2, Minimize2, Music2, Pause, Play, Plus, Radio, RotateCcw, ShieldAlert, Sparkles, Target, TimerReset, Volume2, X, Youtube } from "lucide-react";
 import { useLanguage } from "@/components/layout/language-context";
 import { usePomodoro } from "@/hooks/usePomodoro";
 import { completePomodoro, createTask } from "@/lib/backend";
@@ -28,6 +28,75 @@ type DistractionSite = {
   blocked: number;
   enabled: boolean;
 };
+
+type StudyResourceType = "youtube" | "pdf" | "image";
+
+type StudyResource = {
+  id: string;
+  type: StudyResourceType;
+  title: string;
+  link: string;
+  source: "link" | "file";
+  mimeType?: string;
+};
+
+type LocalProgress = {
+  xp: number;
+  focusMinutes: number;
+  sessionsCompleted: number;
+  completedTasks: number;
+};
+
+const LOCAL_TASKS_KEY = "localTasks";
+const LOCAL_PROGRESS_KEY = "focusnyxLocalProgressV1";
+const LOCAL_RESOURCES_KEY = "focusnyxStudyResourcesV1";
+
+const initialLocalProgress: LocalProgress = {
+  xp: 0,
+  focusMinutes: 0,
+  sessionsCompleted: 0,
+  completedTasks: 0,
+};
+
+const FOCUS_DURATION_PRESETS = [20, 25, 30, 60];
+const SOUND_PRESETS: Array<{ key: "none" | "rain" | "white" | "lofi"; label: string; icon: typeof Music2 }> = [
+  { key: "none", label: "None", icon: Music2 },
+  { key: "rain", label: "Rain", icon: Radio },
+  { key: "white", label: "White", icon: Volume2 },
+  { key: "lofi", label: "Lo-fi", icon: Music2 },
+];
+
+type AudioEngine = {
+  stop: () => void;
+};
+
+function createAmbientAudio(sound: "none" | "rain" | "white" | "lofi", volume: number): AudioEngine | null {
+  if (sound === "none") {
+    return null;
+  }
+
+  const audio = new Audio();
+  audio.loop = true;
+  audio.volume = Math.max(0, Math.min(1, volume / 100));
+
+  const soundMap: Record<string, string> = {
+    rain: "/audios/rain.mp3",
+    white: "/audios/whitesound.mp3",
+    lofi: "/audios/lofi.mp3",
+  };
+
+  audio.src = soundMap[sound] || "/audios/rain.mp3";
+  audio.play().catch(() => {
+    // ignore autoplay policy errors
+  });
+
+  return {
+    stop: () => {
+      audio.pause();
+      audio.currentTime = 0;
+    },
+  };
+}
 
 const INITIAL_DISTRACTION_SITES: DistractionSite[] = [
   { site: "youtube.com", blocked: 14, enabled: true },
@@ -75,6 +144,99 @@ function parseMicrotasks(text: string) {
     .map((entry) => entry.trim())
     .filter(Boolean)
     .slice(0, 8);
+}
+
+function readStudyResources(): StudyResource[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_RESOURCES_KEY);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.map((entry, index) => {
+      const resource = entry as Record<string, unknown>;
+      const type = resource.type === "pdf" || resource.type === "image" ? resource.type : "youtube";
+
+      return {
+        id: String(resource.id ?? `resource-${Date.now()}-${index}`),
+        type,
+        title: String(resource.title ?? "Untitled resource"),
+        link: String(resource.link ?? ""),
+        source: resource.source === "file" ? "file" : "link",
+        mimeType: typeof resource.mimeType === "string" ? resource.mimeType : undefined,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+function writeStudyResources(resources: StudyResource[]) {
+  try {
+    localStorage.setItem(LOCAL_RESOURCES_KEY, JSON.stringify(resources));
+  } catch {
+    // ignore
+  }
+}
+
+async function fileToResource(file: File): Promise<StudyResource> {
+  const url = URL.createObjectURL(file);
+  const type: StudyResourceType = file.type.startsWith("image/") ? "image" : file.type === "application/pdf" ? "pdf" : "pdf";
+
+  return {
+    id: `resource-${Date.now()}`,
+    type,
+    title: file.name.replace(/\.[^.]+$/, ""),
+    link: url,
+    source: "file",
+    mimeType: file.type || "application/octet-stream",
+  };
+}
+
+function readLocalProgress(): LocalProgress {
+  try {
+    const raw = localStorage.getItem(LOCAL_PROGRESS_KEY);
+    if (!raw) {
+      return initialLocalProgress;
+    }
+
+    const parsed = JSON.parse(raw) as Partial<LocalProgress>;
+    return {
+      xp: Number(parsed.xp ?? 0),
+      focusMinutes: Number(parsed.focusMinutes ?? 0),
+      sessionsCompleted: Number(parsed.sessionsCompleted ?? 0),
+      completedTasks: Number(parsed.completedTasks ?? 0),
+    };
+  } catch {
+    return initialLocalProgress;
+  }
+}
+
+function writeLocalProgress(next: LocalProgress) {
+  try {
+    localStorage.setItem(LOCAL_PROGRESS_KEY, JSON.stringify(next));
+  } catch {
+    // ignore
+  }
+}
+
+function toSharedTaskShape(tasks: FocusTask[]) {
+  return tasks.map((task) => ({
+    id: task.id,
+    title: task.title,
+    subject: task.subject,
+    estimate: task.minutes,
+    minutes: task.minutes,
+    xp: task.xp,
+    completed: task.status === "done",
+    status: task.status,
+    subtasks: task.subtasks,
+  }));
 }
 
 export function PomodoroPanel() {
@@ -171,10 +333,20 @@ export function PomodoroPanel() {
   const [newTaskEstimate, setNewTaskEstimate] = useState("25");
   const [newTaskMicrotasks, setNewTaskMicrotasks] = useState("Define the goal\nBreak into steps\nStart the first step");
   const [totalXp, setTotalXp] = useState(0);
-
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [focusSound, setFocusSound] = useState<"none" | "rain" | "white" | "lofi">("rain");
+  const [focusVolume, setFocusVolume] = useState(70);
+  const [resources, setResources] = useState<StudyResource[]>([]);
+  const [resourceType, setResourceType] = useState<StudyResourceType>("youtube");
+  const [resourceTitle, setResourceTitle] = useState("");
+  const [resourceLink, setResourceLink] = useState("");
+  const [selectedFileName, setSelectedFileName] = useState("");
+  const [selectedFileUrl, setSelectedFileUrl] = useState("");
+  const [selectedMimeType, setSelectedMimeType] = useState("");
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("localTasks");
+      const saved = localStorage.getItem(LOCAL_TASKS_KEY);
       if (!saved) {
         return;
       }
@@ -202,10 +374,47 @@ export function PomodoroPanel() {
 
       setTasks(normalizedTasks);
       setActiveTaskId(normalizedTasks[0]?.id ?? "");
+
+      const progress = readLocalProgress();
+      setTotalXp(progress.xp);
     } catch {
       // ignore
     }
   }, []);
+
+  useEffect(() => {
+    try {
+      setResources(readStudyResources());
+    } catch {
+      setResources([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    const syncFullscreenState = () => setIsFullscreen(Boolean(document.fullscreenElement));
+
+    document.addEventListener("fullscreenchange", syncFullscreenState);
+    syncFullscreenState();
+
+    return () => document.removeEventListener("fullscreenchange", syncFullscreenState);
+  }, []);
+
+  useEffect(() => {
+    writeStudyResources(resources);
+  }, [resources]);
+
+  useEffect(() => {
+    if (audioEngine) {
+      audioEngine.stop();
+    }
+
+    const nextEngine = createAmbientAudio(focusSound, focusVolume);
+    setAudioEngine(nextEngine);
+
+    return () => {
+      nextEngine?.stop();
+    };
+  }, [focusSound, focusVolume]);
 
   const activeTask = tasks.find((task) => task.id === activeTaskId) ?? tasks[0] ?? null;
 
@@ -213,7 +422,7 @@ export function PomodoroPanel() {
     setTasks((current) => {
       const next = updater(current);
       try {
-        localStorage.setItem("localTasks", JSON.stringify(next));
+        localStorage.setItem(LOCAL_TASKS_KEY, JSON.stringify(toSharedTaskShape(next)));
       } catch {
         // ignore
       }
@@ -222,11 +431,20 @@ export function PomodoroPanel() {
   };
 
   const { minutes, seconds, isRunning, start, pause, reset, setDuration } = usePomodoro(durationMinutes, async () => {
+    const fallbackXp = Math.max(25, durationMinutes * 4);
+
     try {
       const result = await completePomodoro(durationMinutes);
       const reward = result.reward as { xpReward?: number } | undefined;
-      const earnedXp = reward?.xpReward ?? Math.max(25, durationMinutes * 4);
+      const earnedXp = reward?.xpReward ?? fallbackXp;
       setTotalXp((current) => current + earnedXp);
+      const currentProgress = readLocalProgress();
+      writeLocalProgress({
+        ...currentProgress,
+        xp: currentProgress.xp + earnedXp,
+        focusMinutes: currentProgress.focusMinutes + durationMinutes,
+        sessionsCompleted: currentProgress.sessionsCompleted + 1,
+      });
 
       if (activeTask && activeTask.status !== "done") {
         updateTasks((current) => current.map((entry) => (entry.id === activeTask.id ? { ...entry, status: "done" } : entry)));
@@ -234,7 +452,15 @@ export function PomodoroPanel() {
 
       setStatusMessage(activeTask ? `${copy.sessionComplete}. +${earnedXp} XP for ${activeTask.title}` : `${copy.sessionComplete}. +${earnedXp} XP`);
     } catch {
-      setStatusMessage("Session complete, but backend sync is unavailable right now.");
+      setTotalXp((current) => current + fallbackXp);
+      const currentProgress = readLocalProgress();
+      writeLocalProgress({
+        ...currentProgress,
+        xp: currentProgress.xp + fallbackXp,
+        focusMinutes: currentProgress.focusMinutes + durationMinutes,
+        sessionsCompleted: currentProgress.sessionsCompleted + 1,
+      });
+      setStatusMessage(`Session complete, backend sync is unavailable right now. +${fallbackXp} XP saved locally.`);
     }
   });
 
@@ -285,6 +511,12 @@ export function PomodoroPanel() {
 
     updateTasks((current) => current.map((entry) => (entry.id === taskId ? { ...entry, status: "done" } : entry)));
     setTotalXp((current) => current + task.xp);
+    const currentProgress = readLocalProgress();
+    writeLocalProgress({
+      ...currentProgress,
+      xp: currentProgress.xp + task.xp,
+      completedTasks: currentProgress.completedTasks + 1,
+    });
 
     const nextTask = tasks.find((entry) => entry.id !== taskId && entry.status !== "done");
     if (nextTask) {
@@ -343,111 +575,202 @@ export function PomodoroPanel() {
     setBlockedSites((current) => current.map((entry) => (entry.site === site ? { ...entry, enabled: !entry.enabled } : entry)));
   };
 
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch {
+      setStatusMessage("Fullscreen is not available in this browser.");
+    }
+  };
+
+  const addResource = () => {
+    if (!resourceTitle.trim()) {
+      return;
+    }
+
+    const nextResource: StudyResource = {
+      id: `resource-${Date.now()}`,
+      type: resourceType,
+      title: resourceTitle.trim(),
+      link: resourceLink.trim(),
+      source: "link",
+    };
+
+    setResources((current) => [nextResource, ...current]);
+    setResourceTitle("");
+    setResourceLink("");
+    setStatusMessage(`Added ${nextResource.title} to study resources.`);
+  };
+
+  const handleResourceFileUpload = async (file: File | null) => {
+    if (!file) {
+      return;
+    }
+
+    const nextResource = await fileToResource(file);
+    setResources((current) => [nextResource, ...current]);
+    setSelectedFileName(file.name);
+    setSelectedFileUrl(nextResource.link);
+    setSelectedMimeType(file.type || "application/octet-stream");
+    setResourceType(nextResource.type);
+    setStatusMessage(`Added ${file.name} to study resources.`);
+  };
+
+  const toggleSubtask = (taskId: string, subtaskId: string) => {
+    updateTasks((current) =>
+      current.map((task) =>
+        task.id === taskId
+          ? {
+              ...task,
+              subtasks: task.subtasks.map((subtask) =>
+                subtask.id === subtaskId ? { ...subtask, completed: !subtask.completed } : subtask,
+              ),
+            }
+          : task,
+      ),
+    );
+  };
+
+  const removeResource = (resourceId: string) => {
+    setResources((current) => {
+      const next = current.filter((resource) => resource.id !== resourceId);
+      const removed = current.find((resource) => resource.id === resourceId);
+      if (removed?.source === "file" && removed.link.startsWith("blob:")) {
+        URL.revokeObjectURL(removed.link);
+      }
+      return next;
+    });
+  };
+
+  const [audioEngine, setAudioEngine] = useState<AudioEngine | null>(null);
+
   return (
     <section className="space-y-6">
-      <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <div className="rounded-[28px] border-2 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B]">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">{copy.header}</p>
-              <h2 className="mt-2 font-display text-3xl font-black">{copy.title}</h2>
-            </div>
-            <span className="grid h-12 w-12 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#F472B6] text-white shadow-[4px_4px_0_0_#1E293B]">
-              <TimerReset size={20} strokeWidth={2.5} />
+      <div className="rounded-[32px] border-2 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B]">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-[#22E6A8]">{copy.header}</p>
+            <h2 className="mt-2 font-display text-3xl font-black">{copy.title}</h2>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-[var(--muted-fg)]">{copy.description}</p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <button onClick={toggleFullscreen} className="secondary-button flex h-12 items-center gap-2 rounded-full border-2 border-[var(--foreground)] bg-white px-5 text-sm font-bold shadow-[4px_4px_0_0_#1E293B]">
+              {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              {isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+            </button>
+            <button onClick={start} disabled={isRunning} className="candy-button flex h-12 items-center gap-2 rounded-full border-2 border-[var(--foreground)] px-5 text-sm font-black disabled:opacity-60">
+              <Play size={16} /> Start focus session
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-wrap gap-2 text-xs font-black uppercase tracking-[0.18em] text-[var(--muted-fg)]">
+          {copy.chips.map((chip) => (
+            <span key={chip} className="hard-chip px-3 py-1.5">
+              {chip}
             </span>
-          </div>
+          ))}
+        </div>
+      </div>
 
-          <div className="mt-4 flex flex-wrap gap-2 text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">
-            {copy.chips.map((chip) => (
-              <span key={chip} className="hard-chip px-3 py-1.5">{chip}</span>
-            ))}
-          </div>
-
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--muted-fg)]">{copy.description}</p>
-
-          <div className="mt-5 flex flex-wrap gap-2">
-            {presets.map((preset) => (
-              <button
-                key={preset}
-                onClick={() => {
-                  setDurationMinutes(preset);
-                  setCustomMinutes(preset);
-                  reset(preset);
-                }}
-                className={`rounded-full border-2 border-[var(--foreground)] px-4 py-2 text-sm font-black shadow-[4px_4px_0_0_#1E293B] ${durationMinutes === preset ? "bg-[var(--foreground)] text-white" : "bg-[#FFF7D6]"}`}
-              >
-                {preset} min
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">
-                <Clock3 size={14} strokeWidth={2.5} />
-                {copy.customDuration}
-              </span>
-              <input
-                value={customMinutes}
-                onChange={(event) => setCustomMinutes(Number(event.target.value) || 25)}
-                onBlur={() => {
-                  const nextDuration = Math.max(5, Math.min(180, customMinutes));
-                  setCustomMinutes(nextDuration);
-                  setDurationMinutes(nextDuration);
-                  reset(nextDuration);
-                }}
-                type="number"
-                min="5"
-                max="180"
-                className="w-full rounded-[18px] border-2 border-[var(--foreground)] bg-white px-4 py-3.5 text-base shadow-[4px_4px_0_0_#1E293B] outline-none"
-              />
-            </label>
-
-            <div className="flex flex-wrap gap-3">
-              <button onClick={start} disabled={isRunning} className="candy-button flex h-12 items-center gap-2 px-5 text-sm disabled:opacity-60">
-                <Play size={16} /> {copy.start}
-              </button>
-              <button onClick={pause} disabled={!isRunning} className="secondary-button flex h-12 items-center gap-2 px-5 text-sm disabled:opacity-60">
-                <Pause size={16} /> {copy.pause}
-              </button>
-              <button onClick={() => reset(durationMinutes)} className="secondary-button flex h-12 items-center gap-2 px-5 text-sm">
-                <RotateCcw size={16} /> {copy.reset}
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-6 grid place-items-center rounded-[28px] border-2 border-[var(--foreground)] bg-[#FFF7D6] p-8 shadow-[4px_4px_0_0_#1E293B]">
-            <div className="relative h-24 w-24">
-              <div className="absolute inset-0 flex items-center justify-center rounded-full ring-2 ring-[var(--foreground)]">
-                <p className="font-display text-5xl font-black leading-none">
-                  {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
-                </p>
+      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+        <div className="rounded-[28px] border-2 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B]">
+          <div className="rounded-[26px] border-2 border-[var(--foreground)] bg-[#FFF7D6] p-5 shadow-[4px_4px_0_0_#1E293B]">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">{copy.header}</p>
+                  <h3 className="mt-2 font-display text-3xl font-black">{copy.title}</h3>
+                </div>
+                <span className="grid h-12 w-12 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#F472B6] text-white shadow-[4px_4px_0_0_#1E293B]">
+                  <TimerReset size={20} strokeWidth={2.5} />
+                </span>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {presets.map((preset) => (
+                  <button
+                    key={preset}
+                    onClick={() => {
+                      setDurationMinutes(preset);
+                      setCustomMinutes(preset);
+                      reset(preset);
+                    }}
+                    className={`rounded-full border-2 border-[var(--foreground)] px-4 py-2 text-sm font-black shadow-[4px_4px_0_0_#1E293B] ${durationMinutes === preset ? "bg-[var(--foreground)] text-white" : "bg-[#FFF7D6]"}`}
+                  >
+                    {preset} min
+                  </button>
+                ))}
+              </div>
+              <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+                <label className="block">
+                  <span className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">
+                    <Clock3 size={14} strokeWidth={2.5} />
+                    {copy.customDuration}
+                  </span>
+                  <input
+                    value={customMinutes}
+                    onChange={(event) => setCustomMinutes(Number(event.target.value) || 25)}
+                    onBlur={() => {
+                      const nextDuration = Math.max(5, Math.min(180, customMinutes));
+                      setCustomMinutes(nextDuration);
+                      setDurationMinutes(nextDuration);
+                      reset(nextDuration);
+                    }}
+                    type="number"
+                    min="5"
+                    max="180"
+                    className="w-full rounded-[18px] border-2 border-[var(--foreground)] bg-white px-4 py-3.5 text-base shadow-[4px_4px_0_0_#1E293B] outline-none"
+                  />
+                </label>
+                <div className="flex flex-wrap gap-3">
+                  <button onClick={start} disabled={isRunning} className="candy-button flex h-12 items-center gap-2 px-5 text-sm disabled:opacity-60">
+                    <Play size={16} /> {copy.start}
+                  </button>
+                  <button onClick={pause} disabled={!isRunning} className="secondary-button flex h-12 items-center gap-2 px-5 text-sm disabled:opacity-60">
+                    <Pause size={16} /> {copy.pause}
+                  </button>
+                  <button onClick={() => reset(durationMinutes)} className="secondary-button flex h-12 items-center gap-2 px-5 text-sm">
+                    <RotateCcw size={16} /> {copy.reset}
+                  </button>
+                </div>
               </div>
             </div>
-            <p className="mt-2 text-sm font-bold text-[var(--muted-fg)]">{isRunning ? copy.running : copy.ready}</p>
-            {activeTask ? (
-              <div className="mt-3 flex items-center gap-2 rounded-full border-2 border-[var(--foreground)] bg-white px-4 py-2 text-sm font-black shadow-[4px_4px_0_0_#1E293B]">
-                <Target size={16} strokeWidth={2.5} />
-                {activeTask.title}
+            <div className="mt-4 grid place-items-center rounded-[28px] border-2 border-[var(--foreground)] bg-[#FFF7D6] p-8 shadow-[4px_4px_0_0_#1E293B]">
+              <div className="relative h-24 w-24">
+                <div className="absolute inset-0 flex items-center justify-center rounded-full ring-2 ring-[var(--foreground)]">
+                  <p className="font-display text-5xl font-black leading-none">
+                    {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
+                  </p>
+                </div>
               </div>
-            ) : null}
-            {statusMessage ? <p className="mt-3 text-sm font-semibold text-[var(--foreground)]">{statusMessage}</p> : null}
-          </div>
+              <p className="mt-2 text-sm font-bold text-[var(--muted-fg)]">{isRunning ? copy.running : copy.ready}</p>
+              {activeTask ? (
+                <div className="mt-3 flex items-center gap-2 rounded-full border-2 border-[var(--foreground)] bg-white px-4 py-2 text-sm font-black shadow-[4px_4px_0_0_#1E293B]">
+                  <Target size={16} strokeWidth={2.5} />
+                  {activeTask.title}
+                </div>
+              ) : null}
+              {statusMessage ? <p className="mt-3 text-sm font-semibold text-[var(--foreground)]">{statusMessage}</p> : null}
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-[22px] border-2 border-[var(--foreground)] bg-[#ECFDF5] p-4 shadow-[4px_4px_0_0_#1E293B]">
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-[var(--muted-fg)]">XP reward</p>
+                <p className="mt-2 font-display text-2xl font-black">+{Math.max(60, durationMinutes * 4)} XP</p>
+              </div>
+              <div className="rounded-[22px] border-2 border-[var(--foreground)] bg-[#FDF2F8] p-4 shadow-[4px_4px_0_0_#1E293B]">
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-[var(--muted-fg)]">Focus depth</p>
+                <p className="mt-2 font-display text-2xl font-black">{Math.min(100, durationMinutes * 2)}%</p>
+              </div>
+              <div className="rounded-[22px] border-2 border-[var(--foreground)] bg-[#FFF7D6] p-4 shadow-[4px_4px_0_0_#1E293B]">
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-[var(--muted-fg)]">{copy.nextBadge}</p>
+                <p className="mt-2 font-display text-2xl font-black">{badges.find((badge) => !badge.unlocked)?.label ?? copy.allUnlocked}</p>
+              </div>
+            </div>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-[22px] border-2 border-[var(--foreground)] bg-[#ECFDF5] p-4 shadow-[4px_4px_0_0_#1E293B]">
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-[var(--muted-fg)]">XP reward</p>
-              <p className="mt-2 font-display text-2xl font-black">+{Math.max(60, durationMinutes * 4)} XP</p>
-            </div>
-            <div className="rounded-[22px] border-2 border-[var(--foreground)] bg-[#FDF2F8] p-4 shadow-[4px_4px_0_0_#1E293B]">
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-[var(--muted-fg)]">Hyperfocus depth</p>
-              <p className="mt-2 font-display text-2xl font-black">{Math.min(100, durationMinutes * 2)}%</p>
-            </div>
-            <div className="rounded-[22px] border-2 border-[var(--foreground)] bg-[#FFF7D6] p-4 shadow-[4px_4px_0_0_#1E293B]">
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-[var(--muted-fg)]">{copy.nextBadge}</p>
-              <p className="mt-2 font-display text-2xl font-black">{badges.find((badge) => !badge.unlocked)?.label ?? copy.allUnlocked}</p>
-            </div>
-          </div>
         </div>
 
         <div className="rounded-[28px] border-2 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B]">
@@ -464,51 +787,67 @@ export function PomodoroPanel() {
               </button>
             </div>
           </div>
-
           <div className="mt-4 space-y-3">
             {tasks.map((task) => {
               const isActive = task.id === activeTaskId;
               const isDone = task.status === "done";
+              const isExpanded = expandedTaskId === task.id;
 
               return (
-                <div
-                  key={task.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleTaskSelect(task)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      handleTaskSelect(task);
-                    }
-                  }}
-                  className={`cursor-pointer rounded-[20px] border-2 border-[var(--foreground)] px-4 py-3 shadow-[4px_4px_0_0_#1E293B] transition ${isActive ? "bg-[#FFF7D6]" : "bg-[#FAFAFA]"}`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className={`font-bold ${isDone ? "line-through text-[var(--muted-fg)]" : ""}`}>{task.title}</p>
-                      <p className="mt-1 text-xs font-semibold text-[var(--muted-fg)]">{task.subject} • {task.minutes} min</p>
+                <div key={task.id}>
+                  <div
+                    onClick={() => setExpandedTaskId(isExpanded ? null : task.id)}
+                    className={`cursor-pointer rounded-[20px] border-2 border-[var(--foreground)] px-4 py-3 shadow-[4px_4px_0_0_#1E293B] transition ${isActive ? "bg-[#FFF7D6]" : "bg-[#FAFAFA]"}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <p className={`font-bold ${isDone ? "line-through text-[var(--muted-fg)]" : ""}`}>{task.title}</p>
+                        <p className="mt-1 text-xs font-semibold text-[var(--muted-fg)]">{task.subject} • {task.minutes} min</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="hard-chip px-3 py-1.5 text-xs font-black">+{task.xp} XP</span>
+                        {task.subtasks.length > 0 && (
+                          <ChevronDown size={16} className={`transition ${isExpanded ? "rotate-180" : ""}`} />
+                        )}
+                      </div>
                     </div>
-                    <span className="hard-chip px-3 py-1.5 text-xs font-black">+{task.xp} XP</span>
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <span className="text-xs font-semibold text-[var(--muted-fg)]">{isDone ? copy.done : task.status.replace("-", " ")}</span>
+                      <button
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleCompleteTask(task.id);
+                        }}
+                        disabled={isDone}
+                        className="rounded-full border-2 border-[var(--foreground)] bg-white px-3 py-1.5 text-xs font-black shadow-[3px_3px_0_0_#1E293B] disabled:opacity-50"
+                      >
+                        {isDone ? copy.done : copy.complete}
+                      </button>
+                    </div>
                   </div>
-                  <div className="mt-3 flex items-center justify-between gap-3">
-                    <span className="text-xs font-semibold text-[var(--muted-fg)]">{isDone ? copy.done : task.status.replace("-", " ")}</span>
-                    <button
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleCompleteTask(task.id);
-                      }}
-                      disabled={isDone}
-                      className="rounded-full border-2 border-[var(--foreground)] bg-white px-3 py-1.5 text-xs font-black shadow-[3px_3px_0_0_#1E293B] disabled:opacity-50"
-                    >
-                      {isDone ? copy.done : copy.complete}
-                    </button>
-                  </div>
+
+                  {isExpanded && task.subtasks.length > 0 && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-2 space-y-2 border-l-2 border-[var(--foreground)] pl-4">
+                      {task.subtasks.map((subtask) => (
+                        <div
+                          key={subtask.id}
+                          onClick={() => toggleSubtask(task.id, subtask.id)}
+                          className="w-full rounded-[16px] border-2 border-[var(--foreground)] bg-white px-3 py-2 text-left text-sm transition hover:bg-[var(--muted)] cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className={`grid h-4 w-4 shrink-0 place-items-center rounded-full border-2 border-[var(--foreground)] ${subtask.completed ? "bg-[#34D399]" : "bg-white"}`}>
+                              {subtask.completed ? <CheckCircle2 size={10} strokeWidth={3} className="text-white" /> : null}
+                            </span>
+                            <span className={subtask.completed ? "line-through text-[var(--muted-fg)]" : ""}>{subtask.title}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </motion.div>
+                  )}
                 </div>
               );
             })}
           </div>
-
           <div className="mt-4 rounded-[22px] border-2 border-[var(--foreground)] bg-[var(--muted)] p-4 shadow-[4px_4px_0_0_#1E293B]">
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">{copy.progress}</p>
@@ -526,8 +865,49 @@ export function PomodoroPanel() {
         <div className="rounded-[28px] border-2 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B]">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">{copy.distractionTracker}</p>
-              <h3 className="mt-2 font-display text-2xl font-black">{copy.blockedAttempts}</h3>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">Focus sounds</p>
+              <h3 className="mt-2 font-display text-2xl font-black">Ambient mode</h3>
+            </div>
+            <Music2 size={20} className="text-[#22E6A8]" />
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {SOUND_PRESETS.map((sound) => {
+              const Icon = sound.icon;
+              const active = focusSound === sound.key;
+
+              return (
+                <button
+                  key={sound.key}
+                  onClick={() => setFocusSound(sound.key)}
+                  className={`rounded-[18px] border-2 px-3 py-3 text-left text-sm font-black transition shadow-[4px_4px_0_0_#1E293B] ${active ? "border-[#22E6A8] bg-[#22E6A8] text-[#08111F] shadow-[6px_6px_0_0_#F472B6]" : "border-[var(--foreground)] bg-white text-[var(--foreground)]"}`}
+                >
+                  <Icon size={16} className="mb-2" />
+                  <span className="block">{sound.label}</span>
+                </button>
+              );
+            })}
+          </div>
+          <label className="mt-4 block">
+            <span className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.22em] text-[var(--muted-fg)]">
+              <Volume2 size={14} />
+              Volume
+            </span>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={focusVolume}
+              onChange={(event) => setFocusVolume(Number(event.target.value) || 0)}
+              className="w-full accent-[#22E6A8]"
+            />
+          </label>
+        </div>
+
+        <div className="rounded-[28px] border-2 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B]">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">Distraction guard</p>
+              <h3 className="mt-2 font-display text-2xl font-black">Blocked domains</h3>
             </div>
             <ShieldAlert size={20} className="text-[#F472B6]" />
           </div>
@@ -547,24 +927,157 @@ export function PomodoroPanel() {
             ))}
           </div>
         </div>
+      </div>
 
-        <div className="rounded-[28px] border-2 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B]">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">{copy.badges}</p>
-            <Sparkles size={20} className="text-[#8B5CF6]" />
+      <div className="rounded-[28px] border-2 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B]">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">Study resources</p>
+            <h3 className="mt-2 font-display text-2xl font-black">Resource library</h3>
           </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {badges.map((badge) => (
-              <span
-                key={badge.label}
-                className={`hard-chip px-4 py-2 text-sm font-bold ${badge.unlocked ? "bg-[#34D399] text-[var(--foreground)]" : "bg-[var(--muted)] text-[var(--muted-fg)]"}`}
-              >
-                {badge.label}
-              </span>
-            ))}
+          <LibraryBig size={20} className="text-[#22E6A8]" />
+        </div>
+
+        <div className="mt-4 space-y-3">
+          <div className="rounded-[26px] border-2 border-[var(--foreground)] bg-white p-5 shadow-[4px_4px_0_0_#1E293B]">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-[var(--muted-fg)]">Add YouTube video or link</p>
+                <h3 className="mt-2 font-display text-2xl font-black">Online resources</h3>
+              </div>
+              <Youtube size={20} className="text-[#22E6A8]" />
+            </div>
+            <div className="mt-4 flex gap-2">
+              {(["youtube", "pdf", "image"] as StudyResourceType[]).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setResourceType(type)}
+                  className={`rounded-full border-2 border-[var(--foreground)] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] ${resourceType === type ? "bg-[#22E6A8] text-[#08111F]" : "bg-white text-[var(--foreground)]"}`}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+            <div className="mt-4 space-y-3 rounded-[20px] border-2 border-[var(--foreground)] bg-[var(--muted)] p-4">
+              <input
+                value={resourceTitle}
+                onChange={(event) => setResourceTitle(event.target.value)}
+                className="w-full rounded-[16px] border-2 border-[var(--foreground)] bg-white px-4 py-3 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted-fg)]"
+                placeholder="Title"
+              />
+              <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                <input
+                  value={resourceLink}
+                  onChange={(event) => setResourceLink(event.target.value)}
+                  className="w-full rounded-[16px] border-2 border-[var(--foreground)] bg-white px-4 py-3 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted-fg)]"
+                  placeholder={resourceType === "youtube" ? "YouTube link" : resourceType === "pdf" ? "PDF link" : "Image link"}
+                />
+                <button onClick={addResource} className="candy-button rounded-[16px] border-2 border-[var(--foreground)] px-4 py-3 text-sm font-black text-[#08111F]">
+                  Add
+                </button>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <label className="block cursor-pointer rounded-[16px] border-2 border-dashed border-[var(--foreground)] bg-white px-4 py-3 text-sm font-bold text-[var(--muted-fg)] shadow-[3px_3px_0_0_#1E293B]">
+                    Upload PDF, DOC, DOCX, or image
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,image/*"
+                      className="hidden"
+                      onChange={(event) => void handleResourceFileUpload(event.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                  {selectedFileName ? <p className="mt-2 text-xs font-semibold text-[var(--muted-fg)]">Selected: {selectedFileName}</p> : null}
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="mt-5 rounded-[20px] border-2 border-[var(--foreground)] bg-[#ECFDF5] p-4 shadow-[4px_4px_0_0_#1E293B]">
-            <p className="text-sm leading-7 text-[var(--foreground)]">{copy.xpText}</p>
+
+          <div className="rounded-[26px] border-2 border-[var(--foreground)] bg-white p-5 shadow-[4px_4px_0_0_#1E293B]">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-[var(--muted-fg)]">Resource library</p>
+                <h3 className="mt-2 font-display text-2xl font-black">All resources</h3>
+              </div>
+            </div>
+
+            <div className="mt-4 min-h-[260px] rounded-[24px] border-2 border-dashed border-[var(--foreground)] bg-[var(--muted)] p-4">
+              {resources.length === 0 ? (
+                <div className="grid h-full min-h-[220px] place-items-center text-center text-[var(--muted-fg)]">
+                  <div>
+                    <FileText size={32} className="mx-auto mb-3" />
+                    <p className="text-sm font-semibold">No resources added yet.</p>
+                    <p className="mt-1 text-xs">Add a YouTube link, PDF, or image to study from.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {resources.map((resource) => {
+                    const ResourceIcon = resource.type === "youtube" ? Youtube : resource.type === "pdf" ? FileText : ImageIcon;
+
+                    return (
+                      <div key={resource.id} className="rounded-[18px] border-2 border-[var(--foreground)] bg-white p-4 text-[var(--foreground)] shadow-[4px_4px_0_0_#1E293B] hover:shadow-[6px_6px_0_0_#1E293B] transition">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3">
+                            <span className="grid h-10 w-10 place-items-center rounded-full bg-[#22E6A8] text-white shadow-[3px_3px_0_0_#1E293B] shrink-0">
+                              <ResourceIcon size={16} />
+                            </span>
+                            <div>
+                              <p className="font-black">{resource.title}</p>
+                              <p className="mt-1 text-xs uppercase tracking-[0.18em] text-[var(--muted-fg)]">{resource.type}</p>
+                              {resource.link ? (
+                                <a href={resource.link} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-[#22E6A8] hover:underline">
+                                  <Link2 size={12} />
+                                  Open resource
+                                </a>
+                              ) : null}
+                            </div>
+                          </div>
+                          <button onClick={() => removeResource(resource.id)} className="rounded-full border-2 border-[var(--foreground)] px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-[var(--muted-fg)]">
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {selectedFileUrl ? (
+              <div className="mt-4 rounded-[20px] border-2 border-[var(--foreground)] bg-white p-4 shadow-[4px_4px_0_0_#1E293B]">
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.22em] text-[var(--muted-fg)]">Current preview</p>
+                    <p className="mt-1 font-bold">{selectedFileName || "Selected resource"}</p>
+                  </div>
+                  <span className="rounded-full border-2 border-[var(--foreground)] bg-[#FFF7D6] px-3 py-1 text-xs font-black uppercase tracking-[0.16em]">
+                    {selectedMimeType || "file"}
+                  </span>
+                </div>
+                <div className="overflow-hidden rounded-[18px] border-2 border-[var(--foreground)] bg-[var(--muted)]">
+                  {selectedMimeType.startsWith("image/") ? (
+                    <img src={selectedFileUrl} alt={selectedFileName || "Uploaded resource"} className="w-full h-auto object-contain bg-white" />
+                  ) : selectedMimeType === "application/pdf" ? (
+                    <iframe title={selectedFileName || "PDF preview"} src={selectedFileUrl} className="w-full h-[600px] bg-white" />
+                  ) : (
+                    <div className="grid min-h-[240px] place-items-center bg-white p-6 text-center">
+                      <div>
+                        <FileText size={32} className="mx-auto text-[var(--muted-fg)]" />
+                        <p className="mt-3 font-bold">File stored locally in tab.</p>
+                        <p className="mt-1 text-sm text-[var(--muted-fg)]">
+                          DOC/DOCX files cannot be previewed in browser. Use open link to view.
+                        </p>
+                        <a href={selectedFileUrl} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 rounded-full border-2 border-[var(--foreground)] bg-[#22E6A8] px-4 py-2 text-sm font-black text-[#08111F] shadow-[4px_4px_0_0_#1E293B]">
+                          <Link2 size={14} /> Open file
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
