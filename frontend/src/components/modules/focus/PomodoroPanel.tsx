@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle2, ChevronDown, Clock3, FileText, Image as ImageIcon, LibraryBig, Link2, Maximize2, Minimize2, Music2, Pause, Play, Plus, Radio, RotateCcw, ShieldAlert, Sparkles, Target, TimerReset, Volume2, X, Youtube } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, FileText, Image as ImageIcon, LibraryBig, Link2, Maximize2, Minimize2, Music2, Pause, Play, Plus, Radio, RotateCcw, ShieldAlert, Sparkles, Target, TimerReset, Volume2, X, Youtube } from "lucide-react";
 import { useLanguage } from "@/components/layout/language-context";
 import { usePomodoro } from "@/hooks/usePomodoro";
 import { completePomodoro, createTask } from "@/lib/backend";
@@ -239,6 +239,25 @@ function toSharedTaskShape(tasks: FocusTask[]) {
   }));
 }
 
+function extractYouTubeId(url: string): string | null {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+    /^([a-zA-Z0-9_-]{11})$/,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match?.[1]) return match[1];
+  }
+  return null;
+}
+
+function getYouTubeEmbedUrl(url: string): string {
+  const videoId = extractYouTubeId(url);
+  return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
+}
+
 export function PomodoroPanel() {
   const { lang } = useLanguage();
   const copy = lang === "bn"
@@ -344,6 +363,7 @@ export function PomodoroPanel() {
   const [selectedFileUrl, setSelectedFileUrl] = useState("");
   const [selectedMimeType, setSelectedMimeType] = useState("");
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [selectedResourceIndex, setSelectedResourceIndex] = useState(0);
   useEffect(() => {
     try {
       const saved = localStorage.getItem(LOCAL_TASKS_KEY);
@@ -588,7 +608,7 @@ export function PomodoroPanel() {
   };
 
   const addResource = () => {
-    if (!resourceTitle.trim()) {
+    if (!resourceTitle.trim() || !resourceLink.trim()) {
       return;
     }
 
@@ -601,6 +621,10 @@ export function PomodoroPanel() {
     };
 
     setResources((current) => [nextResource, ...current]);
+    setSelectedResourceIndex(0);
+    setSelectedFileName(nextResource.title);
+    setSelectedFileUrl(resourceType === "youtube" ? getYouTubeEmbedUrl(nextResource.link) : nextResource.link);
+    setSelectedMimeType(resourceType === "youtube" ? "video/youtube" : resourceType === "pdf" ? "application/pdf" : "image/");
     setResourceTitle("");
     setResourceLink("");
     setStatusMessage(`Added ${nextResource.title} to study resources.`);
@@ -613,6 +637,7 @@ export function PomodoroPanel() {
 
     const nextResource = await fileToResource(file);
     setResources((current) => [nextResource, ...current]);
+    setSelectedResourceIndex(0);
     setSelectedFileName(file.name);
     setSelectedFileUrl(nextResource.link);
     setSelectedMimeType(file.type || "application/octet-stream");
@@ -644,6 +669,23 @@ export function PomodoroPanel() {
       }
       return next;
     });
+  };
+
+  const handleResourceNavigation = (direction: "prev" | "next") => {
+    if (resources.length === 0) return;
+    
+    let nextIndex = selectedResourceIndex;
+    if (direction === "next") {
+      nextIndex = (selectedResourceIndex + 1) % resources.length;
+    } else {
+      nextIndex = (selectedResourceIndex - 1 + resources.length) % resources.length;
+    }
+    
+    const resource = resources[nextIndex];
+    setSelectedResourceIndex(nextIndex);
+    setSelectedFileName(resource.title);
+    setSelectedFileUrl(resource.type === "youtube" ? getYouTubeEmbedUrl(resource.link) : resource.link);
+    setSelectedMimeType(resource.type === "youtube" ? "video/youtube" : resource.type === "pdf" ? "application/pdf" : resource.mimeType || "image/");
   };
 
   const [audioEngine, setAudioEngine] = useState<AudioEngine | null>(null);
@@ -1045,19 +1087,44 @@ export function PomodoroPanel() {
               )}
             </div>
 
-            {selectedFileUrl ? (
+            {resources.length > 0 && selectedFileUrl ? (
               <div className="mt-4 rounded-[20px] border-2 border-[var(--foreground)] bg-white p-4 shadow-[4px_4px_0_0_#1E293B]">
                 <div className="flex items-center justify-between gap-3 mb-4">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.22em] text-[var(--muted-fg)]">Current preview</p>
-                    <p className="mt-1 font-bold">{selectedFileName || "Selected resource"}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-black uppercase tracking-[0.22em] text-[var(--muted-fg)]">Resource Preview</p>
+                    <p className="mt-1 font-bold truncate">{selectedFileName || "Selected resource"}</p>
+                    <p className="text-xs text-[var(--muted-fg)] mt-1">{selectedResourceIndex + 1} / {resources.length}</p>
                   </div>
-                  <span className="rounded-full border-2 border-[var(--foreground)] bg-[#FFF7D6] px-3 py-1 text-xs font-black uppercase tracking-[0.16em]">
-                    {selectedMimeType || "file"}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleResourceNavigation("prev")}
+                      disabled={resources.length <= 1}
+                      className="rounded-full border-2 border-[var(--foreground)] p-2 hover:bg-[var(--muted)] disabled:opacity-50"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleResourceNavigation("next")}
+                      disabled={resources.length <= 1}
+                      className="rounded-full border-2 border-[var(--foreground)] p-2 hover:bg-[var(--muted)] disabled:opacity-50"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                    <span className="rounded-full border-2 border-[var(--foreground)] bg-[#FFF7D6] px-3 py-1 text-xs font-black uppercase tracking-[0.16em]">
+                      {selectedMimeType === "video/youtube" ? "YouTube" : selectedMimeType?.split("/")[1] || "file"}
+                    </span>
+                  </div>
                 </div>
                 <div className="overflow-hidden rounded-[18px] border-2 border-[var(--foreground)] bg-[var(--muted)]">
-                  {selectedMimeType.startsWith("image/") ? (
+                  {selectedMimeType === "video/youtube" ? (
+                    <iframe
+                      title={selectedFileName || "YouTube video"}
+                      src={selectedFileUrl}
+                      className="w-full h-[400px] bg-black"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : selectedMimeType.startsWith("image/") ? (
                     <img src={selectedFileUrl} alt={selectedFileName || "Uploaded resource"} className="w-full h-auto object-contain bg-white" />
                   ) : selectedMimeType === "application/pdf" ? (
                     <iframe title={selectedFileName || "PDF preview"} src={selectedFileUrl} className="w-full h-[600px] bg-white" />
