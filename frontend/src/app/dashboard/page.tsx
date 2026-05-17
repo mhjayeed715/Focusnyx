@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowRight, BookOpen, CheckCircle2, ChevronDown, ClipboardList, CircleDollarSign, CirclePlay, Flame, HeartPulse, LayoutDashboard, LogOut, Menu, NotebookPen, Plus, Sparkles, Target, TimerReset, X, Zap, BrainCircuit, PenTool, Trash2 } from "lucide-react";
+import { ArrowRight, Award, BookOpen, CheckCircle2, ChevronDown, ClipboardList, CircleDollarSign, CirclePlay, Flame, HeartPulse, LayoutDashboard, LogOut, Menu, NotebookPen, Sparkles, Target, X, BrainCircuit, PenTool, Trash2 } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { completePomodoro, createTask, deleteTask, getDashboardBootstrap, updateTask } from "@/lib/backend";
 import { createClient } from "@/lib/supabase/client";
-import { cumulativeXpForLevel, maxLevel } from "@/lib/xp";
+import { cumulativeXpForLevel, getXpState, maxLevel } from "@/lib/xp";
+import { LanguageProvider } from "@/components/layout/language-context";
+import { LanguageToggle } from "@/components/layout/LanguageToggle";
 
 type Subtask = {
   id: string;
@@ -50,6 +52,23 @@ type SidebarItem = {
   label: string;
   href: SidebarHref;
   icon: typeof LayoutDashboard;
+};
+
+type LocalProgress = {
+  xp: number;
+  focusMinutes: number;
+  sessionsCompleted: number;
+  completedTasks: number;
+};
+
+const LOCAL_TASKS_KEY = "localTasks";
+const LOCAL_PROGRESS_KEY = "focusnyxLocalProgressV1";
+
+const initialLocalProgress: LocalProgress = {
+  xp: 0,
+  focusMinutes: 0,
+  sessionsCompleted: 0,
+  completedTasks: 0,
 };
 
 const sidebarItems: SidebarItem[] = [
@@ -148,76 +167,6 @@ function getSubjectTone(subject: string) {
   return "bg-[#8B5CF6] text-white";
 }
 
-function PomodoroCard({ onComplete }: { onComplete: () => Promise<void> | void }) {
-  const [seconds, setSeconds] = useState(25 * 60);
-  const [running, setRunning] = useState(false);
-
-  useEffect(() => {
-    if (!running) {
-      return;
-    }
-
-    const timer = window.setInterval(() => {
-      setSeconds((current) => {
-        if (current <= 1) {
-          window.clearInterval(timer);
-          setRunning(false);
-          void onComplete();
-          return 25 * 60;
-        }
-
-        return current - 1;
-      });
-    }, 1000);
-
-    return () => window.clearInterval(timer);
-  }, [running, onComplete]);
-
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-
-  return (
-    <div className="grid gap-5 rounded-[28px] border-2 border-[var(--foreground)] bg-[#FFF4F7] p-5 shadow-[8px_8px_0_0_#1E293B]">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">Pomodoro Timer</p>
-          <h3 className="mt-2 font-display text-3xl font-black">Focus Sprint</h3>
-        </div>
-        <span className="grid h-12 w-12 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#F472B6] text-white shadow-[4px_4px_0_0_#1E293B]">
-          <TimerReset size={20} strokeWidth={2.5} />
-        </span>
-      </div>
-
-      <div className="grid place-items-center rounded-[28px] border-2 border-[var(--foreground)] bg-white p-6 shadow-[4px_4px_0_0_#1E293B]">
-        <div className="text-center">
-          <p className="font-display text-5xl font-black leading-none">
-            {String(minutes).padStart(2, "0")}:{String(remainingSeconds).padStart(2, "0")}
-          </p>
-          <p className="mt-2 text-sm font-bold text-[var(--muted-fg)]">Current focus cycle</p>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-3">
-        <button
-          onClick={() => setRunning((value) => !value)}
-          className="candy-button flex h-12 items-center gap-2 px-5 text-sm"
-        >
-          {running ? "Pause Session" : "Start Session"}
-          <CirclePlay size={16} strokeWidth={2.5} />
-        </button>
-        <button
-          onClick={() => {
-            setRunning(false);
-            setSeconds(25 * 60);
-          }}
-          className="secondary-button h-12 px-5 text-sm"
-        >
-          Reset
-        </button>
-      </div>
-    </div>
-  );
-}
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -239,6 +188,8 @@ export default function DashboardPage() {
   const [newTaskSubject, setNewTaskSubject] = useState("Focus");
   const [newTaskEstimate, setNewTaskEstimate] = useState("25");
   const [newTaskMicrotasks, setNewTaskMicrotasks] = useState("Define the goal\nBreak into steps\nStart the first step");
+  const [localProgress, setLocalProgress] = useState<LocalProgress>(initialLocalProgress);
+
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -249,9 +200,26 @@ export default function DashboardPage() {
       setUser(dashboard.profile);
       setTasks(dashboard.tasks);
 
+      const sharedTasks = dashboard.tasks.map((task) => ({
+        ...task,
+        minutes: task.estimate,
+        status: task.completed ? "done" : "ready",
+      }));
+
       try {
         localStorage.setItem("userEmail", dashboard.profile.email);
         localStorage.setItem("userFullName", dashboard.profile.fullName);
+        const saved = localStorage.getItem(LOCAL_TASKS_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setTasks(parsed.map((task, index) => normalizeTaskFromStorage(task as Record<string, unknown>, index)));
+          } else {
+            localStorage.setItem(LOCAL_TASKS_KEY, JSON.stringify(sharedTasks));
+          }
+        } else {
+          localStorage.setItem(LOCAL_TASKS_KEY, JSON.stringify(sharedTasks));
+        }
       } catch {
         // ignore
       }
@@ -276,8 +244,13 @@ export default function DashboardPage() {
 
       let localTasks = fallbackTasks;
       try {
-        const saved = localStorage.getItem("localTasks");
-        if (saved) localTasks = JSON.parse(saved) as Task[];
+        const saved = localStorage.getItem(LOCAL_TASKS_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            localTasks = parsed.map((task, index) => normalizeTaskFromStorage(task as Record<string, unknown>, index));
+          }
+        }
       } catch {
         // ignore
       }
@@ -299,7 +272,6 @@ export default function DashboardPage() {
         xpProgressPercent: 0,
       });
       setTasks(localTasks);
-      setError("Backend is unavailable right now, so a local session view is shown.");
     } finally {
       setLoading(false);
     }
@@ -308,6 +280,10 @@ export default function DashboardPage() {
   useEffect(() => {
     void loadDashboard();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    setLocalProgress(readLocalProgress());
   }, []);
 
   const weeklyFocusSeries = useMemo(() => {
@@ -329,14 +305,29 @@ export default function DashboardPage() {
 
   const toggleTask = async (task: Task) => {
     setError("");
+    const nowCompleted = !task.completed;
+
+    if (nowCompleted) {
+      const earnedXp = Math.max(20, task.xp || task.estimate * 4);
+      setLocalProgress((current) => {
+        const next = {
+          ...current,
+          xp: current.xp + earnedXp,
+          completedTasks: current.completedTasks + 1,
+        };
+        writeLocalProgress(next);
+        return next;
+      });
+    }
+
     // optimistic local update
     setTasks((current) => {
-      const updated = current.map((t) => t.id === task.id ? { ...t, completed: !t.completed } : t);
+      const updated = current.map((t) => t.id === task.id ? { ...t, completed: nowCompleted } : t);
       persistLocalTasks(updated);
       return updated;
     });
     try {
-      await updateTask(task.id, { completed: !task.completed });
+      await updateTask(task.id, { completed: nowCompleted });
       await loadDashboard();
     } catch {
       // backend unavailable — local state already updated
@@ -362,16 +353,6 @@ export default function DashboardPage() {
     }
   };
 
-  const handlePomodoroComplete = async () => {
-    setError("");
-
-    try {
-      await completePomodoro(25);
-      await loadDashboard();
-    } catch (pomodoroError) {
-      setError(pomodoroError instanceof Error ? pomodoroError.message : "Unable to record the session.");
-    }
-  };
 
   const handleLogout = async () => {
     try {
@@ -393,9 +374,33 @@ export default function DashboardPage() {
     router.push("/auth");
   };
 
+
+  const toggleFullScreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   const persistLocalTasks = (updated: Task[]) => {
     try {
-      localStorage.setItem("localTasks", JSON.stringify(updated));
+      const sharedShape = updated.map((task) => ({
+        id: task.id,
+        title: task.title,
+        subject: task.subject,
+        estimate: task.estimate,
+        minutes: task.estimate,
+        xp: task.xp,
+        completed: task.completed,
+        status: task.completed ? "done" : "ready",
+        subtasks: task.subtasks,
+      }));
+      localStorage.setItem(LOCAL_TASKS_KEY, JSON.stringify(sharedShape));
     } catch {
       // ignore
     }
@@ -449,20 +454,46 @@ export default function DashboardPage() {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen bg-[radial-gradient(circle_at_top,#fff7d6_0%,#ffffff_45%,#f7fafc_100%)] flex items-center justify-center px-6 text-[var(--foreground)]">
+      <LanguageProvider>
+        <LanguageToggle className="fixed right-4 top-4 z-50" />
+        <div className="min-h-screen bg-[radial-gradient(circle_at_top,#fff7d6_0%,#ffffff_45%,#f7fafc_100%)] flex items-center justify-center px-6 text-[var(--foreground)]">
         <div className="text-center">
           <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-[var(--foreground)]" />
           <p className="text-[var(--muted-fg)]">Loading dashboard...</p>
           {error ? <p className="mt-3 max-w-sm text-sm text-red-600">{error}</p> : null}
         </div>
-      </div>
+        </div>
+      </LanguageProvider>
     );
   }
 
-  const nextLevelThreshold = cumulativeXpForLevel(Math.min(user.level + 1, maxLevel));
+  const mergedTotalXp = Math.max(0, (user.totalXp ?? 0) + localProgress.xp);
+  const mergedFocusMinutes = Math.max(0, (user.totalFocusTime ?? 0) + localProgress.focusMinutes);
+  const mergedCompletedToday = Math.max(
+    user.completedTasksToday ?? 0,
+    tasks.filter((task) => task.completed).length,
+    localProgress.completedTasks,
+  );
+  const mergedSessionsCompleted = Math.max(0, (user.sessionsCompleted ?? 0) + localProgress.sessionsCompleted);
+  const levelState = getXpState(mergedTotalXp);
+  const nextLevel = Math.min(levelState.level + 1, maxLevel);
+  const xpToNext = levelState.xpNeededForNextLevel;
+  const unlockedBadges = [
+    mergedTotalXp >= 60 ? "Early Bird" : null,
+    mergedTotalXp >= 160 ? "Focus Master" : null,
+    mergedCompletedToday >= 3 ? "Task Crusher" : null,
+    mergedSessionsCompleted >= 5 ? "Streak Keeper" : null,
+  ].filter(Boolean) as string[];
+  const focusHours = String(Math.floor(mergedFocusMinutes / 60)).padStart(2, "0");
+  const focusMinutePart = String(mergedFocusMinutes % 60).padStart(2, "0");
+  const weeklyCompleted = tasks.filter((task) => task.completed).length;
+  const weeklyTotal = Math.max(1, tasks.length);
+  const weeklyPercent = Math.min(100, Math.round((weeklyCompleted / weeklyTotal) * 100));
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top,#fff7d6_0%,#ffffff_40%,#f8fafc_100%)] text-[var(--foreground)]">
+    <LanguageProvider>
+      <LanguageToggle className="fixed right-4 top-4 z-50" />
+      <div className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top,#fff7d6_0%,#ffffff_40%,#f8fafc_100%)] pt-20 text-[var(--foreground)]">
       <header className="sticky top-0 z-30 border-b-2 border-[var(--foreground)] bg-white/95 shadow-[0_4px_0_0_#1E293B] backdrop-blur lg:hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <button
@@ -679,12 +710,12 @@ export default function DashboardPage() {
 
                 <div className="mt-6 flex flex-wrap items-center gap-4">
                   <div className="rounded-[24px] border-2 border-[var(--foreground)] bg-[#FFF7D6] p-4 shadow-[4px_4px_0_0_#1E293B]">
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">Level 1</p>
-                    <p className="mt-2 font-display text-2xl font-black">20 XP</p>
+                    <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--muted-fg)]">Level {levelState.level}</p>
+                    <p className="mt-2 font-display text-2xl font-black">{mergedTotalXp} XP</p>
                   </div>
                   <div className="rounded-[24px] border-2 border-[var(--foreground)] bg-[#FDF2F8] p-4 shadow-[4px_4px_0_0_#1E293B]">
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">Progress to Level 2</p>
-                    <p className="mt-2 font-display text-2xl font-black">20 / 100 XP</p>
+                    <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--muted-fg)]">Progress to Level {nextLevel}</p>
+                    <p className="mt-2 font-display text-2xl font-black">{levelState.xpIntoLevel} / {xpToNext || levelState.xpIntoLevel} XP</p>
                   </div>
                   <Link href="/focus" className="candy-button flex h-12 items-center gap-2 px-5 text-sm sm:h-14 sm:px-6 sm:text-base">
                     Start Focus
@@ -692,6 +723,9 @@ export default function DashboardPage() {
                       <ArrowRight size={16} strokeWidth={2.5} />
                     </span>
                   </Link>
+                  <button onClick={toggleFullScreen} className="secondary-button ml-3 hidden h-12 items-center gap-2 px-4 text-sm lg:inline-flex">
+                    Full Screen
+                  </button>
                 </div>
               </div>
 
@@ -701,13 +735,6 @@ export default function DashboardPage() {
                   <p className="mt-2 font-display text-2xl font-black">Daily Inspiration</p>
                   <p className="mt-2 text-sm text-[var(--muted-fg)] italic">"Hardships often prepare ordinary people for an extraordinary destiny."</p>
                   <p className="mt-1 text-xs text-[var(--muted-fg)]">— C.S. Lewis</p>
-                </div>
-                <div className="rounded-[24px] border-2 border-[var(--foreground)] bg-[#FDF2F8] p-4 shadow-[4px_4px_0_0_#1E293B]">
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">Quick Access</p>
-                  <button className="mt-2 w-full rounded-[18px] border-2 border-[var(--foreground)] bg-white px-4 py-2 text-sm font-black shadow-[4px_4px_0_0_#1E293B]">
-                    + Add Link
-                  </button>
-                  <p className="mt-2 text-sm text-[var(--muted-fg)]">No quick links added yet.</p>
                 </div>
               </div>
             </div>
@@ -760,30 +787,40 @@ export default function DashboardPage() {
               
               <div className="mt-6 space-y-4">
                 <div className="rounded-[18px] border-2 border-[var(--foreground)] bg-[#FFF7D6] p-4 shadow-[4px_4px_0_0_#1E293B]">
-                  <p className="font-bold text-[var(--foreground)]">20 Total XP</p>
+                  <p className="font-bold text-[var(--foreground)]">{mergedTotalXp} Total XP</p>
                   <p className="mt-1 text-sm text-[var(--muted-fg)]">Keep going to earn more rewards!</p>
                 </div>
                 
                 <div className="rounded-[18px] border-2 border-[var(--foreground)] bg-[#ECFDF5] p-4 shadow-[4px_4px_0_0_#1E293B]">
-                  <p className="font-bold text-[var(--foreground)]">0 Badges</p>
-                  <p className="mt-1 text-sm text-[var(--muted-fg)]">No badges earned yet. Keep pushing!</p>
+                  <p className="font-bold text-[var(--foreground)]">{unlockedBadges.length} Badge{unlockedBadges.length === 1 ? "" : "s"}</p>
+                  <p className="mt-1 text-sm text-[var(--muted-fg)]">{unlockedBadges.length ? unlockedBadges.join(" • ") : "No badges earned yet. Keep pushing!"}</p>
+                </div>
+
+                <div className="rounded-[18px] border-2 border-[var(--foreground)] bg-[#FDF2F8] p-4 shadow-[4px_4px_0_0_#1E293B]">
+                  <div className="flex items-center gap-2">
+                    <Award size={18} strokeWidth={2.5} />
+                    <p className="font-bold text-[var(--foreground)]">Inspiration Trophy</p>
+                  </div>
+                  <p className="mt-1 text-sm text-[var(--muted-fg)]">
+                    {mergedTotalXp >= 100 ? "Unlocked for crossing 100 XP. Keep compounding your momentum." : `Earn ${100 - mergedTotalXp} more XP to unlock your first trophy.`}
+                  </p>
                 </div>
               </div>
             </article>
           </section>
 
-          <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+          <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <motion.article
               initial={{ opacity: 0, y: 16, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ delay: 0.05 * 0, duration: 0.45, ease: [0.34, 1.56, 0.64, 1] }}
-              className="sticker-card relative p-5 pt-8 sm:col-span-2 lg:col-span-2 xl:col-span-2"
+              className="sticker-card relative p-5 pt-8"
             >
               <span className="grid h-11 w-11 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#8B5CF6] text-white shadow-[4px_4px_0_0_#1E293B]">
                 <Target size={20} strokeWidth={2.5} />
               </span>
-              <p className="text-sm font-black uppercase tracking-[0.22em] text-[var(--muted-fg)]">Focus Time</p>
-              <p className="mt-3 font-display text-4xl font-black tracking-tight">00:00</p>
+              <p className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted-fg)]">Focus Time</p>
+              <p className="mt-3 font-display text-3xl font-black tracking-tight">{focusHours}:{focusMinutePart}</p>
             </motion.article>
             
             <motion.article
@@ -795,8 +832,8 @@ export default function DashboardPage() {
               <span className="grid h-11 w-11 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#F472B6] text-white shadow-[4px_4px_0_0_#1E293B]">
                 <CheckCircle2 size={20} strokeWidth={2.5} />
               </span>
-              <p className="text-sm font-black uppercase tracking-[0.22em] text-[var(--muted-fg)]">Tasks Completed</p>
-              <p className="mt-3 font-display text-4xl font-black tracking-tight">0</p>
+              <p className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted-fg)]">Tasks Done</p>
+              <p className="mt-3 font-display text-3xl font-black tracking-tight">{mergedCompletedToday}</p>
             </motion.article>
             
             <motion.article
@@ -805,14 +842,11 @@ export default function DashboardPage() {
               transition={{ delay: 0.05 * 2, duration: 0.45, ease: [0.34, 1.56, 0.64, 1] }}
               className="sticker-card relative p-5 pt-8"
             >
-              <span className="grid h-11 w-11 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#FBBF24] text-[var(--foreground)] shadow-[4px_4px_0_0_#1E293B]">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2v20" />
-                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                </svg>
+              <span className="grid h-11 w-11 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#F472B6] text-white shadow-[4px_4px_0_0_#1E293B]">
+                <Flame size={20} strokeWidth={2.5} />
               </span>
-              <p className="text-sm font-black uppercase tracking-[0.22em] text-[var(--muted-fg)]">Detox</p>
-              <p className="mt-3 font-display text-4xl font-black tracking-tight">0%</p>
+              <p className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted-fg)]">Streak</p>
+              <p className="mt-3 font-display text-3xl font-black tracking-tight">{Math.max(1, user.streak)}</p>
             </motion.article>
             
             <motion.article
@@ -821,58 +855,19 @@ export default function DashboardPage() {
               transition={{ delay: 0.05 * 3, duration: 0.45, ease: [0.34, 1.56, 0.64, 1] }}
               className="sticker-card relative p-5 pt-8"
             >
-              <span className="grid h-11 w-11 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#34D399] text-[var(--foreground)] shadow-[4px_4px_0_0_#1E293B]">
-                <HeartPulse size={20} strokeWidth={2.5} />
-              </span>
-              <p className="text-sm font-black uppercase tracking-[0.22em] text-[var(--muted-fg)]">Wellness</p>
-              <p className="mt-3 font-display text-4xl font-black tracking-tight">0/200</p>
-            </motion.article>
-            
-            <motion.article
-              initial={{ opacity: 0, y: 16, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: 0.05 * 4, duration: 0.45, ease: [0.34, 1.56, 0.64, 1] }}
-              className="sticker-card relative p-5 pt-8"
-            >
-              <span className="grid h-11 w-11 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#F472B6] text-white shadow-[4px_4px_0_0_#1E293B]">
-                <Flame size={20} strokeWidth={2.5} />
-              </span>
-              <p className="text-sm font-black uppercase tracking-[0.22em] text-[var(--muted-fg)]">Streak</p>
-              <p className="mt-3 font-display text-4xl font-black tracking-tight">1 Days</p>
-            </motion.article>
-            
-            <motion.article
-              initial={{ opacity: 0, y: 16, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: 0.05 * 5, duration: 0.45, ease: [0.34, 1.56, 0.64, 1] }}
-              className="sticker-card relative p-5 pt-8"
-            >
               <span className="grid h-11 w-11 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#8B5CF6] text-white shadow-[4px_4px_0_0_#1E293B]">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 2v20" />
                   <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                 </svg>
               </span>
-              <p className="text-sm font-black uppercase tracking-[0.22em] text-[var(--muted-fg)]">Current CGPA</p>
-              <p className="mt-3 font-display text-4xl font-black tracking-tight">0.00</p>
-            </motion.article>
-            
-            <motion.article
-              initial={{ opacity: 0, y: 16, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: 0.05 * 6, duration: 0.45, ease: [0.34, 1.56, 0.64, 1] }}
-              className="sticker-card relative p-5 pt-8"
-            >
-              <span className="grid h-11 w-11 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#FBBF24] text-[var(--foreground)] shadow-[4px_4px_0_0_#1E293B]">
-                <Target size={20} strokeWidth={2.5} />
-              </span>
-              <p className="text-sm font-black uppercase tracking-[0.22em] text-[var(--muted-fg)]">Target CGPA</p>
-              <p className="mt-3 font-display text-4xl font-black tracking-tight">3.80</p>
+              <p className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted-fg)]">Total XP</p>
+              <p className="mt-3 font-display text-3xl font-black tracking-tight">{mergedTotalXp}</p>
             </motion.article>
           </section>
 
           <section className="mt-6 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-            <div className="space-y-6">
+            <div className="space-y-6 lg:grid lg:grid-cols-2 lg:gap-6">
               <motion.aside
                 initial={{ opacity: 0, y: 20, scale: 0.97 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1024,7 +1019,11 @@ export default function DashboardPage() {
                                            completed: task.subtasks[index]?.completed ?? false
                                          }))
                                        };
-                                       setTasks(prev => prev.map(t => t.id === task.id ? updatedTask : t));
+                                       setTasks(prev => {
+                                         const next = prev.map(t => t.id === task.id ? updatedTask : t);
+                                         persistLocalTasks(next);
+                                         return next;
+                                       });
                                        setEditingTaskId(null);
                                      }}
                                      className="rounded-[18px] border-2 border-[var(--foreground)] px-3 py-1 text-xs font-black bg-white hover:bg-[var(--muted)]"
@@ -1061,10 +1060,18 @@ export default function DashboardPage() {
                                        e.stopPropagation();
                                        if (window.confirm("Are you sure you want to delete this task?")) {
                                          deleteTask(task.id).then(() => {
-                                           setTasks(prev => prev.filter(t => t.id !== task.id));
+                                           setTasks(prev => {
+                                             const next = prev.filter(t => t.id !== task.id);
+                                             persistLocalTasks(next);
+                                             return next;
+                                           });
                                          }).catch(() => {
                                            // Optimistic update - remove immediately and handle error if needed
-                                           setTasks(prev => prev.filter(t => t.id !== task.id));
+                                           setTasks(prev => {
+                                             const next = prev.filter(t => t.id !== task.id);
+                                             persistLocalTasks(next);
+                                             return next;
+                                           });
                                          });
                                        }
                                      }}
@@ -1111,21 +1118,75 @@ export default function DashboardPage() {
                 + Add New Task
               </button>
               
+
               <div className="mt-6 rounded-[22px] border-2 border-[var(--foreground)] bg-white p-4 shadow-[4px_4px_0_0_#1E293B]">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">Weekly Task Progress</p>
-                  <p className="font-bold text-[var(--foreground)]">0 / 2 Planner</p>
+                  <p className="font-bold text-[var(--foreground)]">{weeklyCompleted} / {weeklyTotal} Planner</p>
                 </div>
                 <div className="h-4 rounded-full border-2 border-[var(--foreground)] bg-[var(--muted)] overflow-hidden">
-                  <div className="h-full bg-[#34D399]" style={{ width: "0%" }} />
+                  <div className="h-full bg-[#34D399]" style={{ width: `${weeklyPercent}%` }} />
                 </div>
-                <p className="mt-2 text-xs font-black text-[var(--muted-fg)] text-right">0%</p>
+                <p className="mt-2 text-xs font-black text-[var(--muted-fg)] text-right">{weeklyPercent}%</p>
               </div>
             </motion.aside>
           </div>
           </section>
         </div>
       </main>
-    </div>
+      </div>
+    </LanguageProvider>
   );
+}
+
+function normalizeTaskFromStorage(task: Record<string, unknown>, index: number): Task {
+  const completed = typeof task.completed === "boolean" ? task.completed : String(task.status ?? "") === "done";
+  const estimateRaw = Number(task.estimate ?? task.minutes ?? 25);
+  const estimate = Number.isFinite(estimateRaw) ? Math.max(5, estimateRaw) : 25;
+
+  return {
+    id: String(task.id ?? `task-${Date.now()}-${index}`),
+    title: String(task.title ?? "Untitled task"),
+    subject: String(task.subject ?? "Focus"),
+    estimate,
+    xp: Math.max(20, Number(task.xp ?? estimate * 4) || estimate * 4),
+    completed,
+    subtasks: Array.isArray(task.subtasks)
+      ? task.subtasks.map((subtask, subIndex) => {
+          const entry = subtask as Record<string, unknown>;
+          return {
+            id: String(entry.id ?? `subtask-${index}-${subIndex}`),
+            title: String(entry.title ?? "Untitled subtask"),
+            completed: Boolean(entry.completed),
+          };
+        })
+      : [],
+  };
+}
+
+function readLocalProgress(): LocalProgress {
+  try {
+    const raw = localStorage.getItem(LOCAL_PROGRESS_KEY);
+    if (!raw) {
+      return initialLocalProgress;
+    }
+
+    const parsed = JSON.parse(raw) as Partial<LocalProgress>;
+    return {
+      xp: Number(parsed.xp ?? 0),
+      focusMinutes: Number(parsed.focusMinutes ?? 0),
+      sessionsCompleted: Number(parsed.sessionsCompleted ?? 0),
+      completedTasks: Number(parsed.completedTasks ?? 0),
+    };
+  } catch {
+    return initialLocalProgress;
+  }
+}
+
+function writeLocalProgress(next: LocalProgress) {
+  try {
+    localStorage.setItem(LOCAL_PROGRESS_KEY, JSON.stringify(next));
+  } catch {
+    // ignore
+  }
 }
