@@ -1,0 +1,88 @@
+import { Router } from "express";
+import { buildProfile, calculateStreak, getXpState } from "../lib/dashboard.js";
+import { getSupabaseAdminClient } from "../lib/supabase.js";
+import { requireAuth } from "../middleware/auth.middleware.js";
+
+export const focusRoutes = Router();
+
+focusRoutes.use(requireAuth);
+
+focusRoutes.post("/pomodoro/complete", async (request, response, next) => {
+  try {
+    const userId = request.authUser?.id;
+    const userEmail = request.authUser?.email;
+    const userName = request.authUser?.fullName;
+
+    if (!userId || !userEmail || !userName) {
+      response.status(401).json({ message: "Unauthorized." });
+      return;
+    }
+
+    const minutes = Number(request.body?.minutes ?? 25);
+    const xpReward = Number(request.body?.xpReward ?? 25);
+    const supabase = getSupabaseAdminClient();
+
+    const { data: profileRow, error: profileError } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+
+    if (profileError) {
+      throw profileError;
+    }
+
+    const streak = calculateStreak(profileRow?.last_active_at, profileRow?.streak ?? 1);
+    const profile = buildProfile({
+      id: userId,
+      email: userEmail,
+      fullName: userName,
+      level: profileRow?.level,
+      totalXp: (profileRow?.total_xp ?? 0) + xpReward,
+      todayXp: (profileRow?.today_xp ?? 0) + xpReward,
+      streak,
+      focusScore: profileRow?.focus_score,
+      completedTasksToday: profileRow?.completed_tasks_today,
+      totalFocusTime: (profileRow?.total_focus_time ?? 0) + minutes,
+      sessionsCompleted: (profileRow?.sessions_completed ?? 0) + 1,
+    });
+
+    const { error: updateError } = await supabase.from("profiles").upsert(
+      {
+        id: userId,
+        university_email: userEmail,
+        display_name: userName,
+        preferred_language: profileRow?.preferred_language ?? "en",
+        level: profile.level,
+        total_xp: profile.totalXp,
+        today_xp: profile.todayXp,
+        streak: profile.streak,
+        focus_score: Math.min(100, (profileRow?.focus_score ?? 80) + 1),
+        completed_tasks_today: profile.completedTasksToday,
+        total_focus_time: profile.totalFocusTime,
+        sessions_completed: profile.sessionsCompleted,
+        last_active_at: new Date().toISOString(),
+      },
+      { onConflict: "id" },
+    );
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    await supabase.from("focus_sessions").insert({
+      user_id: userId,
+      started_at: new Date(Date.now() - minutes * 60 * 1000).toISOString(),
+      ended_at: new Date().toISOString(),
+      planned_minutes: minutes,
+      actual_minutes: minutes,
+    });
+
+    response.json({
+      profile,
+      reward: {
+        xpReward,
+        minutes,
+        xpState: getXpState(profile.totalXp),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});

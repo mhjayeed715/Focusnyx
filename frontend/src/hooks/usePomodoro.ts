@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-export function usePomodoro(defaultMinutes: number) {
+export function usePomodoro(defaultMinutes: number, onComplete?: () => void | Promise<void>) {
   const initialSeconds = useMemo(() => defaultMinutes * 60, [defaultMinutes]);
   const [totalSeconds, setTotalSeconds] = useState(initialSeconds);
   const [isRunning, setIsRunning] = useState(false);
@@ -17,14 +17,31 @@ export function usePomodoro(defaultMinutes: number) {
     }, 1000);
 
     return () => window.clearInterval(timer);
-  }, [isRunning, totalSeconds]);
+  }, [isRunning, totalSeconds, defaultMinutes, onComplete]);
+
+  useEffect(() => {
+    if (totalSeconds !== 0 || !isRunning) {
+      return;
+    }
+
+    setIsRunning(false);
+    setTotalSeconds(initialSeconds);
+    if (onComplete) {
+      void onComplete();
+    }
+  }, [initialSeconds, isRunning, onComplete, totalSeconds]);
 
   const start = useCallback(() => setIsRunning(true), []);
   const pause = useCallback(() => setIsRunning(false), []);
-  const reset = useCallback(() => {
+  const reset = useCallback((nextMinutes?: number) => {
     setIsRunning(false);
-    setTotalSeconds(initialSeconds);
-  }, [initialSeconds]);
+    setTotalSeconds((nextMinutes ?? defaultMinutes) * 60);
+  }, [defaultMinutes]);
+
+  const setDuration = useCallback((nextMinutes: number) => {
+    setIsRunning(false);
+    setTotalSeconds(nextMinutes * 60);
+  }, []);
 
   return {
     minutes: Math.floor(totalSeconds / 60),
@@ -32,6 +49,7 @@ export function usePomodoro(defaultMinutes: number) {
     isRunning,
     start,
     pause,
-    reset
+    reset,
+    setDuration
   };
 }

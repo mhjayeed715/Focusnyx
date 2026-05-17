@@ -3,7 +3,7 @@ import { PomodoroPanel } from "@/components/modules/focus/PomodoroPanel";
 
 export default function FocusPage() {
   return (
-    <AppShell title="Dopamine Detox Engine">
+    <AppShell title="Focus Engine" initialCollapsed={false} confirmLogout={true}>
       <PomodoroPanel />
     </AppShell>
   );

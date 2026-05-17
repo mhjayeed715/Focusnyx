@@ -6,6 +6,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string().default("dev-secret"),
   SUPABASE_URL: z.string().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+  FRONTEND_URL: z.string().url().optional(),
   GEMINI_API_KEY: z.string().optional(),
   GROQ_API_KEY: z.string().optional(),
   EXTENSION_SHARED_TOKEN_SECRET: z.string().default("ext-dev-secret")

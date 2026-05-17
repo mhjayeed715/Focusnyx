@@ -1,5 +1,6 @@
 export const APP_ROUTES = {
   home: "/",
+  auth: "/auth",
   dashboard: "/dashboard",
   academic: "/academic",
   focus: "/focus",
