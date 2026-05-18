@@ -567,7 +567,7 @@ export default function DashboardPage() {
                 key={item.label}
                 href={item.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`nav-pill flex items-center gap-3 rounded-[18px] px-4 py-3 text-sm font-bold ${sidebarCollapsed ? "lg:justify-center lg:px-3" : ""}`}
+                className={`nav-pill flex items-center gap-3 rounded-[18px] px-4 py-3 text-sm font-bold shadow-[4px_4px_0_0_#1E293B] transition-all duration-200 hover:shadow-[6px_6px_0_0_#1E293B] ${item.href === "/dashboard" ? "bg-[var(--foreground)] text-white" : "bg-white"} ${sidebarCollapsed ? "lg:justify-center lg:px-3" : ""}`}
               >
                 <Icon size={18} strokeWidth={2.5} />
                 {!sidebarCollapsed ? item.label : <span className="sr-only">{item.label}</span>}
