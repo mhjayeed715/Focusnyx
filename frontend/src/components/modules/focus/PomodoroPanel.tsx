@@ -353,6 +353,7 @@ export function PomodoroPanel() {
   const [newTaskMicrotasks, setNewTaskMicrotasks] = useState("Define the goal\nBreak into steps\nStart the first step");
   const [totalXp, setTotalXp] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
   const [focusSound, setFocusSound] = useState<"none" | "rain" | "white" | "lofi">("rain");
   const [focusVolume, setFocusVolume] = useState(70);
   const [resources, setResources] = useState<StudyResource[]>([]);
@@ -419,6 +420,13 @@ export function PomodoroPanel() {
     return () => document.removeEventListener("fullscreenchange", syncFullscreenState);
   }, []);
 
+  // Enforce fullscreen while lock mode is active
+  useEffect(() => {
+    if (isLocked && !isFullscreen) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+  }, [isLocked, isFullscreen]);
+
   useEffect(() => {
     writeStudyResources(resources);
   }, [resources]);
@@ -471,6 +479,11 @@ export function PomodoroPanel() {
       }
 
       setStatusMessage(activeTask ? `${copy.sessionComplete}. +${earnedXp} XP for ${activeTask.title}` : `${copy.sessionComplete}. +${earnedXp} XP`);
+      setIsLocked(false);
+      // Exit fullscreen after session ends
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
     } catch {
       setTotalXp((current) => current + fallbackXp);
       const currentProgress = readLocalProgress();
@@ -481,6 +494,10 @@ export function PomodoroPanel() {
         sessionsCompleted: currentProgress.sessionsCompleted + 1,
       });
       setStatusMessage(`Session complete, backend sync is unavailable right now. +${fallbackXp} XP saved locally.`);
+      setIsLocked(false);
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
     }
   });
 
@@ -607,6 +624,19 @@ export function PomodoroPanel() {
     }
   };
 
+  const handleStart = async () => {
+    try {
+      // Request fullscreen if not already
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      }
+      setIsLocked(true);
+      start();
+    } catch {
+      setStatusMessage("Unable to enter fullscreen lock mode.");
+    }
+  };
+
   const addResource = () => {
     if (!resourceTitle.trim() || !resourceLink.trim()) {
       return;
@@ -705,7 +735,7 @@ export function PomodoroPanel() {
               {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
               {isFullscreen ? "Exit fullscreen" : "Fullscreen"}
             </button>
-            <button onClick={start} disabled={isRunning} className="candy-button flex h-12 items-center gap-2 rounded-full border-2 border-[var(--foreground)] px-5 text-sm font-black disabled:opacity-60">
+            <button onClick={handleStart} disabled={isRunning} className="candy-button flex h-12 items-center gap-2 rounded-full border-2 border-[var(--foreground)] px-5 text-sm font-black disabled:opacity-60">
               <Play size={16} /> Start focus session
             </button>
           </div>

@@ -4,6 +4,7 @@ import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
 import { errorHandler } from "./middleware/error.middleware.js";
+import { academicRoutes } from "./routes/academic.routes.js";
 import { analyticsRoutes } from "./routes/analytics.routes.js";
 import { authRoutes } from "./routes/auth.routes.js";
 import { blocklistRoutes } from "./routes/blocklist.routes.js";
@@ -35,6 +36,7 @@ export function buildServer() {
   app.use("/coach", coachRoutes);
   app.use("/analytics", analyticsRoutes);
   app.use("/blocklist", blocklistRoutes);
+  app.use("/academic", academicRoutes);
 
   app.use(errorHandler);
 

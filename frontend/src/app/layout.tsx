@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import { Outfit, Plus_Jakarta_Sans } from "next/font/google";
+import { LanguageProvider } from "@/components/layout/language-context";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -41,7 +42,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           src="https://cdn.tailwindcss.com?plugins=forms,container-queries"
           strategy="beforeInteractive"
         />
-        <div className="font-body">{children}</div>
+        <LanguageProvider>
+          <div className="font-body">{children}</div>
+        </LanguageProvider>
       </body>
     </html>
   );

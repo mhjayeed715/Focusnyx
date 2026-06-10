@@ -1,17 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowRight, Award, BookOpen, CheckCircle2, ChevronDown, ClipboardList, CircleDollarSign, CirclePlay, Flame, HeartPulse, LayoutDashboard, LogOut, Menu, NotebookPen, Sparkles, Target, X, BrainCircuit, PenTool, Trash2 } from "lucide-react";
+import { ArrowRight, Award, BookOpen, CheckCircle2, ChevronDown, ClipboardList, CircleDollarSign, CirclePlay, Clock3, Flame, HeartPulse, LayoutDashboard, NotebookPen, Sparkles, Target, X, BrainCircuit, PenTool, Trash2 } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
-import { completePomodoro, createTask, deleteTask, getDashboardBootstrap, updateTask } from "@/lib/backend";
+import { createTask, deleteTask, getDashboardBootstrap, updateTask } from "@/lib/backend";
 import { createClient } from "@/lib/supabase/client";
 import { cumulativeXpForLevel, getXpState, maxLevel } from "@/lib/xp";
-import { LanguageProvider } from "@/components/layout/language-context";
+import { useLanguage } from "@/components/layout/language-context";
+import { AppShell } from "@/components/layout/AppShell";
 import { LanguageToggle } from "@/components/layout/LanguageToggle";
+import { DashboardSkeleton } from "@/components/ui/PageSkeleton";
+
 
 type Subtask = {
   id: string;
@@ -81,8 +83,6 @@ const sidebarItems: SidebarItem[] = [
   { label: "Coach", href: "/coach", icon: BrainCircuit },
 ];
 
-const badgeChips = ["Early Bird", "Focus Master", "Task Crusher"];
-
 const fallbackTasks: Task[] = [
   {
     id: "fallback-1",
@@ -111,31 +111,98 @@ const fallbackTasks: Task[] = [
   },
 ];
 
-const dailyUpdateItems = [
-  "End-of-day summary",
-  "% of planned tasks completed today",
-  "Focus session duration vs. target",
-  "Distraction attempts blocked (extension data)",
-  "Mood log prompt + quick wellness check",
-  "BDT spent today vs. daily budget",
-];
+const dashboardCopy = {
+  en: {
+    loading: "Loading dashboard...",
+    dashboard: "Dashboard",
+    welcome: "Welcome back",
+    subtitle: "One clean view for your day: tasks, focus trend, and progress.",
+    startFocus: "Start Focus",
+    addTask: "Add Task",
+    fullScreen: "Full Screen",
+    focusTime: "Focus Time",
+    tasksDone: "Tasks Done",
+    streak: "Streak",
+    totalXp: "Total XP",
+    todaysTasks: "Today's Tasks",
+    taskList: "Task List",
+    noTasks: "No tasks yet. Add one to get started.",
+    openFocus: "Open Focus",
+    focusTrend: "Focus Trend",
+    weeklyFocus: "Weekly Focus",
+    thisWeek: "This Week",
+    planner: "Planner",
+    badges: "Badges",
+    level: "Level",
+    nextLevelXp: "Next Level XP",
+    xpNeeded: "XP needed",
+    done: "done",
+    aiInsights: "AI Insights",
+    simpleRecommendations: "Simple Recommendations",
+    insightOne: "Focus time is usually strongest in the morning. Schedule your hardest task before noon.",
+    insightTwo: "If you feel stuck, complete one 10-minute subtask to build momentum quickly.",
+    save: "Save",
+    cancel: "Cancel",
+    logout: "Logout",
+    addNewTask: "+ Add New Task",
+  },
+  bn: {
+    loading: "ড্যাশবোর্ড লোড হচ্ছে...",
+    dashboard: "ড্যাশবোর্ড",
+    welcome: "ফিরে আসায় স্বাগতম",
+    subtitle: "আপনার দিনের জন্য একটি সহজ ভিউ: টাস্ক, ফোকাস ট্রেন্ড এবং প্রগ্রেস।",
+    startFocus: "ফোকাস শুরু করুন",
+    addTask: "টাস্ক যোগ করুন",
+    fullScreen: "ফুল স্ক্রিন",
+    focusTime: "ফোকাস সময়",
+    tasksDone: "সম্পন্ন টাস্ক",
+    streak: "স্ট্রিক",
+    totalXp: "মোট XP",
+    todaysTasks: "আজকের টাস্ক",
+    taskList: "টাস্ক তালিকা",
+    noTasks: "এখনও কোনো টাস্ক নেই। শুরু করতে একটি যোগ করুন।",
+    openFocus: "ফোকাস খুলুন",
+    focusTrend: "ফোকাস ট্রেন্ড",
+    weeklyFocus: "সাপ্তাহিক ফোকাস",
+    thisWeek: "এই সপ্তাহ",
+    planner: "প্ল্যানার",
+    badges: "ব্যাজ",
+    level: "লেভেল",
+    nextLevelXp: "পরের লেভেল XP",
+    xpNeeded: "প্রয়োজনীয় XP",
+    done: "সম্পন্ন",
+    aiInsights: "AI ইনসাইটস",
+    simpleRecommendations: "সহজ পরামর্শ",
+    insightOne: "সকালে আপনার ফোকাস বেশি থাকে। কঠিন কাজগুলো দুপুরের আগে করুন।",
+    insightTwo: "আটকে গেলে ১০ মিনিটের একটি সাবটাস্ক শেষ করুন, দ্রুত গতি ফিরে পাবেন।",
+    save: "সেভ",
+    cancel: "বাতিল",
+    logout: "লগআউট",
+    addNewTask: "+ নতুন টাস্ক যোগ করুন",
+  },
+} as const;
 
-const weeklyReportItems = [
-  "7-day behavioral graph",
-  "Productivity graph: tasks done vs. planned per day",
-  "Subject time distribution: which courses got most study time",
-  "Focus depth score (short bursts vs. deep sessions)",
-  "Budget adherence score for the week",
-  "Top 3 distraction sites blocked this week",
-];
-
-const monthlyReviewItems = [
-  "Strengths & weaknesses report",
-  "AI-identified academic strengths: subjects improving",
-  "Behavioral weaknesses: time-drain patterns, missed sessions",
-  "CGPA trend correlation with study hours logged",
-  "Budget health score: semester vs. actual spend",
-  "Personalized improvement plan for next month (Bangla)",
+const motivationalQuotes = [
+  {
+    en: "Success is not final, failure is not fatal: it is the courage to continue that counts.",
+    bn: "সাফল্য চূড়ান্ত নয়, ব্যর্থতা শেষ নয়; এগিয়ে যাওয়ার সাহসটাই আসল।",
+    author: "Winston Churchill",
+  },
+  {
+    en: "Do the hard jobs first. The easy jobs will take care of themselves.",
+    bn: "কঠিন কাজগুলো আগে করুন। সহজ কাজগুলো নিজেই হয়ে যাবে।",
+    author: "Dale Carnegie",
+  },
+  {
+    en: "Discipline is choosing between what you want now and what you want most.",
+    bn: "শৃঙ্খলা মানে এখন যা চাই আর সবচেয়ে বেশি যা চাই - এর মাঝে সঠিকটা বেছে নেওয়া।",
+    author: "Abraham Lincoln",
+  },
+  {
+    en: "Small progress each day adds up to big results.",
+    bn: "প্রতিদিনের ছোট অগ্রগতি একসময় বড় ফল এনে দেয়।",
+    author: "Satya Nani",
+  },
 ];
 
 function firstName(fullName: string) {
@@ -169,14 +236,15 @@ function getSubjectTone(subject: string) {
 
 
 export default function DashboardPage() {
+  const { lang } = useLanguage();
+  const copy = dashboardCopy[lang];
+  const [quoteIndex] = useState(() => Math.floor(Math.random() * motivationalQuotes.length));
+  const activeQuote = motivationalQuotes[quoteIndex];
   const router = useRouter();
   const [user, setUser] = useState<Profile | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -454,16 +522,9 @@ export default function DashboardPage() {
 
   if (loading || !user) {
     return (
-      <LanguageProvider>
-        <LanguageToggle className="fixed right-4 top-4 z-50" />
-        <div className="min-h-screen bg-[radial-gradient(circle_at_top,#fff7d6_0%,#ffffff_45%,#f7fafc_100%)] flex items-center justify-center px-6 text-[var(--foreground)]">
-        <div className="text-center">
-          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-[var(--foreground)]" />
-          <p className="text-[var(--muted-fg)]">Loading dashboard...</p>
-          {error ? <p className="mt-3 max-w-sm text-sm text-red-600">{error}</p> : null}
-        </div>
-        </div>
-      </LanguageProvider>
+      <AppShell title={copy.dashboard} loading skeleton={<DashboardSkeleton />}>
+        <></>
+      </AppShell>
     );
   }
 
@@ -489,144 +550,14 @@ export default function DashboardPage() {
   const weeklyCompleted = tasks.filter((task) => task.completed).length;
   const weeklyTotal = Math.max(1, tasks.length);
   const weeklyPercent = Math.min(100, Math.round((weeklyCompleted / weeklyTotal) * 100));
+  const levelProgressPercent = xpToNext > 0 ? Math.min(100, Math.round((levelState.xpIntoLevel / xpToNext) * 100)) : 100;
+  const xpRemainingForNextLevel = Math.max(0, (xpToNext || 0) - levelState.xpIntoLevel);
+  const levelRingRadius = 42;
+  const levelRingCircumference = 2 * Math.PI * levelRingRadius;
+  const levelRingOffset = levelRingCircumference - (levelProgressPercent / 100) * levelRingCircumference;
 
   return (
-    <LanguageProvider>
-      <LanguageToggle className="fixed right-4 top-4 z-50" />
-      <div className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top,#fff7d6_0%,#ffffff_40%,#f8fafc_100%)] pt-20 text-[var(--foreground)]">
-      <header className="sticky top-0 z-30 border-b-2 border-[var(--foreground)] bg-white/95 shadow-[0_4px_0_0_#1E293B] backdrop-blur lg:hidden">
-        <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <button
-            onClick={() => setSidebarOpen((value) => !value)}
-            className="rounded-lg border-2 border-[var(--foreground)] p-2 hover:bg-[var(--muted)]"
-            aria-label="Toggle menu"
-          >
-            {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
-
-          <div className="flex items-center gap-3">
-            <Image
-              src="/icons/focusnyx.png"
-              alt="Focusnyx"
-              width={40}
-              height={40}
-              className="h-10 w-10 rounded-xl border-2 border-[var(--foreground)] object-cover shadow-[4px_4px_0_0_#1E293B]"
-            />
-            <div>
-              <p className="font-display text-lg font-black">Focusnyx</p>
-              <p className="text-xs font-semibold text-[var(--muted-fg)]">Dashboard</p>
-            </div>
-          </div>
-
-          <button
-            onClick={() => setShowLogoutConfirm(true)}
-            className="rounded-lg border-2 border-[var(--foreground)] px-3 py-2 text-xs font-black"
-          >
-            Logout
-          </button>
-        </div>
-      </header>
-
-      {sidebarOpen ? <div className="fixed inset-0 z-20 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} /> : null}
-
-      <aside
-        className={`fixed inset-y-0 left-0 z-30 flex h-screen flex-col border-r-2 border-[var(--foreground)] bg-white px-4 py-5 shadow-[4px_0_0_0_#1E293B] transition-all duration-300 ${sidebarCollapsed ? "lg:w-[92px]" : "lg:w-[280px]"} ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
-      >
-        <div className="flex items-center justify-between gap-3 px-1">
-          <Link href="/dashboard" className="flex items-center gap-3 overflow-hidden">
-            <Image
-              src="/icons/focusnyx.png"
-              alt="Focusnyx"
-              width={48}
-              height={48}
-              className="h-12 w-12 shrink-0 rounded-xl border-2 border-[var(--foreground)] object-cover shadow-[4px_4px_0_0_#1E293B]"
-            />
-            {!sidebarCollapsed ? (
-              <div>
-                <p className="font-display text-xl font-black leading-none">Focusnyx</p>
-                <p className="text-xs font-semibold text-[var(--muted-fg)]">Student Life OS</p>
-              </div>
-            ) : null}
-          </Link>
-
-          <button
-            onClick={() => setSidebarCollapsed((value) => !value)}
-            className="hidden rounded-lg border-2 border-[var(--foreground)] p-2 hover:bg-[var(--muted)] lg:grid"
-            aria-label="Collapse sidebar"
-          >
-            <Menu size={18} />
-          </button>
-        </div>
-
-        <nav className="mt-6 space-y-2">
-          {sidebarItems.map((item) => {
-            const Icon = item.icon;
-
-            return (
-              <Link
-                key={item.label}
-                href={item.href}
-                onClick={() => setSidebarOpen(false)}
-                className={`nav-pill flex items-center gap-3 rounded-[18px] px-4 py-3 text-sm font-bold shadow-[4px_4px_0_0_#1E293B] transition-all duration-200 hover:shadow-[6px_6px_0_0_#1E293B] ${item.href === "/dashboard" ? "bg-[var(--foreground)] text-white" : "bg-white"} ${sidebarCollapsed ? "lg:justify-center lg:px-3" : ""}`}
-              >
-                <Icon size={18} strokeWidth={2.5} />
-                {!sidebarCollapsed ? item.label : <span className="sr-only">{item.label}</span>}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className={`mt-6 rounded-[24px] border-2 border-[var(--foreground)] bg-[var(--muted)] p-4 shadow-[4px_4px_0_0_#1E293B] ${sidebarCollapsed ? "lg:p-3" : ""}`}>
-          <div className={`flex items-center gap-3 ${sidebarCollapsed ? "lg:justify-center" : ""}`}>
-            <span className="grid h-11 w-11 place-items-center rounded-full bg-[#F472B6] text-white shadow-[4px_4px_0_0_#1E293B]">
-              <Sparkles size={18} strokeWidth={2.5} />
-            </span>
-            {!sidebarCollapsed ? (
-              <div className="min-w-0">
-                <p className="truncate text-sm font-black">{firstName(user.fullName)}</p>
-                <p className="text-xs font-semibold text-[var(--muted-fg)]">Level {user.level}</p>
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        <button
-          onClick={() => setShowLogoutConfirm(true)}
-          className={`mt-4 flex items-center justify-center gap-2 rounded-[18px] border-2 border-[var(--foreground)] bg-[#FDF2F8] px-4 py-3 font-bold text-[var(--foreground)] shadow-[4px_4px_0_0_#1E293B] transition hover:translate-y-[-2px] ${sidebarCollapsed ? "lg:px-3" : ""}`}
-        >
-          <LogOut size={16} strokeWidth={2.5} />
-          {!sidebarCollapsed ? "Logout" : <span className="sr-only">Logout</span>}
-        </button>
-
-      </aside>
-
-      {showLogoutConfirm ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <motion.div
-            initial={{ scale: 0.92, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="w-full max-w-sm rounded-[28px] border-2 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B]"
-          >
-            <h3 className="text-xl font-black">Confirm logout?</h3>
-            <p className="mt-2 text-sm text-[var(--muted-fg)]">Your dashboard state is stored on the backend. You can safely sign out now.</p>
-            <div className="mt-6 flex gap-3">
-              <button
-                onClick={() => setShowLogoutConfirm(false)}
-                className="secondary-button flex-1 rounded-[18px] border-2 border-[var(--foreground)] px-4 py-3 font-bold"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleLogout}
-                className="candy-button flex-1 rounded-[18px] border-2 border-[var(--foreground)] px-4 py-3 font-bold"
-              >
-                Logout
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      ) : null}
-
+    <AppShell title={copy.dashboard} confirmLogout={true}>
       {showAddTask ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <motion.div
@@ -673,12 +604,12 @@ export default function DashboardPage() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowAddTask(false)}
-                  className="secondary-button flex-1 rounded-[18px] border-2 border-[var(--foreground)] px-4 py-3 font-bold"
+                  className="secondary-button inline-flex h-12 flex-1 items-center justify-center rounded-[18px] border-2 border-[var(--foreground)] px-4 font-bold leading-none"
                 >
-                  Cancel
+                  {copy.cancel}
                 </button>
-                <button onClick={handleAddTask} className="candy-button flex-1 rounded-[18px] border-2 border-[var(--foreground)] px-4 py-3 font-bold">
-                  Create Task
+                <button onClick={handleAddTask} className="candy-button inline-flex h-12 flex-1 items-center justify-center rounded-[18px] border-2 border-[var(--foreground)] px-4 font-bold leading-none">
+                  {copy.addTask}
                 </button>
               </div>
             </div>
@@ -686,456 +617,407 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
-      <main className={`flex-1 pb-10 transition-[margin] lg:pb-12 ${sidebarCollapsed ? "lg:ml-[92px]" : "lg:ml-[280px]"}`}>
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-          <motion.section
-            initial={{ opacity: 0, y: 18, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
-            className="relative overflow-hidden rounded-[32px] border-2 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B] sm:p-8"
-          >
-            <div className="memphis-dots absolute inset-0 opacity-40" aria-hidden="true" />
-            <span className="absolute -right-8 -top-8 hidden h-32 w-32 rounded-full bg-[#FBBF24] opacity-75 lg:block" />
-            <span className="absolute -bottom-10 left-10 hidden h-24 w-24 rounded-full bg-[#8B5CF6] opacity-15 lg:block" />
+      <motion.section
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35 }}
+        className="sticker-card p-6 shadow-[8px_8px_0_0_#DDE7F0] sm:p-7"
+      >
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">{getGreeting()}</p>
+            <h1 className="mt-2 font-display text-3xl font-black tracking-tight sm:text-4xl">{copy.welcome}, {firstName(user.fullName)}</h1>
+            <p className="mt-2 max-w-2xl text-sm text-[var(--muted-fg)] sm:text-base">
+              {copy.subtitle}
+            </p>
+          </div>
 
-            <div className="relative grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.28em] text-[var(--muted-fg)]">Dashboard</p>
-                <h1 className="mt-3 font-display text-3xl font-black tracking-tight sm:text-4xl">
-                  Here's your productivity overview for this week.
-                </h1>
-                <p className="mt-3 max-w-2xl text-base leading-7 text-[var(--muted-fg)] sm:text-lg">
-                  Track your progress, focus time, and achievements all in one place.
-                </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href="/focus" className="candy-button inline-flex h-12 items-center justify-center gap-2 px-5 text-sm leading-none">
+              {copy.startFocus}
+              <ArrowRight size={15} strokeWidth={2.5} />
+            </Link>
+            <button onClick={() => setShowAddTask(true)} className="secondary-button inline-flex h-12 items-center justify-center px-5 text-sm font-bold leading-none">
+              {copy.addTask}
+            </button>
+            <button onClick={toggleFullScreen} className="secondary-button hidden h-12 items-center justify-center px-5 text-sm font-bold leading-none lg:inline-flex">
+              {copy.fullScreen}
+            </button>
+          </div>
+        </div>
 
-                <div className="mt-6 flex flex-wrap items-center gap-4">
-                  <div className="rounded-[24px] border-2 border-[var(--foreground)] bg-[#FFF7D6] p-4 shadow-[4px_4px_0_0_#1E293B]">
-                    <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--muted-fg)]">Level {levelState.level}</p>
-                    <p className="mt-2 font-display text-2xl font-black">{mergedTotalXp} XP</p>
-                  </div>
-                  <div className="rounded-[24px] border-2 border-[var(--foreground)] bg-[#FDF2F8] p-4 shadow-[4px_4px_0_0_#1E293B]">
-                    <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--muted-fg)]">Progress to Level {nextLevel}</p>
-                    <p className="mt-2 font-display text-2xl font-black">{levelState.xpIntoLevel} / {xpToNext || levelState.xpIntoLevel} XP</p>
-                  </div>
-                  <Link href="/focus" className="candy-button flex h-12 items-center gap-2 px-5 text-sm sm:h-14 sm:px-6 sm:text-base">
-                    Start Focus
-                    <span className="grid h-7 w-7 place-items-center rounded-full bg-white text-[var(--foreground)] shadow-[2px_2px_0_0_#1E293B]">
-                      <ArrowRight size={16} strokeWidth={2.5} />
-                    </span>
-                  </Link>
-                  <button onClick={toggleFullScreen} className="secondary-button ml-3 hidden h-12 items-center gap-2 px-4 text-sm lg:inline-flex">
-                    Full Screen
-                  </button>
-                </div>
-              </div>
+        <div className="mt-5 rounded-[18px] border-2 border-[var(--foreground)] bg-[#ECFDF5] px-4 py-3 text-sm text-[var(--muted-fg)]">
+          "{lang === "bn" ? activeQuote.bn : activeQuote.en}" - {activeQuote.author}
+        </div>
+      </motion.section>
 
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                <div className="rounded-[24px] border-2 border-[var(--foreground)] bg-[#ECFDF5] p-4 shadow-[4px_4px_0_0_#1E293B]">
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">Enable Notifications</p>
-                  <p className="mt-2 font-display text-2xl font-black">Daily Inspiration</p>
-                  <p className="mt-2 text-sm text-[var(--muted-fg)] italic">"Hardships often prepare ordinary people for an extraordinary destiny."</p>
-                  <p className="mt-1 text-xs text-[var(--muted-fg)]">— C.S. Lewis</p>
-                </div>
-              </div>
+      {error ? (
+        <div className="mt-6 rounded-[18px] border-2 border-red-500 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          {error}
+        </div>
+      ) : null}
+
+      <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <article className="sticker-card bg-[#F3E8FF] p-5 shadow-[8px_8px_0_0_#D6BCFA]">
+          <span className="mb-2 inline-grid h-9 w-9 place-items-center rounded-full border-2 border-[var(--foreground)] bg-white">
+            <Clock3 size={16} strokeWidth={2.5} />
+          </span>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--muted-fg)]">{copy.focusTime}</p>
+          <p className="mt-2 font-display text-3xl font-black">{focusHours}:{focusMinutePart}</p>
+        </article>
+        <article className="sticker-card bg-[#FDF2F8] p-5 shadow-[8px_8px_0_0_#F9A8D4]">
+          <span className="mb-2 inline-grid h-9 w-9 place-items-center rounded-full border-2 border-[var(--foreground)] bg-white">
+            <CheckCircle2 size={16} strokeWidth={2.5} />
+          </span>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--muted-fg)]">{copy.tasksDone}</p>
+          <p className="mt-2 font-display text-3xl font-black">{mergedCompletedToday}</p>
+        </article>
+        <article className="sticker-card bg-[#FFF7D6] p-5 shadow-[8px_8px_0_0_#FCD34D]">
+          <span className="mb-2 inline-grid h-9 w-9 place-items-center rounded-full border-2 border-[var(--foreground)] bg-white">
+            <Flame size={16} strokeWidth={2.5} />
+          </span>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--muted-fg)]">{copy.streak}</p>
+          <p className="mt-2 font-display text-3xl font-black">{Math.max(1, user.streak)}</p>
+        </article>
+        <article className="sticker-card bg-[#ECFDF5] p-5 shadow-[8px_8px_0_0_#6EE7B7]">
+          <span className="mb-2 inline-grid h-9 w-9 place-items-center rounded-full border-2 border-[var(--foreground)] bg-white">
+            <Sparkles size={16} strokeWidth={2.5} />
+          </span>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--muted-fg)]">{copy.totalXp}</p>
+          <p className="mt-2 font-display text-3xl font-black">{mergedTotalXp}</p>
+        </article>
+      </section>
+
+      <section className="mt-6 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
+        <motion.aside
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.05 }}
+          className="sticker-card bg-white p-6 shadow-[8px_8px_0_0_#F9A8D4]"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">{copy.todaysTasks}</p>
+              <h2 className="mt-2 font-display text-2xl font-black">{copy.taskList}</h2>
             </div>
-          </motion.section>
+            <span className="grid h-10 w-10 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#FDF2F8]">
+              <ClipboardList size={16} strokeWidth={2.5} />
+            </span>
+          </div>
 
-          {error ? (
-            <div className="mt-6 rounded-[22px] border-2 border-red-500 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 shadow-[4px_4px_0_0_#1E293B]">
-              {error}
-            </div>
-          ) : null}
-
-          <section className="mt-6 grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-            <article className="sticker-card p-6 shadow-[8px_8px_0_0_#34D399] lg:col-span-2 xl:col-span-1">
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">01 Daily Update</p>
-              <h2 className="mt-2 font-display text-2xl font-black">End-of-day summary</h2>
-              <div className="mt-4 space-y-3">
-                {dailyUpdateItems.map((item) => (
-                  <div key={item} className="rounded-[18px] border-2 border-[var(--foreground)] bg-white px-4 py-3 text-sm font-semibold shadow-[4px_4px_0_0_#1E293B]">
-                    {item}
-                  </div>
-                ))}
+          <div className="mt-5 max-h-[560px] space-y-3 overflow-y-auto pr-1">
+            {tasks.length === 0 ? (
+              <div className="rounded-[16px] border-2 border-dashed border-[var(--foreground)] bg-white px-4 py-8 text-center">
+                <p className="text-sm text-[var(--muted-fg)]">{copy.noTasks}</p>
               </div>
-            </article>
-
-            <article className="sticker-card p-6 shadow-[8px_8px_0_0_#8B5CF6] lg:col-span-2 xl:col-span-1">
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">02 Weekly Report</p>
-              <h2 className="mt-2 font-display text-2xl font-black">7-day snapshot</h2>
-              <div className="mt-4 space-y-3">
-                {weeklyReportItems.map((item) => (
-                  <div key={item} className="rounded-[18px] border-2 border-[var(--foreground)] bg-white px-4 py-3 text-sm font-semibold shadow-[4px_4px_0_0_#1E293B]">
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </article>
-
-            <article className="sticker-card p-6 shadow-[8px_8px_0_0_#F472B6] lg:col-span-2 xl:col-span-1">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">Recent Achievements</p>
-                  <h2 className="mt-2 font-display text-2xl font-black">Badges & Progress</h2>
-                </div>
-                <span className="grid h-12 w-12 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#F472B6] text-white shadow-[4px_4px_0_0_#1E293B]">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="8" r="6" />
-                    <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
-                  </svg>
-                </span>
-              </div>
-              
-              <div className="mt-6 space-y-4">
-                <div className="rounded-[18px] border-2 border-[var(--foreground)] bg-[#FFF7D6] p-4 shadow-[4px_4px_0_0_#1E293B]">
-                  <p className="font-bold text-[var(--foreground)]">{mergedTotalXp} Total XP</p>
-                  <p className="mt-1 text-sm text-[var(--muted-fg)]">Keep going to earn more rewards!</p>
-                </div>
-                
-                <div className="rounded-[18px] border-2 border-[var(--foreground)] bg-[#ECFDF5] p-4 shadow-[4px_4px_0_0_#1E293B]">
-                  <p className="font-bold text-[var(--foreground)]">{unlockedBadges.length} Badge{unlockedBadges.length === 1 ? "" : "s"}</p>
-                  <p className="mt-1 text-sm text-[var(--muted-fg)]">{unlockedBadges.length ? unlockedBadges.join(" • ") : "No badges earned yet. Keep pushing!"}</p>
-                </div>
-
-                <div className="rounded-[18px] border-2 border-[var(--foreground)] bg-[#FDF2F8] p-4 shadow-[4px_4px_0_0_#1E293B]">
-                  <div className="flex items-center gap-2">
-                    <Award size={18} strokeWidth={2.5} />
-                    <p className="font-bold text-[var(--foreground)]">Inspiration Trophy</p>
-                  </div>
-                  <p className="mt-1 text-sm text-[var(--muted-fg)]">
-                    {mergedTotalXp >= 100 ? "Unlocked for crossing 100 XP. Keep compounding your momentum." : `Earn ${100 - mergedTotalXp} more XP to unlock your first trophy.`}
-                  </p>
-                </div>
-              </div>
-            </article>
-          </section>
-
-          <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <motion.article
-              initial={{ opacity: 0, y: 16, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: 0.05 * 0, duration: 0.45, ease: [0.34, 1.56, 0.64, 1] }}
-              className="sticker-card relative p-5 pt-8"
-            >
-              <span className="grid h-11 w-11 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#8B5CF6] text-white shadow-[4px_4px_0_0_#1E293B]">
-                <Target size={20} strokeWidth={2.5} />
-              </span>
-              <p className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted-fg)]">Focus Time</p>
-              <p className="mt-3 font-display text-3xl font-black tracking-tight">{focusHours}:{focusMinutePart}</p>
-            </motion.article>
-            
-            <motion.article
-              initial={{ opacity: 0, y: 16, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: 0.05 * 1, duration: 0.45, ease: [0.34, 1.56, 0.64, 1] }}
-              className="sticker-card relative p-5 pt-8"
-            >
-              <span className="grid h-11 w-11 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#F472B6] text-white shadow-[4px_4px_0_0_#1E293B]">
-                <CheckCircle2 size={20} strokeWidth={2.5} />
-              </span>
-              <p className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted-fg)]">Tasks Done</p>
-              <p className="mt-3 font-display text-3xl font-black tracking-tight">{mergedCompletedToday}</p>
-            </motion.article>
-            
-            <motion.article
-              initial={{ opacity: 0, y: 16, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: 0.05 * 2, duration: 0.45, ease: [0.34, 1.56, 0.64, 1] }}
-              className="sticker-card relative p-5 pt-8"
-            >
-              <span className="grid h-11 w-11 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#F472B6] text-white shadow-[4px_4px_0_0_#1E293B]">
-                <Flame size={20} strokeWidth={2.5} />
-              </span>
-              <p className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted-fg)]">Streak</p>
-              <p className="mt-3 font-display text-3xl font-black tracking-tight">{Math.max(1, user.streak)}</p>
-            </motion.article>
-            
-            <motion.article
-              initial={{ opacity: 0, y: 16, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: 0.05 * 3, duration: 0.45, ease: [0.34, 1.56, 0.64, 1] }}
-              className="sticker-card relative p-5 pt-8"
-            >
-              <span className="grid h-11 w-11 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#8B5CF6] text-white shadow-[4px_4px_0_0_#1E293B]">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2v20" />
-                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                </svg>
-              </span>
-              <p className="text-sm font-black uppercase tracking-[0.12em] text-[var(--muted-fg)]">Total XP</p>
-              <p className="mt-3 font-display text-3xl font-black tracking-tight">{mergedTotalXp}</p>
-            </motion.article>
-          </section>
-
-          <section className="mt-6 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-            <div className="space-y-6 lg:grid lg:grid-cols-2 lg:gap-6">
-              <motion.aside
-                initial={{ opacity: 0, y: 20, scale: 0.97 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ delay: 0.16, duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
-                className="sticker-card p-6 shadow-[8px_8px_0_0_#FBBF24]"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">Focus Activity (Minutes)</p>
-                    <h2 className="mt-2 font-display text-3xl font-black">Weekly Overview</h2>
-                  </div>
-                  <span className="grid h-12 w-12 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#FBBF24] text-[var(--foreground)] shadow-[4px_4px_0_0_#1E293B]">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M3 3v18h18" />
-                      <path d="m19 9-5 5-4-4-3 3" />
-                    </svg>
-                  </span>
-                </div>
-                
-                <div className="mt-6">
-                  <div className="flex justify-between text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)] mb-2">
-                    <span>Mon</span>
-                    <span>Tue</span>
-                    <span>Wed</span>
-                    <span>Thu</span>
-                    <span>Fri</span>
-                    <span>Sat</span>
-                    <span>Sun</span>
-                  </div>
-                  
-                  <div className="h-32 rounded-[18px] border-2 border-[var(--foreground)] bg-white p-4 shadow-[4px_4px_0_0_#1E293B]">
-                    <div className="relative h-full">
-                      <div className="absolute bottom-0 left-0 right-0 flex h-full items-end justify-between">
-                        {[0, 1, 2, 3, 4, 0, 0].map((height, index) => (
-                          <div key={index} className="flex flex-col items-center">
-                            <div 
-                              className="w-6 rounded-t-lg bg-[#8B5CF6] transition-all duration-300 hover:bg-[#7C3AED]"
-                              style={{ height: `${(height / 4) * 100}%` }}
-                            />
-                            <div className="mt-2 text-xs font-black text-[var(--muted-fg)]">{height}</div>
-                          </div>
-                        ))}
-                      </div>
-                      
-                      <div className="absolute left-0 right-0 top-0 flex h-full items-center justify-between">
-                        {[4, 3, 2, 1, 0].map((value, index) => (
-                          <div key={index} className="text-xs text-[var(--muted-fg)] opacity-50">{value}</div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.aside>
-              
-              <motion.aside
-                initial={{ opacity: 0, y: 20, scale: 0.97 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ delay: 0.2, duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
-                className="sticker-card p-6 shadow-[8px_8px_0_0_#34D399]"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">AI Insights</p>
-                    <h2 className="mt-2 font-display text-3xl font-black">Personalized Tips</h2>
-                  </div>
-                  <span className="grid h-12 w-12 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#34D399] text-[var(--foreground)] shadow-[4px_4px_0_0_#1E293B]">
-                    <BrainCircuit size={20} strokeWidth={2.5} />
-                  </span>
-                </div>
-                
-                <div className="mt-6 space-y-4">
-                  <div className="rounded-[18px] border-2 border-[var(--foreground)] bg-[#FFF7D6] p-4 shadow-[4px_4px_0_0_#1E293B]">
-                    <p className="font-bold text-[var(--foreground)]">Low Focus Today</p>
-                    <p className="mt-1 text-sm text-[var(--muted-fg)]">Your focus time is low today. Try a 25-minute Pomodoro session to get started.</p>
-                  </div>
-                  
-                  <div className="rounded-[18px] border-2 border-[var(--foreground)] bg-[#ECFDF5] p-4 shadow-[4px_4px_0_0_#1E293B]">
-                    <p className="font-bold text-[var(--foreground)]">Peak Performance</p>
-                    <p className="mt-1 text-sm text-[var(--muted-fg)]">Your focus is highest in the morning. Schedule your most complex tasks before noon.</p>
-                  </div>
-                </div>
-              </motion.aside>
-            </div>
-            
-            <div className="space-y-6">
-              <motion.aside
-                initial={{ opacity: 0, y: 20, scale: 0.97 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ delay: 0.16, duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
-                className="sticker-card p-6 shadow-[8px_8px_0_0_#F472B6]"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">Today's Tasks</p>
-                    <h2 className="mt-2 font-display text-3xl font-black">Task List</h2>
-                  </div>
-                  <span className="grid h-12 w-12 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#F472B6] text-white shadow-[4px_4px_0_0_#1E293B]">
-                    <ClipboardList size={18} strokeWidth={2.5} />
-                  </span>
-                </div>
-                
-                <div className="mt-5 max-h-[640px] space-y-3 overflow-y-auto pr-1">
-                {tasks.length === 0 ? (
-                  <div className="rounded-[20px] border-2 border-dashed border-[var(--foreground)] bg-white px-4 py-8 text-center">
-                    <p className="text-sm text-[var(--muted-fg)]">No tasks yet. Add one to build momentum.</p>
-                  </div>
-                ) : (
-                  tasks.map((task) => (
-                    <div key={task.id}>
-                      <div
-                        onClick={() => setExpandedTaskId((value) => (value === task.id ? null : task.id))}
-                        className={`w-full rounded-[22px] border-2 border-[var(--foreground)] px-4 py-3 text-left shadow-[4px_4px_0_0_#1E293B] transition ${task.completed ? "bg-[#ECFDF5]" : "bg-white"}`}
+            ) : (
+              tasks.map((task) => (
+                <div key={task.id}>
+                  <div
+                    onClick={() => setExpandedTaskId((value) => (value === task.id ? null : task.id))}
+                    className={`w-full rounded-[16px] border-2 border-[var(--foreground)] px-4 py-3 text-left transition ${task.completed ? "bg-[#ECFDF5]" : "bg-white"}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <button
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void toggleTask(task);
+                        }}
+                        className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 border-[var(--foreground)] ${task.completed ? "bg-[#34D399]" : "bg-[#FDF2F8]"}`}
                       >
-                        <div className="flex items-start gap-3">
-                          <button
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              void toggleTask(task);
-                            }}
-                            className={`mt-1 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 border-[var(--foreground)] ${task.completed ? "bg-[#34D399]" : "bg-[#FDF2F8]"}`}
-                          >
-                            {task.completed ? <CheckCircle2 size={14} strokeWidth={2.5} className="text-white" /> : <span className="h-2.5 w-2.5 rounded-full bg-[#8B5CF6]" />}
-                          </button>
+                        {task.completed ? <CheckCircle2 size={14} strokeWidth={2.5} className="text-white" /> : <span className="h-2.5 w-2.5 rounded-full bg-[#8B5CF6]" />}
+                      </button>
 
-                          <div className="min-w-0 flex-1">
-                           <div className="flex items-start justify-between gap-3">
-                               <div>
-                                 <p className={`font-bold leading-6 ${task.completed ? "line-through text-[var(--muted-fg)]" : ""}`}>{task.title}</p>
-                                 <p className="mt-1 text-xs font-semibold text-[var(--muted-fg)]">
-                                   {task.subject} • {task.estimate}m
-                                 </p>
-                               </div>
-                               <span className="hard-chip shrink-0 px-3 py-1.5 text-xs font-black text-[var(--foreground)]">+{task.xp} XP</span>
-                             </div>
-                             <div className="flex gap-2 mt-2">
-                               {editingTaskId === task.id ? (
-                                 <>
-                                   <button
-                                     onClick={(e) => {
-                                       e.stopPropagation();
-                                       const updatedTask: Task = {
-                                         ...task,
-                                         title: editTaskTitle,
-                                         subject: editTaskSubject,
-                                         estimate: Number(editTaskEstimate),
-                                         subtasks: editTaskMicrotasks.split("\n").filter(Boolean).map((title, index) => ({
-                                           id: task.subtasks[index]?.id ?? `sub-${Date.now()}-${index}`,
-                                           title,
-                                           completed: task.subtasks[index]?.completed ?? false
-                                         }))
-                                       };
-                                       setTasks(prev => {
-                                         const next = prev.map(t => t.id === task.id ? updatedTask : t);
-                                         persistLocalTasks(next);
-                                         return next;
-                                       });
-                                       setEditingTaskId(null);
-                                     }}
-                                     className="rounded-[18px] border-2 border-[var(--foreground)] px-3 py-1 text-xs font-black bg-white hover:bg-[var(--muted)]"
-                                   >
-                                     Save
-                                   </button>
-                                   <button
-                                     onClick={(e) => {
-                                       e.stopPropagation();
-                                       setEditingTaskId(null);
-                                     }}
-                                     className="rounded-[18px] border-2 border-[var(--foreground)] px-3 py-1 text-xs font-black bg-[var(--muted)] hover:bg-[var(--muted)]/80"
-                                   >
-                                     Cancel
-                                   </button>
-                                 </>
-                               ) : (
-                                 <>
-                                   <button
-                                     onClick={(e) => {
-                                       e.stopPropagation();
-                                       setEditingTaskId(task.id);
-                                       setEditTaskTitle(task.title);
-                                       setEditTaskSubject(task.subject);
-                                       setEditTaskEstimate(task.estimate.toString());
-                                       setEditTaskMicrotasks(task.subtasks.map(st => st.title).join("\n"));
-                                     }}
-                                     className="rounded-[18px] border-2 border-[var(--foreground)] px-3 py-1 text-xs font-black bg-white hover:bg-[var(--muted)]"
-                                   >
-                                     <PenTool size={14} strokeWidth={1.5} />
-                                   </button>
-                                   <button
-                                     onClick={(e) => {
-                                       e.stopPropagation();
-                                       if (window.confirm("Are you sure you want to delete this task?")) {
-                                         deleteTask(task.id).then(() => {
-                                           setTasks(prev => {
-                                             const next = prev.filter(t => t.id !== task.id);
-                                             persistLocalTasks(next);
-                                             return next;
-                                           });
-                                         }).catch(() => {
-                                           // Optimistic update - remove immediately and handle error if needed
-                                           setTasks(prev => {
-                                             const next = prev.filter(t => t.id !== task.id);
-                                             persistLocalTasks(next);
-                                             return next;
-                                           });
-                                         });
-                                       }
-                                     }}
-                                     className="rounded-[18px] border-2 border-[var(--foreground)] px-3 py-1 text-xs font-black bg-white hover:bg-[var(--muted)]"
-                                   >
-                                     <Trash2 size={14} strokeWidth={1.5} />
-                                   </button>
-                                 </>
-                               )}
-                             </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className={`font-bold leading-6 ${task.completed ? "line-through text-[var(--muted-fg)]" : ""}`}>{task.title}</p>
+                            <p className="mt-0.5 text-xs font-semibold text-[var(--muted-fg)]">{task.subject} • {task.estimate}m</p>
+                          </div>
+                          <span className="rounded-full border-2 border-[var(--foreground)] bg-white px-2.5 py-1 text-xs font-black">+{task.xp} XP</span>
+                        </div>
 
-                            <div className="mt-3 flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">
-                              <span className={`rounded-full px-2 py-1 ${getSubjectTone(task.subject)}`}>{task.subject}</span>
-                              {task.subtasks.length > 0 ? <ChevronDown size={16} className={`transition ${expandedTaskId === task.id ? "rotate-180" : ""}`} /> : null}
-                            </div>
+                        <div className="mt-2 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingTaskId(task.id);
+                                setEditTaskTitle(task.title);
+                                setEditTaskSubject(task.subject);
+                                setEditTaskEstimate(task.estimate.toString());
+                                setEditTaskMicrotasks(task.subtasks.map((st) => st.title).join("\n"));
+                              }}
+                              className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-2 py-1"
+                              aria-label="Edit task"
+                            >
+                              <PenTool size={13} strokeWidth={2} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (window.confirm("Are you sure you want to delete this task?")) {
+                                  deleteTask(task.id)
+                                    .then(() => {
+                                      setTasks((prev) => {
+                                        const next = prev.filter((t) => t.id !== task.id);
+                                        persistLocalTasks(next);
+                                        return next;
+                                      });
+                                    })
+                                    .catch(() => {
+                                      setTasks((prev) => {
+                                        const next = prev.filter((t) => t.id !== task.id);
+                                        persistLocalTasks(next);
+                                        return next;
+                                      });
+                                    });
+                                }
+                              }}
+                              className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-2 py-1"
+                              aria-label="Delete task"
+                            >
+                              <Trash2 size={13} strokeWidth={2} />
+                            </button>
+                            {editingTaskId === task.id ? (
+                              <>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const updatedTask: Task = {
+                                      ...task,
+                                      title: editTaskTitle,
+                                      subject: editTaskSubject,
+                                      estimate: Number(editTaskEstimate),
+                                      subtasks: editTaskMicrotasks
+                                        .split("\n")
+                                        .filter(Boolean)
+                                        .map((title, index) => ({
+                                          id: task.subtasks[index]?.id ?? `sub-${Date.now()}-${index}`,
+                                          title,
+                                          completed: task.subtasks[index]?.completed ?? false,
+                                        })),
+                                    };
+                                    setTasks((prev) => {
+                                      const next = prev.map((t) => (t.id === task.id ? updatedTask : t));
+                                      persistLocalTasks(next);
+                                      return next;
+                                    });
+                                    setEditingTaskId(null);
+                                  }}
+                                  className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-2.5 py-1 text-xs font-black"
+                                >
+                                  {copy.save}
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingTaskId(null);
+                                  }}
+                                  className="rounded-[12px] border-2 border-[var(--foreground)] bg-[var(--muted)] px-2.5 py-1 text-xs font-black"
+                                >
+                                  {copy.cancel}
+                                </button>
+                              </>
+                            ) : null}
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${getSubjectTone(task.subject)}`}>{task.subject}</span>
+                            {task.subtasks.length > 0 ? <ChevronDown size={15} className={`transition ${expandedTaskId === task.id ? "rotate-180" : ""}`} /> : null}
                           </div>
                         </div>
                       </div>
-
-                      {expandedTaskId === task.id && task.subtasks.length > 0 ? (
-                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-2 space-y-2 border-l-2 border-[var(--foreground)] pl-4">
-                          {task.subtasks.map((subtask) => (
-                            <div
-                              key={subtask.id}
-                              onClick={() => void toggleSubtask(task, subtask)}
-                              className="w-full rounded-[16px] border-2 border-[var(--foreground)] bg-white px-3 py-2 text-left text-sm transition hover:bg-[var(--muted)] cursor-pointer"
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className={`grid h-4 w-4 shrink-0 place-items-center rounded-full border-2 border-[var(--foreground)] ${subtask.completed ? "bg-[#34D399]" : "bg-white"}`}>
-                                  {subtask.completed ? <CheckCircle2 size={10} strokeWidth={3} className="text-white" /> : null}
-                                </span>
-                                <span className={subtask.completed ? "line-through text-[var(--muted-fg)]" : ""}>{subtask.title}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </motion.div>
-                      ) : null}
                     </div>
-                  ))
-                )}
-              </div>
+                  </div>
 
-              <button onClick={() => setShowAddTask(true)} className="mt-4 w-full rounded-[22px] border-2 border-[var(--foreground)] bg-[#FBBF24] px-4 py-3 font-black shadow-[4px_4px_0_0_#1E293B] transition hover:translate-y-1 active:shadow-none">
-                + Add New Task
-              </button>
-              
-
-              <div className="mt-6 rounded-[22px] border-2 border-[var(--foreground)] bg-white p-4 shadow-[4px_4px_0_0_#1E293B]">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">Weekly Task Progress</p>
-                  <p className="font-bold text-[var(--foreground)]">{weeklyCompleted} / {weeklyTotal} Planner</p>
+                  {expandedTaskId === task.id && task.subtasks.length > 0 ? (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-2 space-y-2 border-l-2 border-[var(--border)] pl-4">
+                      {task.subtasks.map((subtask) => (
+                        <div
+                          key={subtask.id}
+                          onClick={() => void toggleSubtask(task, subtask)}
+                          className="cursor-pointer rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2 text-sm hover:bg-[var(--muted)]"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className={`grid h-4 w-4 shrink-0 place-items-center rounded-full border-2 border-[var(--foreground)] ${subtask.completed ? "bg-[#34D399]" : "bg-white"}`}>
+                              {subtask.completed ? <CheckCircle2 size={10} strokeWidth={3} className="text-white" /> : null}
+                            </span>
+                            <span className={subtask.completed ? "line-through text-[var(--muted-fg)]" : ""}>{subtask.title}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </motion.div>
+                  ) : null}
                 </div>
-                <div className="h-4 rounded-full border-2 border-[var(--foreground)] bg-[var(--muted)] overflow-hidden">
-                  <div className="h-full bg-[#34D399]" style={{ width: `${weeklyPercent}%` }} />
-                </div>
-                <p className="mt-2 text-xs font-black text-[var(--muted-fg)] text-right">{weeklyPercent}%</p>
-              </div>
-            </motion.aside>
+              ))
+            )}
           </div>
-          </section>
+
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button onClick={() => setShowAddTask(true)} className="candy-button inline-flex h-12 items-center justify-center px-5 text-sm leading-none">{copy.addNewTask}</button>
+            <Link href="/focus" className="secondary-button inline-flex h-12 items-center justify-center px-5 text-sm font-bold leading-none">{copy.openFocus}</Link>
+          </div>
+        </motion.aside>
+
+        <div className="space-y-6">
+          <motion.aside
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.1 }}
+            className="sticker-card bg-white p-6 shadow-[8px_8px_0_0_#D6BCFA]"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">{copy.focusTrend}</p>
+                <h2 className="mt-1 font-display text-2xl font-black">{copy.weeklyFocus}</h2>
+              </div>
+              <span className="grid h-10 w-10 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#FFF7D6]">
+                <Target size={16} strokeWidth={2.5} />
+              </span>
+            </div>
+
+            <div className="mt-4 h-44 rounded-[14px] border-2 border-[var(--foreground)] bg-white p-3">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={weeklyFocusSeries} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="focusTrendFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.06} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="day" tick={{ fill: "#475569", fontSize: 12, fontWeight: 700 }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: "12px",
+                      border: "2px solid #1E293B",
+                      background: "#ffffff",
+                      fontWeight: 700,
+                    }}
+                    cursor={{ stroke: "#8B5CF6", strokeOpacity: 0.35 }}
+                    formatter={(value) => [`${value} score`, "Focus"]}
+                  />
+                  <Area type="monotone" dataKey="value" stroke="#8B5CF6" strokeWidth={3} fill="url(#focusTrendFill)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </motion.aside>
+
+          <motion.aside
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.14 }}
+            className="sticker-card bg-white p-6 shadow-[8px_8px_0_0_#86EFAC]"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">{copy.thisWeek}</p>
+              <span className="rounded-full border-2 border-[var(--foreground)] bg-[#ECFDF5] px-2.5 py-1 text-xs font-black">{weeklyPercent}% {copy.done}</span>
+            </div>
+
+            <div className="mt-4 h-4 overflow-hidden rounded-full border-2 border-[var(--foreground)] bg-[var(--muted)]">
+              <div className="h-full bg-[#34D399]" style={{ width: `${weeklyPercent}%` }} />
+            </div>
+
+            <div className="mt-4 rounded-[14px] border-2 border-[var(--foreground)] bg-[#F8FAFC] px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.15em] text-[var(--muted-fg)]">{copy.level}</p>
+                  <p className="font-display text-2xl font-black">{levelState.level}</p>
+                </div>
+                <div className="relative grid h-[108px] w-[108px] place-items-center">
+                  <svg viewBox="0 0 100 100" className="h-[108px] w-[108px] -rotate-90">
+                    <circle cx="50" cy="50" r={levelRingRadius} fill="none" stroke="#E2E8F0" strokeWidth="9" />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r={levelRingRadius}
+                      fill="none"
+                      stroke="#8B5CF6"
+                      strokeWidth="9"
+                      strokeLinecap="round"
+                      strokeDasharray={levelRingCircumference}
+                      strokeDashoffset={levelRingOffset}
+                    />
+                  </svg>
+                  <div className="absolute inset-0 grid place-items-center text-center">
+                    <p className="text-lg font-black leading-none">{levelProgressPercent}%</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--muted-fg)]">{copy.done}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded-[10px] border-2 border-[var(--foreground)] bg-white px-2.5 py-2">
+                  <p className="font-bold text-[var(--muted-fg)]">{copy.nextLevelXp}</p>
+                  <p className="font-black">{levelState.xpIntoLevel}/{xpToNext || levelState.xpIntoLevel}</p>
+                </div>
+                <div className="rounded-[10px] border-2 border-[var(--foreground)] bg-white px-2.5 py-2">
+                  <p className="font-bold text-[var(--muted-fg)]">{copy.xpNeeded}</p>
+                  <p className="font-black">{xpRemainingForNextLevel} XP</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
+                <span className="mb-1 inline-grid h-7 w-7 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#FFF7D6]">
+                  <ClipboardList size={13} strokeWidth={2.5} />
+                </span>
+                <p className="text-[var(--muted-fg)]">{copy.planner}</p>
+                <p className="font-black">{weeklyCompleted} / {weeklyTotal}</p>
+              </div>
+              <div className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
+                <span className="mb-1 inline-grid h-7 w-7 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#FDF2F8]">
+                  <Award size={13} strokeWidth={2.5} />
+                </span>
+                <p className="text-[var(--muted-fg)]">{copy.badges}</p>
+                <p className="font-black">{unlockedBadges.length}</p>
+              </div>
+              <div className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
+                <span className="mb-1 inline-grid h-7 w-7 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#F3E8FF]">
+                  <Target size={13} strokeWidth={2.5} />
+                </span>
+                <p className="text-[var(--muted-fg)]">{copy.level}</p>
+                <p className="font-black">{levelState.level}</p>
+              </div>
+              <div className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
+                <span className="mb-1 inline-grid h-7 w-7 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#ECFDF5]">
+                  <ArrowRight size={13} strokeWidth={2.5} />
+                </span>
+                <p className="text-[var(--muted-fg)]">{copy.nextLevelXp}</p>
+                <p className="font-black">{levelState.xpIntoLevel}/{xpToNext || levelState.xpIntoLevel}</p>
+              </div>
+            </div>
+          </motion.aside>
+
+          <motion.aside
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.18 }}
+            className="sticker-card bg-white p-6 shadow-[8px_8px_0_0_#FCD34D]"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">{copy.aiInsights}</p>
+                <h2 className="mt-1 font-display text-2xl font-black">{copy.simpleRecommendations}</h2>
+              </div>
+              <span className="grid h-10 w-10 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#ECFDF5]">
+                <BrainCircuit size={16} strokeWidth={2.5} />
+              </span>
+            </div>
+
+            <ul className="mt-4 space-y-2 text-sm text-[var(--muted-fg)]">
+              <li className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
+                {copy.insightOne}
+              </li>
+              <li className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
+                {copy.insightTwo}
+              </li>
+            </ul>
+          </motion.aside>
         </div>
-      </main>
-      </div>
-    </LanguageProvider>
+      </section>
+    </AppShell>
   );
 }
 
