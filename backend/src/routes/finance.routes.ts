@@ -18,7 +18,7 @@ import {
   deleteSavingsGoalController,
   getFinanceSummaryController,
   getExpensesCategoryController,
-} from "../controllers/finance.controller";
+} from "../controllers/finance.controller.js";
 
 export const financeRoutes = Router();
 

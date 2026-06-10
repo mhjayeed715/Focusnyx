@@ -463,7 +463,7 @@ export function FinancePanel() {
   };
 
   const handleSettleDebt = async (id: string) => {
-    const next = debts.map((d) => (d.id === id ? { ...d, status: "settled" } : d));
+    const next = debts.map((d) => (d.id === id ? { ...d, status: "settled" as const } : d));
     setDebts(next);
     saveLocal(LOCAL_DEBTS_KEY, next);
     if (userId) {

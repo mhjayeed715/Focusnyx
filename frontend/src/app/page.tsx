@@ -612,53 +612,53 @@ export default function HomePage() {
 
       <footer id="about" className="border-t-2 border-[var(--foreground)] bg-white">
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <h3 className="mb-4 flex items-center gap-2 font-display text-lg font-black">
+          <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-12">
+            <div className="lg:col-span-3">
+              <h3 className="mb-4 flex items-center gap-2 font-display text-lg font-black leading-none">
                 <ShieldCheck size={18} strokeWidth={2.5} />
                 Help Center
               </h3>
               <ul className="space-y-2 text-sm text-[var(--muted-fg)]">
                 <li>
-                  <a href="#" className="flex items-center gap-2 transition-colors hover:text-[var(--foreground)]">
+                  <a href="#" className="inline-flex items-center gap-2 leading-6 transition-colors hover:text-[var(--foreground)]">
                     <MessageSquareText size={16} strokeWidth={2.5} />
                     Contact Us
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="flex items-center gap-2 transition-colors hover:text-[var(--foreground)]">
+                  <a href="#" className="inline-flex items-center gap-2 leading-6 transition-colors hover:text-[var(--foreground)]">
                     <ShieldCheck size={16} strokeWidth={2.5} />
                     Privacy Policy
                   </a>
                 </li>
               </ul>
             </div>
-            
-            <div>
-              <h3 className="mb-4 flex items-center gap-2 font-display text-lg font-black">
+
+            <div className="lg:col-span-4">
+              <h3 className="mb-4 flex items-center gap-2 font-display text-lg font-black leading-none">
                 <Mail size={18} strokeWidth={2.5} />
                 Contact
               </h3>
               <ul className="space-y-2 text-sm text-[var(--muted-fg)]">
-                <li className="flex items-center gap-2">
+                <li className="flex items-center gap-2 leading-6">
                   <Mail size={16} strokeWidth={2.5} />
                   <span>mehrabjayeed715@gmail.com</span>
                 </li>
-                <li className="flex items-center gap-2">
+                <li className="flex items-center gap-2 leading-6">
                   <Phone size={16} strokeWidth={2.5} />
                   <span>+8801533652232</span>
                 </li>
                 <li>
-                  <a href="https://linkedin.com/in/mhjayeed715" target="_blank" rel="noreferrer" className="flex items-center gap-2 transition-colors hover:text-[var(--foreground)]">
+                  <a href="https://linkedin.com/in/mhjayeed715" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 leading-6 transition-colors hover:text-[var(--foreground)]">
                     <Linkedin size={16} strokeWidth={2.5} />
                     linkedin.com/in/mhjayeed715
                   </a>
                 </li>
               </ul>
             </div>
-            
-            <div className="md:col-span-2 lg:col-span-2">
-              <div className="flex items-center gap-3 mb-4">
+
+            <div className="md:col-span-2 lg:col-span-5">
+              <div className="mb-4 flex items-center gap-3">
                 <Image
                   src="/icons/focusnyx.png"
                   alt="Focusnyx"
@@ -671,11 +671,11 @@ export default function HomePage() {
                   <p className="text-sm font-semibold text-[var(--muted-fg)]">{copy.footer}</p>
                 </div>
               </div>
-              <p className="text-sm text-[var(--muted-fg)] mb-4">© 2026 Focusnyx. All rights reserved.</p>
-              <div className="flex gap-4 text-sm text-[var(--muted-fg)]">
-                <a href="#" className="hover:text-[var(--foreground)] transition-colors">Privacy Policy</a>
+              <p className="mb-4 max-w-md text-sm leading-6 text-[var(--muted-fg)]">© 2026 Focusnyx. All rights reserved.</p>
+              <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--muted-fg)]">
+                <a href="#" className="transition-colors hover:text-[var(--foreground)]">Privacy Policy</a>
                 <span>•</span>
-                <a href="#" className="hover:text-[var(--foreground)] transition-colors">Terms of Service</a>
+                <a href="#" className="transition-colors hover:text-[var(--foreground)]">Terms of Service</a>
               </div>
             </div>
           </div>

@@ -22,7 +22,7 @@ import {
   type Budget,
   type Debt,
   type SavingsGoal,
-} from "../services/finance.service";
+} from "../services/finance.service.js";
 
 // ── Transaction Controllers ────────────────────────────────────────────────
 
