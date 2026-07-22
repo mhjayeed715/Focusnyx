@@ -1,5 +1,10 @@
 import { createClient } from "@/lib/supabase/client";
 
+function localDateStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 const defaultBackendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080";
 
 async function getAccessToken() {
@@ -348,7 +353,7 @@ export async function getWellnessHydration(date?: string): Promise<{ glasses: nu
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated.");
-  const logDate = date ?? new Date().toISOString().split("T")[0];
+  const logDate = date ?? localDateStr();
   const { data } = await supabase
     .from("wellness_hydration")
     .select("glasses,goal")
@@ -362,7 +367,7 @@ export async function saveWellnessHydration(glasses: number, goal = 8, date?: st
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated.");
-  const logDate = date ?? new Date().toISOString().split("T")[0];
+  const logDate = date ?? localDateStr();
   await supabase
     .from("wellness_hydration")
     .upsert({ user_id: user.id, log_date: logDate, glasses, goal }, { onConflict: "user_id,log_date" });
@@ -383,7 +388,7 @@ export async function getWellnessSleepSessions(date?: string): Promise<{ session
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated.");
-  const logDate = date ?? new Date().toISOString().split("T")[0];
+  const logDate = date ?? localDateStr();
   const { data, error } = await supabase
     .from("wellness_sleep_sessions")
     .select("id,log_date,bedtime,wake_time,quality,duration_hours")
@@ -413,7 +418,7 @@ export async function addWellnessSleepSession(session: {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated.");
-  const logDate = session.date ?? new Date().toISOString().split("T")[0];
+  const logDate = session.date ?? localDateStr();
   const { data, error } = await supabase
     .from("wellness_sleep_sessions")
     .insert({
@@ -443,7 +448,7 @@ export async function getWellnessMoodEntries(date?: string): Promise<{ entries: 
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated.");
-  const logDate = date ?? new Date().toISOString().split("T")[0];
+  const logDate = date ?? localDateStr();
   const { data, error } = await supabase
     .from("wellness_mood_entries")
     .select("id,log_date,mood,note")
@@ -465,7 +470,7 @@ export async function addWellnessMoodEntry(mood: string, note?: string, date?: s
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated.");
-  const logDate = date ?? new Date().toISOString().split("T")[0];
+  const logDate = date ?? localDateStr();
   const { data, error } = await supabase
     .from("wellness_mood_entries")
     .insert({ user_id: user.id, log_date: logDate, mood, note: note ?? null })
@@ -548,7 +553,7 @@ export async function getMedicationLogs(date?: string): Promise<{ logs: Record<s
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated.");
-  const logDate = date ?? new Date().toISOString().split("T")[0];
+  const logDate = date ?? localDateStr();
   const { data, error } = await supabase
     .from("wellness_medication_logs")
     .select("medication_id,taken")
@@ -564,7 +569,7 @@ export async function logMedicationTaken(medicationId: string, taken: boolean, d
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated.");
-  const logDate = date ?? new Date().toISOString().split("T")[0];
+  const logDate = date ?? localDateStr();
   await supabase
     .from("wellness_medication_logs")
     .upsert(
@@ -579,7 +584,7 @@ export async function getWellnessActivity(date?: string): Promise<{ steps: numbe
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated.");
-  const logDate = date ?? new Date().toISOString().split("T")[0];
+  const logDate = date ?? localDateStr();
   const { data } = await supabase
     .from("wellness_activity")
     .select("steps,goal")
@@ -593,7 +598,7 @@ export async function saveWellnessActivity(steps: number, goal = 10000, date?: s
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated.");
-  const logDate = date ?? new Date().toISOString().split("T")[0];
+  const logDate = date ?? localDateStr();
   await supabase
     .from("wellness_activity")
     .upsert({ user_id: user.id, log_date: logDate, steps, goal }, { onConflict: "user_id,log_date" });
@@ -605,7 +610,7 @@ export async function getWellnessBodyMetrics(date?: string): Promise<{ weightKg:
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated.");
-  const logDate = date ?? new Date().toISOString().split("T")[0];
+  const logDate = date ?? localDateStr();
   const { data } = await supabase
     .from("wellness_body_metrics")
     .select("weight_kg,height_cm")
@@ -619,7 +624,7 @@ export async function saveWellnessBodyMetrics(weightKg: number | null, heightCm:
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated.");
-  const logDate = date ?? new Date().toISOString().split("T")[0];
+  const logDate = date ?? localDateStr();
   await supabase
     .from("wellness_body_metrics")
     .upsert({ user_id: user.id, log_date: logDate, weight_kg: weightKg, height_cm: heightCm }, { onConflict: "user_id,log_date" });
@@ -641,7 +646,7 @@ export async function getDailyWellness(date?: string): Promise<DailyWellnessEntr
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated.");
-  const logDate = date ?? new Date().toISOString().split("T")[0];
+  const logDate = date ?? localDateStr();
   const { data } = await supabase
     .from("daily_wellness")
     .select("log_date,sleep_hours,mood_key,hydration_glasses,hydration_goal,steps,steps_goal")
@@ -663,7 +668,7 @@ export async function upsertDailyWellness(entry: Omit<DailyWellnessEntry, "date"
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated.");
-  const logDate = entry.date ?? new Date().toISOString().split("T")[0];
+  const logDate = entry.date ?? localDateStr();
   await supabase
     .from("daily_wellness")
     .upsert(

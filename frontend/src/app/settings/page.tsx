@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { X, CheckCircle2, AlertTriangle, ExternalLink, Eye, EyeOff } from 'lucide-react';
 import GradeScaleSettings from '@/components/modules/settings/GradeScaleSettings';
 import { useRouter } from 'next/navigation';
@@ -26,20 +27,58 @@ export default function SettingsPage() {
   const [usage, setUsage] = useState({ callsToday: 0, limit: 20, nearLimit: false });
   const [ready, setReady] = useState(false);
 
-  // Load saved values on mount
+  // Load saved values on mount (localStorage + Supabase DB fallback)
   useEffect(() => {
-    try {
-      const savedGemini = localStorage.getItem(STORAGE_KEY_GEMINI);
-      if (savedGemini) setGeminiApiKey(savedGemini);
-      const savedGroq = localStorage.getItem(STORAGE_KEY_GROQ);
-      if (savedGroq) setGroqApiKey(savedGroq);
-      const savedProvider = localStorage.getItem(STORAGE_AI_PROVIDER);
-      if (savedProvider === 'gemini' || savedProvider === 'groq') setProvider(savedProvider);
-    } catch {}
-    setReady(true);
+    async function loadKeys() {
+      let gKey = "";
+      let rKey = "";
+      let prov: AiProvider = "groq";
+
+      try {
+        gKey = localStorage.getItem(STORAGE_KEY_GEMINI) || "";
+        rKey = localStorage.getItem(STORAGE_KEY_GROQ) || "";
+        const savedProvider = localStorage.getItem(STORAGE_AI_PROVIDER);
+        if (savedProvider === "gemini" || savedProvider === "groq") prov = savedProvider;
+      } catch {}
+
+      // Fetch from Supabase DB to restore keys if cache was cleared
+      try {
+        const sb = createClient();
+        const { data: { user } } = await sb.auth.getUser();
+        if (user) {
+          const { data: profile } = await sb
+            .from("profiles")
+            .select("groq_api_key, gemini_api_key, ai_provider")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          if (profile) {
+            if (profile.groq_api_key && !rKey) rKey = profile.groq_api_key;
+            if (profile.gemini_api_key && !gKey) gKey = profile.gemini_api_key;
+            if (profile.ai_provider && (profile.ai_provider === "gemini" || profile.ai_provider === "groq")) {
+              prov = profile.ai_provider as AiProvider;
+            }
+          }
+        }
+      } catch {}
+
+      if (gKey) setGeminiApiKey(gKey);
+      if (rKey) setGroqApiKey(rKey);
+      setProvider(prov);
+
+      try {
+        if (gKey) localStorage.setItem(STORAGE_KEY_GEMINI, gKey);
+        if (rKey) localStorage.setItem(STORAGE_KEY_GROQ, rKey);
+        localStorage.setItem(STORAGE_AI_PROVIDER, prov);
+      } catch {}
+
+      setReady(true);
+    }
+
+    void loadKeys();
   }, []);
 
-  // Persist changes
+  // Persist changes to localStorage
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_GEMINI, geminiApiKey);
@@ -56,9 +95,30 @@ export default function SettingsPage() {
     return () => window.removeEventListener('focus', refresh);
   }, []);
 
-  const handleSaveKey = (val: string) => {
-    if (provider === 'gemini') setGeminiApiKey(val);
+  const handleSaveKey = async (val: string) => {
+    const nextGemini = provider === "gemini" ? val : geminiApiKey;
+    const nextGroq = provider === "groq" ? val : groqApiKey;
+
+    if (provider === "gemini") setGeminiApiKey(val);
     else setGroqApiKey(val);
+
+    try {
+      localStorage.setItem(STORAGE_KEY_GEMINI, nextGemini);
+      localStorage.setItem(STORAGE_KEY_GROQ, nextGroq);
+      localStorage.setItem(STORAGE_AI_PROVIDER, provider);
+
+      // Persist directly to Supabase DB so cache clearing never loses the keys
+      const sb = createClient();
+      const { data: { user } } = await sb.auth.getUser();
+      if (user) {
+        await sb.from("profiles").update({
+          groq_api_key: nextGroq,
+          gemini_api_key: nextGemini,
+          ai_provider: provider,
+        }).eq("id", user.id);
+      }
+    } catch {}
+
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -193,7 +253,18 @@ export default function SettingsPage() {
               More settings coming soon — notifications, theme, data export.
             </p>
           </div>
-          <div className="mt-6 flex justify-center">
+          {/* Legal Links */}
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2 text-xs font-bold text-[var(--muted-fg)]">
+            <Link href="/privacy" className="hover:text-[var(--foreground)] hover:underline">
+              Privacy Policy
+            </Link>
+            <span>•</span>
+            <Link href="/terms" className="hover:text-[var(--foreground)] hover:underline">
+              Terms of Service
+            </Link>
+          </div>
+
+          <div className="mt-4 flex justify-center">
             <button onClick={handleLogout} className="flex items-center gap-2 rounded-[18px] border-2 border-[var(--foreground)] bg-[#FDF2F8] px-4 py-3 font-bold text-[var(--foreground)] shadow-[4px_4px_0_0_#1E293B] hover:translate-y-[-2px]">
               <LogOut size={16} strokeWidth={2.5} />
               Logout
