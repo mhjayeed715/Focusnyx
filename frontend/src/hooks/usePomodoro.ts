@@ -43,6 +43,11 @@ export function usePomodoro(defaultMinutes: number, onComplete?: () => void | Pr
     setTotalSeconds(nextMinutes * 60);
   }, []);
 
+  const syncState = useCallback((nextSeconds: number, running: boolean) => {
+    setTotalSeconds(nextSeconds);
+    setIsRunning(running);
+  }, []);
+
   return {
     minutes: Math.floor(totalSeconds / 60),
     seconds: totalSeconds % 60,
@@ -50,6 +55,7 @@ export function usePomodoro(defaultMinutes: number, onComplete?: () => void | Pr
     start,
     pause,
     reset,
-    setDuration
+    setDuration,
+    syncState
   };
 }
