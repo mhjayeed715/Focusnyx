@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Focusnyx Focus Lock</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1>Focusnyx</h1>
+      <p>Browser & Desktop Focus Lock</p>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tabFocusBtn">Focus Lock</button>
+      <button class="tab-btn" id="tabSettingsBtn">Auth & Settings</button>
+    </div>
+
+    <!-- TAB 1: FOCUS CONTROLS -->
+    <div id="tabFocus" class="tab-content active">
+      <!-- Status Display -->
+      <div id="statusDisplay" class="status">
+        <span class="status-dot idle" id="statusDot"></span>
+        <span>Status: <strong id="statusText">Inactive</strong></span>
+      </div>
+
+      <!-- Timer Display (only when active) -->
+      <div id="timerDisplay" class="timer-display" style="display: none;">
+        <div class="timer-circle">
+          <span id="timerText">25:00</span>
+        </div>
+        <p id="timerLabel">Focus time remaining</p>
+      </div>
+
+      <!-- Emergency PIN Missing Warning Banner -->
+      <div id="pinRequiredBanner" class="section" style="display: none; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 8px; margin-bottom: 8px;">
+        <div style="font-size: 11px; color: #f59e0b; font-weight: 600; line-height: 1.4;">
+          ⚠️ Emergency PIN required before starting Focus Lock. Set your 4-digit PIN in Settings!
+        </div>
+        <button id="goToSettingsBtn" style="margin-top: 8px; font-size: 11px; padding: 6px 12px; border-radius: 6px; background: #f59e0b; color: #0f172a; border: none; font-weight: 700; cursor: pointer; width: 100%;">Go to Settings</button>
+      </div>
+
+      <!-- Focus Duration Selection -->
+      <div class="section" id="durationSection">
+        <label>Focus Duration:</label>
+        <div class="duration-buttons">
+          <button class="duration-btn" data-minutes="5">5 min</button>
+          <button class="duration-btn" data-minutes="15">15 min</button>
+          <button class="duration-btn active" data-minutes="25">25 min</button>
+          <button class="duration-btn" data-minutes="45">45 min</button>
+        </div>
+        <div style="margin-top: 10px; display: flex; items-center; gap: 8px;">
+          <input
+            type="number"
+            id="manualDurationInput"
+            placeholder="Custom min"
+            min="1"
+            max="180"
+            class="input-field"
+            style="width: 110px; flex-shrink: 0;"
+          />
+          <span style="font-size: 11px; color: #94a3b8; align-self: center;">Custom minutes (1–180)</span>
+        </div>
+      </div>
+
+      <!-- Allowed URLs -->
+      <div class="section" id="allowedSection">
+        <label>Allowed Study Sites (Whitelist):</label>
+        <div class="url-input-group">
+          <input
+            type="text"
+            id="urlInput"
+            placeholder="e.g., localhost, github.com"
+            class="input-field"
+          />
+          <button id="addUrlBtn" class="add-btn">+</button>
+        </div>
+        <div id="allowedUrlsList" class="urls-list"></div>
+      </div>
+
+      <!-- Main Action Buttons -->
+      <button id="focusBtn" class="focus-btn">Start Focus Lock</button>
+      <button id="endFocusBtn" class="end-focus-btn" style="display: none;">
+        End Focus Lock
+      </button>
+
+      <!-- In-Popup Inline PIN Entry Modal (replaces browser prompt) -->
+      <div id="endFocusPinContainer" class="section" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 10px; padding: 10px; margin-top: 8px;">
+        <label style="color: #f87171; font-weight: 700; font-size: 12px;">Enter 4-Digit Emergency PIN to Exit:</label>
+        <input
+          type="password"
+          id="unlockPinInput"
+          placeholder="••••"
+          maxlength="4"
+          pattern="\d{4}"
+          inputmode="numeric"
+          class="input-field"
+          style="margin-top: 6px; letter-spacing: 4px; text-align: center;"
+        />
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+          <button id="confirmUnlockBtn" class="end-focus-btn" style="flex: 1; padding: 8px;">Unlock Now</button>
+          <button id="cancelUnlockBtn" class="primary-btn" style="flex: 1; padding: 8px; background: #475569;">Cancel</button>
+        </div>
+        <div id="unlockErrorMessage" style="font-size: 11px; color: #ef4444; margin-top: 6px; text-align: center; font-weight: 600;"></div>
+      </div>
+
+      <!-- Stats -->
+      <div id="statsDisplay" class="stats" style="display: none; margin-top: 10px;">
+        <div class="stat-item">
+          <span class="stat-label">Blocked Attempts</span>
+          <span id="blockCount" class="stat-value">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: AUTH & SETTINGS -->
+    <div id="tabSettings" class="tab-content">
+      <!-- Mandatory Emergency PIN Setting -->
+      <div class="section" id="emergencyPinSection">
+        <label>Emergency Exit PIN (4-Digit Mandatory)</label>
+        <p style="font-size: 11px; color: #94a3b8; margin-bottom: 8px; line-height: 1.4;">
+          Set your personal 4-digit emergency PIN. You will need this PIN to unlock Focus Lock if you ever need to stop a session early.
+        </p>
+        <input
+          type="password"
+          id="emergencyPinInput"
+          placeholder="Set 4-digit PIN"
+          maxlength="4"
+          pattern="\d{4}"
+          inputmode="numeric"
+          class="input-field"
+          style="letter-spacing: 4px; text-align: center; margin-bottom: 8px;"
+        />
+        <button id="savePinBtn" class="primary-btn">Save Emergency PIN</button>
+        <div id="pinStatusMessage" style="font-size: 11px; text-align: center; margin-top: 8px; font-weight: 600;"></div>
+      </div>
+
+      <!-- Authenticated Profile Card -->
+      <div id="authProfileCard" class="section" style="display: none;">
+        <label>Account Profile & Sync</label>
+        <div style="background: rgba(255,255,255,0.06); padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.1);">
+          <div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Status: <strong style="color: #22c55e;">Authenticated</strong></div>
+          <div id="profileEmail" style="font-size: 13px; font-weight: 600; color: #ffffff; word-break: break-all;">user@example.com</div>
+          <div style="font-size: 10px; color: #64748b; margin-top: 4px;">Live Synchronization Active</div>
+        </div>
+        <button id="authLogoutBtn" class="end-focus-btn" style="padding: 8px 12px; font-size: 12px;">Sign Out</button>
+      </div>
+
+      <!-- Unauthenticated Login Form -->
+      <div id="authLoginForm" class="section">
+        <label>PWA Account Authentication</label>
+        <p style="font-size: 11px; color: #94a3b8; margin-bottom: 12px; line-height: 1.4;">
+          Authenticate with your Focusnyx account credentials to synchronize distraction logs and study sessions with your web application dashboard.
+        </p>
+        
+        <input
+          type="email"
+          id="authEmail"
+          placeholder="Email Address"
+          class="input-field"
+          style="margin-bottom: 8px;"
+        />
+        <input
+          type="password"
+          id="authPassword"
+          placeholder="Password"
+          class="input-field"
+          style="margin-bottom: 12px;"
+        />
+        <button id="authLoginBtn" class="primary-btn">Authenticate Account</button>
+        <div id="authStatus" style="font-size: 11px; text-align: center; margin-top: 8px; font-weight: 500;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../dist/popup/popup.js"></script>
+</body>
+</html>
