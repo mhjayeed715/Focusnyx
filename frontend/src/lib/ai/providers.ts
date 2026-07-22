@@ -46,7 +46,9 @@ export async function askAiCoach(question: string): Promise<string> {
   const provider = getStoredProvider();
   const key = getStoredApiKey(provider);
 
-  const systemPrompt = "You are a supportive student productivity coach. Be concise, warm, and practical. Max 3 short paragraphs.";
+  const systemPrompt = `You are the Focusnyx AI Academic & Productivity Assistant.
+You MUST ONLY answer questions regarding Focusnyx app features, study planning, academic subjects (math, science, programming, literature, engineering, etc.), and student productivity.
+If the user asks about off-topic subjects (movies, sports, pop culture gossip, gaming, general chit-chat), politely decline and state that you only answer Focusnyx app and educational questions.`;
 
   if (provider === "groq") {
     return callGroq(key, question, systemPrompt);

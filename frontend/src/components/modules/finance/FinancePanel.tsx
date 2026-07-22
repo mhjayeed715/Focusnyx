@@ -715,10 +715,10 @@ export function FinancePanel() {
             <div>
               <label className="mb-1 block text-xs font-black uppercase tracking-wide text-[var(--muted-fg)]">{t.amount}</label>
               <input
-                type="number"
-                min="1"
+                type="text"
+                inputMode="numeric"
                 value={fAmount}
-                onChange={(e) => setFAmount(e.target.value)}
+                onChange={(e) => setFAmount(e.target.value.replace(/[^0-9]/g, ""))}
                 placeholder="0"
                 className="w-full rounded-[14px] border-2 border-[var(--foreground)] bg-[var(--muted)] px-3 py-2 text-sm font-bold outline-none focus:bg-white"
               />
@@ -763,7 +763,7 @@ export function FinancePanel() {
               <button onClick={() => setDType("lent")} className={`nav-pill flex-1 rounded-[14px] py-2 text-sm font-black ${dType === "lent" ? "bg-[var(--foreground)] text-white" : "bg-white"}`}>{t.lend}</button>
             </div>
             <input value={dPerson} onChange={(e) => setDPerson(e.target.value)} placeholder={t.person} className="mb-2 w-full rounded-[14px] border-2 border-[var(--foreground)] bg-[var(--muted)] px-3 py-2 text-sm font-bold outline-none" />
-            <input value={dAmount} onChange={(e) => setDAmount(e.target.value)} type="number" placeholder="0" className="mb-2 w-full rounded-[14px] border-2 border-[var(--foreground)] bg-[var(--muted)] px-3 py-2 text-sm font-bold outline-none" />
+            <input value={dAmount} onChange={(e) => setDAmount(e.target.value.replace(/[^0-9]/g, ""))} type="text" inputMode="numeric" placeholder="0" className="mb-2 w-full rounded-[14px] border-2 border-[var(--foreground)] bg-[var(--muted)] px-3 py-2 text-sm font-bold outline-none" />
             <input value={dDesc} onChange={(e) => setDDesc(e.target.value)} placeholder={lang === "bn" ? "বর্ণনা (ঐচ্ছিক)" : "Description (optional)"} className="w-full rounded-[14px] border-2 border-[var(--foreground)] bg-[var(--muted)] px-3 py-2 text-sm font-bold outline-none" />
           </div>
           <div className="flex gap-3">
@@ -780,8 +780,8 @@ export function FinancePanel() {
           <div className="mb-3">
             <input value={gName} onChange={(e) => setGName(e.target.value)} placeholder={lang === "bn" ? "লক্ষ্য নাম" : "Goal name"} className="mb-2 w-full rounded-[14px] border-2 border-[var(--foreground)] bg-[var(--muted)] px-3 py-2 text-sm font-bold outline-none" />
             <div className="grid grid-cols-2 gap-2">
-              <input value={gTarget} onChange={(e) => setGTarget(e.target.value)} type="number" placeholder={t.target} className="w-full rounded-[14px] border-2 border-[var(--foreground)] bg-[var(--muted)] px-3 py-2 text-sm font-bold outline-none" />
-              <input value={gCurrent} onChange={(e) => setGCurrent(e.target.value)} type="number" placeholder={t.progress} className="w-full rounded-[14px] border-2 border-[var(--foreground)] bg-[var(--muted)] px-3 py-2 text-sm font-bold outline-none" />
+              <input value={gTarget} onChange={(e) => setGTarget(e.target.value.replace(/[^0-9]/g, ""))} type="text" inputMode="numeric" placeholder={t.target} className="w-full rounded-[14px] border-2 border-[var(--foreground)] bg-[var(--muted)] px-3 py-2 text-sm font-bold outline-none" />
+              <input value={gCurrent} onChange={(e) => setGCurrent(e.target.value.replace(/[^0-9]/g, ""))} type="text" inputMode="numeric" placeholder={t.progress} className="w-full rounded-[14px] border-2 border-[var(--foreground)] bg-[var(--muted)] px-3 py-2 text-sm font-bold outline-none" />
             </div>
             <input value={gDeadline} onChange={(e) => setGDeadline(e.target.value)} type="date" className="mt-2 w-full rounded-[14px] border-2 border-[var(--foreground)] bg-[var(--muted)] px-3 py-2 text-sm font-bold outline-none" />
           </div>
@@ -797,10 +797,10 @@ export function FinancePanel() {
         <div className="rounded-[24px] border-2 border-[var(--foreground)] bg-white p-5 shadow-[8px_8px_0_0_#1E293B]">
           <p className="mb-4 font-display text-lg font-black">{t.setBudget} — {monthLabel()}</p>
           <input
-            type="number"
-            min="1"
+            type="text"
+            inputMode="numeric"
             value={budgetInput}
-            onChange={(e) => setBudgetInput(e.target.value)}
+            onChange={(e) => setBudgetInput(e.target.value.replace(/[^0-9]/g, ""))}
             placeholder={t.budgetPlaceholder}
             className="mb-4 w-full rounded-[14px] border-2 border-[var(--foreground)] bg-[var(--muted)] px-3 py-2 text-sm font-bold outline-none focus:bg-white"
           />

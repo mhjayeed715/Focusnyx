@@ -33,6 +33,9 @@ import {
   Target,
 } from "lucide-react";
 
+import { useLanguage } from "@/components/layout/language-context";
+import { LanguageToggle } from "@/components/layout/LanguageToggle";
+
 type Tone = "violet" | "pink" | "amber" | "emerald";
 
 type Feature = {
@@ -204,29 +207,7 @@ function IconCircle({ icon: Icon, tone }: { icon: LucideIcon; tone: Tone }) {
 }
 
 export default function HomePage() {
-  const [lang, setLang] = useState<"en" | "bn">("en");
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    try {
-      const saved = localStorage.getItem("lang");
-      if (saved === "en" || saved === "bn") {
-        setLang(saved);
-      }
-    } catch (e) {
-      // ignore
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
-    try {
-      localStorage.setItem("lang", lang);
-    } catch (e) {
-      // ignore
-    }
-  }, [lang, mounted]);
+  const { lang } = useLanguage();
 
   const copy = localizedCopy[lang];
   const localizedFeatures: Feature[] = lang === "bn"
@@ -284,23 +265,8 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="hidden shrink-0 sm:flex items-center">
-              <div className="inline-flex h-11 w-[8.5rem] items-center overflow-hidden rounded-full border-2 border-[var(--foreground)] bg-white p-1 shadow-[4px_4px_0_0_#1E293B]">
-                <button
-                  onClick={() => setLang("en")}
-                  aria-pressed={lang === "en"}
-                  className={`nav-pill flex h-8 w-1/2 items-center justify-center whitespace-nowrap px-2 text-xs font-bold leading-none ${lang === "en" ? "bg-[var(--foreground)] text-white" : ""}`}
-                >
-                  EN
-                </button>
-                <button
-                  onClick={() => setLang("bn")}
-                  aria-pressed={lang === "bn"}
-                  className={`nav-pill flex h-8 w-1/2 items-center justify-center whitespace-nowrap px-2 text-xs font-bold leading-none ${lang === "bn" ? "bg-[var(--foreground)] text-white" : ""}`}
-                >
-                  BN
-                </button>
-              </div>
+            <div className="shrink-0 flex items-center">
+              <LanguageToggle />
             </div>
             <Link href="/auth" className="secondary-button flex h-12 w-[6.25rem] shrink-0 items-center justify-center px-0 text-sm font-bold sm:w-[6.5rem]">
               Login
@@ -672,10 +638,14 @@ export default function HomePage() {
                 </div>
               </div>
               <p className="mb-4 max-w-md text-sm leading-6 text-[var(--muted-fg)]">© 2026 Focusnyx. All rights reserved.</p>
-              <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--muted-fg)]">
-                <a href="#" className="transition-colors hover:text-[var(--foreground)]">Privacy Policy</a>
+              <div className="flex flex-wrap items-center gap-3 text-sm font-bold text-[var(--muted-fg)]">
+                <Link href="/privacy" className="transition-colors hover:text-[var(--foreground)] hover:underline">
+                  {lang === "bn" ? "গোপনীয়তা নীতি" : "Privacy Policy"}
+                </Link>
                 <span>•</span>
-                <a href="#" className="transition-colors hover:text-[var(--foreground)]">Terms of Service</a>
+                <Link href="/terms" className="transition-colors hover:text-[var(--foreground)] hover:underline">
+                  {lang === "bn" ? "ব্যবহারের শর্তাবলী" : "Terms of Service"}
+                </Link>
               </div>
             </div>
           </div>

@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   --background: #fffdf5;
   --foreground: #1e293b;
@@ -56,12 +60,17 @@ a {
 
 .candy-button,
 .secondary-button,
+.pill-button {
+  min-height: 48px;
+}
+
+.candy-button,
+.secondary-button,
 .pill-button,
 .nav-pill,
 .hard-chip {
   border: 2px solid var(--foreground);
   border-radius: 9999px;
-  min-height: 48px;
   transition:
     transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1),
     box-shadow 220ms cubic-bezier(0.34, 1.56, 0.64, 1),
@@ -98,8 +107,7 @@ a {
   box-shadow: 6px 6px 0 0 var(--foreground);
 }
 
-.pill-button,
-.nav-pill {
+.pill-button {
   background: #ffffff;
   box-shadow: 4px 4px 0 0 var(--foreground);
 }
@@ -108,17 +116,11 @@ a {
 .pill-button:hover,
 .hard-chip:hover {
   transform: translate(-2px, -2px);
-  box-shadow: 6px 6px 0 0 var(--foreground);
-}
-
-.nav-pill[data-active="true"] {
-  background: var(--accent);
-  color: #ffffff;
+  box-shadow: 4px 4px 0 0 var(--foreground);
 }
 
 .hard-chip {
-  background: #ffffff;
-  box-shadow: 4px 4px 0 0 var(--foreground);
+  box-shadow: 3px 3px 0 0 var(--foreground);
 }
 
 .float-slow {
