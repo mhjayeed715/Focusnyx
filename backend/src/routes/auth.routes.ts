@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { buildProfile, normalizeTask, starterTasks, toPublicDashboard } from "../lib/dashboard.js";
+import { buildProfile, calculateStreak, normalizeTask, starterTasks, toPublicDashboard } from "../lib/dashboard.js";
 import { getSupabaseAdminClient } from "../lib/supabase.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 
@@ -18,6 +18,11 @@ async function getOrCreateDashboardUser(userId: string, email: string, fullName:
     throw profileError;
   }
 
+  const updatedStreak = calculateStreak(
+    existingProfile?.last_active_at ?? null,
+    existingProfile?.streak ?? 1,
+  );
+
   const baseProfile = buildProfile({
     id: userId,
     email,
@@ -25,7 +30,7 @@ async function getOrCreateDashboardUser(userId: string, email: string, fullName:
     level: existingProfile?.level,
     totalXp: existingProfile?.total_xp,
     todayXp: existingProfile?.today_xp,
-    streak: existingProfile?.streak,
+    streak: updatedStreak,
     focusScore: existingProfile?.focus_score,
     completedTasksToday: existingProfile?.completed_tasks_today,
     totalFocusTime: existingProfile?.total_focus_time,
