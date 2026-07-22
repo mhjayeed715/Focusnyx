@@ -86,3 +86,72 @@ focusRoutes.post("/pomodoro/complete", async (request, response, next) => {
     next(error);
   }
 });
+
+// Log distraction block event from extension/PWA/companion
+focusRoutes.post("/block-event", async (request, response, next) => {
+  try {
+    const userId = request.authUser?.id;
+    if (!userId) {
+      response.status(401).json({ message: "Unauthorized." });
+      return;
+    }
+
+    const { url, session_id, domain: reqDomain, type: reqType, details: reqDetails } = request.body || {};
+    let domain = reqDomain;
+    if (!domain && url) {
+      try {
+        domain = new URL(url).hostname;
+      } catch {
+        domain = url;
+      }
+    }
+
+    const type = reqType || "navigation_blocked";
+    const details = reqDetails || { url, session_id, timestamp: new Date().toISOString() };
+    const supabase = getSupabaseAdminClient();
+
+    const { error } = await supabase.from("distraction_logs").insert({
+      user_id: userId,
+      domain: domain || "unknown",
+      type,
+      details,
+      timestamp: new Date().toISOString(),
+      blocked_at: new Date().toISOString(),
+    });
+
+    if (error) {
+      console.warn("Error recording distraction log:", error.message);
+    }
+
+    response.json({ success: true, logged: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Fetch distraction logs for reports and analytics
+focusRoutes.get("/distractions", async (request, response, next) => {
+  try {
+    const userId = request.authUser?.id;
+    if (!userId) {
+      response.status(401).json({ message: "Unauthorized." });
+      return;
+    }
+
+    const supabase = getSupabaseAdminClient();
+    const { data: logs, error } = await supabase
+      .from("distraction_logs")
+      .select("*")
+      .eq("user_id", userId)
+      .order("timestamp", { ascending: false })
+      .limit(50);
+
+    if (error) {
+      throw error;
+    }
+
+    response.json({ distractions: logs || [] });
+  } catch (error) {
+    next(error);
+  }
+});

@@ -458,7 +458,7 @@ export function PomodoroPanel() {
     });
   };
 
-  const { minutes, seconds, isRunning, start, pause, reset, setDuration } = usePomodoro(durationMinutes, async () => {
+  const { minutes, seconds, isRunning, start, pause, reset, setDuration, syncState } = usePomodoro(durationMinutes, async () => {
     const fallbackXp = Math.max(25, durationMinutes * 4);
 
     try {
@@ -504,6 +504,100 @@ export function PomodoroPanel() {
   useEffect(() => {
     setDuration(durationMinutes);
   }, [durationMinutes, setDuration]);
+
+  // ── Extension & PWA Bidirectional Synchronization ──
+  const notifyExtension = (action: "startFocus" | "endFocus" | "getStatus", durationMins?: number, customPin?: string) => {
+    const payload = {
+      type: "FOCUSNYX_WEB_APP_ACTION",
+      action,
+      durationMinutes: durationMins || durationMinutes,
+      pin: customPin || "1234",
+      timestamp: Date.now(),
+    };
+
+    // 1. PostMessage to window DOM
+    window.postMessage(payload, "*");
+
+    // 2. BroadcastChannel
+    try {
+      const syncChannel = new BroadcastChannel("FOCUSNYX_SYNC_CHANNEL");
+      syncChannel.postMessage(payload);
+      syncChannel.close();
+    } catch {}
+
+    // 3. LocalStorage persistence for extension content script polling
+    try {
+      localStorage.setItem("focusnyx_app_focus_state", JSON.stringify(payload));
+    } catch {}
+  };
+
+  useEffect(() => {
+    const handleExtensionState = (extState: any) => {
+      if (!extState) return;
+      const active = Boolean(extState.isActive ?? extState.active);
+      setIsLocked(active);
+
+      if (!active) {
+        syncState(0, false);
+      } else if (extState.focusStartTime && extState.focusDuration) {
+        const elapsedSecs = Math.floor((Date.now() - extState.focusStartTime) / 1000);
+        const totalSecs = Math.floor(extState.focusDuration / 1000);
+        const remainingSecs = Math.max(0, totalSecs - elapsedSecs);
+        if (remainingSecs > 0) {
+          syncState(remainingSecs, true);
+        } else {
+          syncState(0, false);
+        }
+      }
+    };
+
+    const handleMessage = (event: MessageEvent) => {
+      if (!event.data || event.data.type !== "FOCUSNYX_EXTENSION_EVENT") return;
+      handleExtensionState(event.data.state);
+    };
+
+    window.addEventListener("message", handleMessage);
+
+    let syncChannel: BroadcastChannel | null = null;
+    try {
+      syncChannel = new BroadcastChannel("FOCUSNYX_SYNC_CHANNEL");
+      syncChannel.onmessage = (event) => {
+        if (!event.data || event.data.type !== "FOCUSNYX_EXTENSION_EVENT") return;
+        handleExtensionState(event.data.state);
+      };
+    } catch {}
+
+    // Request initial extension status on mount
+    notifyExtension("getStatus");
+
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      syncChannel?.close();
+    };
+  }, [syncState]);
+
+  const handleStartFocus = () => {
+    try {
+      if (document.documentElement && !document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    } catch {}
+    start();
+    setIsLocked(true);
+    notifyExtension("startFocus", durationMinutes);
+  };
+
+  const handlePauseFocus = () => {
+    pause();
+    setIsLocked(false);
+    notifyExtension("endFocus");
+  };
+
+  const handleResetFocus = () => {
+    reset(durationMinutes);
+    setIsLocked(false);
+    notifyExtension("endFocus");
+  };
 
   const presets = useMemo(() => [15, 25, 45, 60], []);
   const completedTaskCount = useMemo(() => tasks.filter((task) => task.status === "done").length, [tasks]);
@@ -628,13 +722,14 @@ export function PomodoroPanel() {
     try {
       // Request fullscreen if not already
       if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen();
+        await document.documentElement.requestFullscreen().catch(() => {});
       }
-      setIsLocked(true);
-      start();
     } catch {
       setStatusMessage("Unable to enter fullscreen lock mode.");
     }
+    setIsLocked(true);
+    start();
+    notifyExtension("startFocus", durationMinutes);
   };
 
   const addResource = () => {
@@ -799,13 +894,13 @@ export function PomodoroPanel() {
                   />
                 </label>
                 <div className="flex flex-wrap gap-3">
-                  <button onClick={start} disabled={isRunning} className="candy-button flex h-12 items-center gap-2 px-5 text-sm disabled:opacity-60">
+                  <button onClick={handleStartFocus} disabled={isRunning} className="candy-button flex h-12 items-center gap-2 px-5 text-sm disabled:opacity-60">
                     <Play size={16} /> {copy.start}
                   </button>
-                  <button onClick={pause} disabled={!isRunning} className="secondary-button flex h-12 items-center gap-2 px-5 text-sm disabled:opacity-60">
+                  <button onClick={handlePauseFocus} disabled={!isRunning} className="secondary-button flex h-12 items-center gap-2 px-5 text-sm disabled:opacity-60">
                     <Pause size={16} /> {copy.pause}
                   </button>
-                  <button onClick={() => reset(durationMinutes)} className="secondary-button flex h-12 items-center gap-2 px-5 text-sm">
+                  <button onClick={handleResetFocus} className="secondary-button flex h-12 items-center gap-2 px-5 text-sm">
                     <RotateCcw size={16} /> {copy.reset}
                   </button>
                 </div>
@@ -1237,6 +1332,24 @@ export function PomodoroPanel() {
           </motion.div>
         </div>
       ) : null}
+
+      {isLocked && !isFullscreen && (
+        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/90 text-white backdrop-blur-md">
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex max-w-md flex-col items-center text-center">
+            <Lock className="mb-6 h-16 w-16 text-red-500" />
+            <h2 className="mb-4 text-3xl font-black uppercase tracking-tight text-red-500">Focus Lock Active</h2>
+            <p className="mb-8 text-lg font-medium text-gray-300">You must be in fullscreen mode to continue working. Escaping is not allowed.</p>
+            <button
+              onClick={() => {
+                document.documentElement.requestFullscreen().catch(() => {});
+              }}
+              className="candy-button rounded-2xl border-4 border-red-500 bg-red-600 px-8 py-4 text-xl font-bold uppercase tracking-widest text-white hover:bg-red-500"
+            >
+              Return to Fullscreen
+            </button>
+          </motion.div>
+        </div>
+      )}
     </section>
   );
 }
