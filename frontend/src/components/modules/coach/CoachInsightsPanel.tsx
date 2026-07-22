@@ -1,13 +1,20 @@
-export function CoachInsightsPanel() {
+"use client";
+
+import { WeeklyInsightCard } from "./WeeklyInsightCard";
+import { DistractionPatterns } from "./DistractionPatterns";
+
+interface CoachInsightsPanelProps {
+  userId?: string;
+}
+
+export function CoachInsightsPanel({ userId }: CoachInsightsPanelProps) {
   return (
-    <section className="card">
-      <h2>AI Behavioral Coach</h2>
-      <p>Weekly personalized recommendations in Bangla-first tone and format.</p>
-      <ul>
-        <li>Habit drift detection</li>
-        <li>Study consistency coaching</li>
-        <li>Actionable next-week plan</li>
-      </ul>
-    </section>
+    <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+      {/* Weekly AI Insight Report */}
+      <WeeklyInsightCard userId={userId} />
+
+      {/* Distraction Pattern Visualizations */}
+      <DistractionPatterns userId={userId} />
+    </div>
   );
 }
