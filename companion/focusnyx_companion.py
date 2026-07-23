@@ -245,16 +245,20 @@ def status():
         "blocks_count": process_monitor.block_count
     })
 
-@app.route("/start-focus", methods=["POST"])
+@app.route("/start-focus", methods=["POST", "OPTIONS"])
 def start_focus():
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
     data = request.get_json(silent=True) or {}
     duration = data.get("duration", 25)
     pin = data.get("pin")
     success, message = start_focus_session(duration, pin)
     return jsonify({"success": success, "message": message}), (200 if success else 400)
 
-@app.route("/end-focus", methods=["POST"])
+@app.route("/end-focus", methods=["POST", "OPTIONS"])
 def end_focus():
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"}), 200
     data = request.get_json(silent=True) or {}
     pin = data.get("pin")
     success, message = stop_focus_session(pin)
