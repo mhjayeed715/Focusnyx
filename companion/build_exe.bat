@@ -9,13 +9,16 @@ pip install -r requirements.txt
 
 echo 2. Packaging Focusnyx Companion executable...
 pyinstaller --noconfirm --onedir --windowed --name "FocusnyxCompanion" ^
+  --icon="assets\icon.ico" ^
   --add-data ".env;.env" ^
+  --add-data "assets;assets" ^
   --hidden-import "win32gui" ^
   --hidden-import "win32con" ^
   --hidden-import "keyboard" ^
   --hidden-import "pynput" ^
   --hidden-import "psutil" ^
   --hidden-import "flask" ^
+  --hidden-import "tkinter" ^
   focusnyx_companion.py
 
 echo.

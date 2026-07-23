@@ -117,21 +117,6 @@ const onboardingHtml = String.raw`
   </main>
 
    <!-- Footer -->
-   <footer class="border-t border-gray-200 mt-12 py-10">
-     <div class="max-w-7xl mx-auto px-6 flex flex-col items-center gap-6 text-center">
-       <div class="flex items-center justify-center gap-8 text-sm text-gray-600">
-         <a href="#" class="hover:text-gray-900">Privacy Policy</a>
-         <a href="#" class="hover:text-gray-900">Terms of Service</a>
-       </div>
-       <div class="flex items-center justify-center gap-4 text-xs text-gray-500">
-         <span>Contact Us</span>
-         <span>•</span>
-         <span>mehrabjayeed715@gmail.com</span>
-         <span>•</span>
-         <span>+8801533652232</span>
-         <span>•</span>
-         <span><a href="https://linkedin.com/in/mhjayeed715" class="hover:text-gray-900">linkedin.com/in/mhjayeed715</a></span>
-       </div>
        <p class="text-xs text-gray-400">© 2026 Focusnyx. All rights reserved.</p>
      </div>
    </footer>

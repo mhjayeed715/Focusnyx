@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, FileText, Image as ImageIcon, LibraryBig, Link2, Maximize2, Minimize2, Music2, Pause, Play, Plus, Radio, RotateCcw, ShieldAlert, Sparkles, Target, TimerReset, Volume2, X, Youtube } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, FileText, Image as ImageIcon, LibraryBig, Link2, Lock, Maximize2, Minimize2, Music2, Pause, Play, Plus, Radio, RotateCcw, ShieldAlert, Sparkles, Target, TimerReset, Volume2, X, Youtube } from "lucide-react";
 import { useLanguage } from "@/components/layout/language-context";
 import { usePomodoro } from "@/hooks/usePomodoro";
 import { completePomodoro, createTask } from "@/lib/backend";
@@ -103,6 +103,19 @@ const INITIAL_DISTRACTION_SITES: DistractionSite[] = [
   { site: "facebook.com", blocked: 9, enabled: true },
   { site: "instagram.com", blocked: 6, enabled: false },
 ];
+
+const LOCAL_BLOCKLIST_KEY = "focusnyx_blocked_domains";
+
+function readLocalBlocklist(): DistractionSite[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_BLOCKLIST_KEY);
+    if (!raw) return INITIAL_DISTRACTION_SITES;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_DISTRACTION_SITES;
+  } catch {
+    return INITIAL_DISTRACTION_SITES;
+  }
+}
 
 const FALLBACK_FOCUS_TASKS: FocusTask[] = [
   {
@@ -341,11 +354,11 @@ export function PomodoroPanel() {
       };
 
   const [durationMinutes, setDurationMinutes] = useState(25);
-  const [customMinutes, setCustomMinutes] = useState(25);
+  const [customMinutesInput, setCustomMinutesInput] = useState("25");
   const [statusMessage, setStatusMessage] = useState("");
   const [tasks, setTasks] = useState<FocusTask[]>(FALLBACK_FOCUS_TASKS);
   const [activeTaskId, setActiveTaskId] = useState(FALLBACK_FOCUS_TASKS[0]?.id ?? "");
-  const [blockedSites, setBlockedSites] = useState(INITIAL_DISTRACTION_SITES);
+  const [blockedSites, setBlockedSites] = useState<DistractionSite[]>(readLocalBlocklist);
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskSubject, setNewTaskSubject] = useState("Focus");
@@ -365,6 +378,116 @@ export function PomodoroPanel() {
   const [selectedMimeType, setSelectedMimeType] = useState("");
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [selectedResourceIndex, setSelectedResourceIndex] = useState(0);
+
+  // Emergency PIN Modal state
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [emergencyPinInput, setEmergencyPinInput] = useState("");
+  const [pinError, setPinError] = useState("");
+
+  // Custom Blacklist State (Web Apps & Windows Apps)
+  const [newSiteInput, setNewSiteInput] = useState("");
+  const [blockedApps, setBlockedApps] = useState<string[]>([
+    "discord.exe",
+    "spotify.exe",
+    "steam.exe",
+    "telegram.exe",
+    "whatsapp.exe",
+  ]);
+  const [newAppInput, setNewAppInput] = useState("");
+
+  // Live Distraction Log State
+  const [distractionLogs, setDistractionLogs] = useState<Array<{ id: string; type: string; app?: string; url?: string; timestamp: string }>>([]);
+
+  // Poll distraction logs from Companion App
+  useEffect(() => {
+    const fetchDistractionLogs = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/distraction-logs");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.logs && Array.isArray(data.logs)) {
+            setDistractionLogs(data.logs);
+          }
+        }
+      } catch {}
+    };
+
+    fetchDistractionLogs();
+    const interval = setInterval(fetchDistractionLogs, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_BLOCKLIST_KEY, JSON.stringify(blockedSites));
+    } catch {}
+    syncBlocklistToAll(blockedSites, blockedApps);
+  }, [blockedSites, blockedApps]);
+
+  const syncBlocklistToAll = (sites: typeof blockedSites, apps: string[]) => {
+    const enabledDomains = sites.filter((s) => s.enabled).map((s) => s.site);
+    
+    // 1. Extension sync
+    window.postMessage(
+      {
+        type: "FOCUSNYX_WEB_APP_ACTION",
+        action: "updateBlocklist",
+        blocklist: enabledDomains,
+      },
+      "*"
+    );
+
+    // 2. Companion App sync
+    try {
+      fetch("http://localhost:5000/update-blocklist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ blacklist: apps }),
+      }).catch(() => {});
+    } catch {}
+  };
+
+  const handleAddCustomSite = () => {
+    if (!newSiteInput.trim()) return;
+    const site = newSiteInput.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+    if (!blockedSites.find((s) => s.site === site)) {
+      const nextSites = [...blockedSites, { site, enabled: true, blocked: 0 }];
+      setBlockedSites(nextSites);
+      syncBlocklistToAll(nextSites, blockedApps);
+    }
+    setNewSiteInput("");
+  };
+
+  const handleAddCustomApp = () => {
+    if (!newAppInput.trim()) return;
+    let appName = newAppInput.trim().toLowerCase();
+    if (!appName.endsWith(".exe")) appName += ".exe";
+    if (blockedApps.includes(appName)) return;
+    const nextApps = [...blockedApps, appName];
+    setBlockedApps(nextApps);
+    setNewAppInput("");
+    syncBlocklistToAll(blockedSites, nextApps);
+  };
+
+  const handleRemoveApp = (appName: string) => {
+    const nextApps = blockedApps.filter((a) => a !== appName);
+    setBlockedApps(nextApps);
+    syncBlocklistToAll(blockedSites, nextApps);
+  };
+
+  const handleVerifyEmergencyPin = () => {
+    if (emergencyPinInput.trim() === "1234") {
+      pause();
+      setIsLocked(false);
+      notifyExtension("endFocus", durationMinutes, "1234");
+      setShowPinModal(false);
+      setEmergencyPinInput("");
+      setPinError("");
+      setStatusMessage("Focus lock unlocked via Emergency PIN.");
+    } else {
+      setPinError("Incorrect Emergency PIN. Focus Lock remains active.");
+    }
+  };
   useEffect(() => {
     try {
       const saved = localStorage.getItem(LOCAL_TASKS_KEY);
@@ -505,30 +628,47 @@ export function PomodoroPanel() {
     setDuration(durationMinutes);
   }, [durationMinutes, setDuration]);
 
-  // ── Extension & PWA Bidirectional Synchronization ──
+  // ── Extension & Companion App Bidirectional Synchronization ──
   const notifyExtension = (action: "startFocus" | "endFocus" | "getStatus", durationMins?: number, customPin?: string) => {
+    const enabledDomains = blockedSites.filter((s) => s.enabled).map((s) => s.site);
     const payload = {
       type: "FOCUSNYX_WEB_APP_ACTION",
       action,
       durationMinutes: durationMins || durationMinutes,
+      blocklist: enabledDomains,
       pin: customPin || "1234",
       timestamp: Date.now(),
     };
 
-    // 1. PostMessage to window DOM
+    // 1. PostMessage to window DOM for Extension content script
     window.postMessage(payload, "*");
 
-    // 2. BroadcastChannel
+    // 2. BroadcastChannel for cross-tab sync
     try {
       const syncChannel = new BroadcastChannel("FOCUSNYX_SYNC_CHANNEL");
       syncChannel.postMessage(payload);
       syncChannel.close();
     } catch {}
 
-    // 3. LocalStorage persistence for extension content script polling
+    // 3. LocalStorage persistence
     try {
       localStorage.setItem("focusnyx_app_focus_state", JSON.stringify(payload));
     } catch {}
+
+    // 4. Direct HTTP API sync to Companion App
+    if (action === "startFocus") {
+      fetch("http://localhost:5000/start-focus", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ duration: durationMins || durationMinutes, pin: customPin || "1234" }),
+      }).catch(() => {});
+    } else if (action === "endFocus") {
+      fetch("http://localhost:5000/end-focus", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: customPin || "1234" }),
+      }).catch(() => {});
+    }
   };
 
   useEffect(() => {
@@ -567,12 +707,30 @@ export function PomodoroPanel() {
       };
     } catch {}
 
-    // Request initial extension status on mount
-    notifyExtension("getStatus");
+    // Polling Companion App & Extension status to maintain 3-way lockstep sync
+    const checkCompanionStatus = async () => {
+      notifyExtension("getStatus");
+      try {
+        const res = await fetch("http://localhost:5000/status");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.is_active) {
+            setIsLocked(true);
+            if (typeof data.remaining_seconds === "number" && data.remaining_seconds > 0) {
+              syncState(data.remaining_seconds, true);
+            }
+          }
+        }
+      } catch {}
+    };
+
+    checkCompanionStatus();
+    const interval = setInterval(checkCompanionStatus, 4000);
 
     return () => {
       window.removeEventListener("message", handleMessage);
       syncChannel?.close();
+      clearInterval(interval);
     };
   }, [syncState]);
 
@@ -614,7 +772,7 @@ export function PomodoroPanel() {
   const handleTaskSelect = (task: FocusTask) => {
     setActiveTaskId(task.id);
     setDurationMinutes(task.minutes);
-    setCustomMinutes(task.minutes);
+    setCustomMinutesInput(String(task.minutes));
     reset(task.minutes);
 
     updateTasks((current) =>
@@ -681,7 +839,7 @@ export function PomodoroPanel() {
     updateTasks((current) => [optimisticTask, ...current]);
     setActiveTaskId(optimisticTask.id);
     setDurationMinutes(estimatedMinutes);
-    setCustomMinutes(estimatedMinutes);
+    setCustomMinutesInput(String(estimatedMinutes));
     reset(estimatedMinutes);
     setShowAddTask(false);
     setNewTaskTitle("");
@@ -703,7 +861,11 @@ export function PomodoroPanel() {
   };
 
   const toggleSite = (site: string) => {
-    setBlockedSites((current) => current.map((entry) => (entry.site === site ? { ...entry, enabled: !entry.enabled } : entry)));
+    setBlockedSites((current) => {
+      const next = current.map((entry) => (entry.site === site ? { ...entry, enabled: !entry.enabled } : entry));
+      syncBlocklistToAll(next, blockedApps);
+      return next;
+    });
   };
 
   const toggleFullscreen = async () => {
@@ -863,7 +1025,7 @@ export function PomodoroPanel() {
                     key={preset}
                     onClick={() => {
                       setDurationMinutes(preset);
-                      setCustomMinutes(preset);
+                      setCustomMinutesInput(String(preset));
                       reset(preset);
                     }}
                     className={`rounded-full border-2 border-[var(--foreground)] px-4 py-2 text-sm font-black shadow-[4px_4px_0_0_#1E293B] ${durationMinutes === preset ? "bg-[var(--foreground)] text-white" : "bg-[#FFF7D6]"}`}
@@ -879,17 +1041,26 @@ export function PomodoroPanel() {
                     {copy.customDuration}
                   </span>
                   <input
-                    value={customMinutes}
-                    onChange={(event) => setCustomMinutes(Number(event.target.value) || 25)}
+                    value={customMinutesInput}
+                    onChange={(event) => {
+                      const val = event.target.value;
+                      setCustomMinutesInput(val);
+                      const num = parseInt(val, 10);
+                      if (!isNaN(num) && num >= 1 && num <= 180) {
+                        setDurationMinutes(num);
+                      }
+                    }}
                     onBlur={() => {
-                      const nextDuration = Math.max(5, Math.min(180, customMinutes));
-                      setCustomMinutes(nextDuration);
+                      const num = parseInt(customMinutesInput, 10);
+                      const nextDuration = !isNaN(num) && num >= 1 ? Math.max(1, Math.min(180, num)) : 25;
+                      setCustomMinutesInput(String(nextDuration));
                       setDurationMinutes(nextDuration);
                       reset(nextDuration);
                     }}
                     type="number"
-                    min="5"
+                    min="1"
                     max="180"
+                    placeholder="25"
                     className="w-full rounded-[18px] border-2 border-[var(--foreground)] bg-white px-4 py-3.5 text-base shadow-[4px_4px_0_0_#1E293B] outline-none"
                   />
                 </label>
@@ -897,12 +1068,47 @@ export function PomodoroPanel() {
                   <button onClick={handleStartFocus} disabled={isRunning} className="candy-button flex h-12 items-center gap-2 px-5 text-sm disabled:opacity-60">
                     <Play size={16} /> {copy.start}
                   </button>
-                  <button onClick={handlePauseFocus} disabled={!isRunning} className="secondary-button flex h-12 items-center gap-2 px-5 text-sm disabled:opacity-60">
+                  <button
+                    onClick={() => {
+                      if (isLocked) {
+                        setPinError("");
+                        setEmergencyPinInput("");
+                        setShowPinModal(true);
+                      } else {
+                        handlePauseFocus();
+                      }
+                    }}
+                    disabled={!isRunning}
+                    className="secondary-button flex h-12 items-center gap-2 px-5 text-sm disabled:opacity-60"
+                  >
                     <Pause size={16} /> {copy.pause}
                   </button>
-                  <button onClick={handleResetFocus} className="secondary-button flex h-12 items-center gap-2 px-5 text-sm">
+                  <button
+                    onClick={() => {
+                      if (isLocked) {
+                        setPinError("");
+                        setEmergencyPinInput("");
+                        setShowPinModal(true);
+                      } else {
+                        handleResetFocus();
+                      }
+                    }}
+                    className="secondary-button flex h-12 items-center gap-2 px-5 text-sm"
+                  >
                     <RotateCcw size={16} /> {copy.reset}
                   </button>
+                  {isLocked && (
+                    <button
+                      onClick={() => {
+                        setPinError("");
+                        setEmergencyPinInput("");
+                        setShowPinModal(true);
+                      }}
+                      className="candy-button flex h-12 items-center gap-2 rounded-full border-2 border-red-500 bg-red-600 px-5 text-sm font-black text-white hover:bg-red-500"
+                    >
+                      <Lock size={16} /> Emergency Exit
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1074,24 +1280,64 @@ export function PomodoroPanel() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">Distraction guard</p>
-              <h3 className="mt-2 font-display text-2xl font-black">Blocked domains</h3>
+              <h3 className="mt-2 font-display text-2xl font-black">Blocked websites & apps</h3>
             </div>
             <ShieldAlert size={20} className="text-[#F472B6]" />
           </div>
-          <div className="mt-4 space-y-3">
-            {blockedSites.map((item) => (
-              <button
-                key={item.site}
-                type="button"
-                onClick={() => toggleSite(item.site)}
-                className="flex w-full items-center justify-between rounded-[18px] border-2 border-[var(--foreground)] bg-[#FFF7D6] px-4 py-3 text-left shadow-[4px_4px_0_0_#1E293B]"
-              >
-                <span className="font-bold">{item.site}</span>
-                <span className={`rounded-full border-2 border-[var(--foreground)] px-3 py-1 text-xs font-black shadow-[3px_3px_0_0_#1E293B] ${item.enabled ? "bg-[#34D399]" : "bg-[#F472B6] text-white"}`}>
-                  {item.enabled ? `${item.blocked} ${copy.blockedLabel}` : copy.unblocked}
-                </span>
+
+          {/* Web Domains Section */}
+          <div className="mt-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-[var(--muted-fg)]">Website Domain Blacklist</p>
+            <div className="mt-2 flex gap-2">
+              <input
+                value={newSiteInput}
+                onChange={(e) => setNewSiteInput(e.target.value)}
+                placeholder="e.g. twitter.com"
+                className="w-full rounded-[14px] border-2 border-[var(--foreground)] bg-white px-3 py-2 text-sm outline-none"
+              />
+              <button onClick={handleAddCustomSite} className="candy-button shrink-0 rounded-[14px] border-2 border-[var(--foreground)] px-4 py-2 text-xs font-bold">
+                Add Domain
               </button>
-            ))}
+            </div>
+            <div className="mt-3 space-y-2 max-h-48 overflow-y-auto pr-1">
+              {blockedSites.map((item) => (
+                <button
+                  key={item.site}
+                  type="button"
+                  onClick={() => toggleSite(item.site)}
+                  className="flex w-full items-center justify-between rounded-[14px] border-2 border-[var(--foreground)] bg-[#FFF7D6] px-3 py-2 text-left text-sm shadow-[3px_3px_0_0_#1E293B]"
+                >
+                  <span className="font-bold">{item.site}</span>
+                  <span className={`rounded-full border border-[var(--foreground)] px-2 py-0.5 text-[10px] font-black ${item.enabled ? "bg-[#34D399]" : "bg-[#F472B6] text-white"}`}>
+                    {item.enabled ? "BLOCKED" : "ALLOWED"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Windows Apps Section */}
+          <div className="mt-6 border-t-2 border-[var(--foreground)] pt-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-[var(--muted-fg)]">Windows Executables (.exe)</p>
+            <div className="mt-2 flex gap-2">
+              <input
+                value={newAppInput}
+                onChange={(e) => setNewAppInput(e.target.value)}
+                placeholder="e.g. discord.exe"
+                className="w-full rounded-[14px] border-2 border-[var(--foreground)] bg-white px-3 py-2 text-sm outline-none"
+              />
+              <button onClick={handleAddCustomApp} className="candy-button shrink-0 rounded-[14px] border-2 border-[var(--foreground)] px-4 py-2 text-xs font-bold">
+                Add App
+              </button>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {blockedApps.map((app) => (
+                <span key={app} className="flex items-center gap-1 rounded-full border-2 border-[var(--foreground)] bg-[#ECFDF5] px-3 py-1 text-xs font-bold shadow-[2px_2px_0_0_#1E293B]">
+                  {app}
+                  <button onClick={() => handleRemoveApp(app)} className="ml-1 font-black text-red-500 hover:text-red-700">×</button>
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -1339,15 +1585,81 @@ export function PomodoroPanel() {
             <Lock className="mb-6 h-16 w-16 text-red-500" />
             <h2 className="mb-4 text-3xl font-black uppercase tracking-tight text-red-500">Focus Lock Active</h2>
             <p className="mb-8 text-lg font-medium text-gray-300">You must be in fullscreen mode to continue working. Escaping is not allowed.</p>
-            <button
-              onClick={() => {
-                document.documentElement.requestFullscreen().catch(() => {});
-              }}
-              className="candy-button rounded-2xl border-4 border-red-500 bg-red-600 px-8 py-4 text-xl font-bold uppercase tracking-widest text-white hover:bg-red-500"
-            >
-              Return to Fullscreen
-            </button>
+            <div className="flex flex-col gap-3 w-full">
+              <button
+                onClick={() => {
+                  document.documentElement.requestFullscreen().catch(() => {});
+                }}
+                className="candy-button w-full rounded-2xl border-4 border-red-500 bg-red-600 px-8 py-4 text-xl font-bold uppercase tracking-widest text-white hover:bg-red-500"
+              >
+                Return to Fullscreen
+              </button>
+              <button
+                onClick={() => {
+                  setPinError("");
+                  setEmergencyPinInput("");
+                  setShowPinModal(true);
+                }}
+                className="w-full rounded-2xl border-2 border-gray-600 bg-gray-800 px-6 py-3 text-sm font-bold uppercase tracking-wider text-gray-300 hover:bg-gray-700"
+              >
+                Emergency PIN Exit
+              </button>
+            </div>
           </motion.div>
+        </div>
+      )}
+
+      {/* Emergency Exit PIN Modal */}
+      {showPinModal && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-sm rounded-[28px] border-4 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B]">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-display text-xl font-black text-red-600 flex items-center gap-2">
+                <Lock size={20} /> Emergency Exit PIN
+              </h3>
+              <button onClick={() => setShowPinModal(false)} className="font-black text-gray-400 hover:text-black">✕</button>
+            </div>
+            <p className="text-xs font-semibold text-[var(--muted-fg)] mb-4">
+              Enter your 4-digit Emergency PIN to disengage Focus Lock.
+            </p>
+            <input
+              type="password"
+              maxLength={4}
+              value={emergencyPinInput}
+              onChange={(e) => setEmergencyPinInput(e.target.value.replace(/\D/g, ""))}
+              placeholder="••••"
+              className="w-full rounded-[16px] border-2 border-[var(--foreground)] bg-[#FFF7D6] px-4 py-3 text-center text-2xl font-black tracking-widest outline-none mb-3"
+            />
+            {pinError && <p className="text-xs font-bold text-red-500 mb-3 text-center">{pinError}</p>}
+            <div className="flex gap-2">
+              <button onClick={() => setShowPinModal(false)} className="secondary-button flex-1 rounded-[16px] border-2 border-[var(--foreground)] py-3 font-bold text-sm">
+                Cancel
+              </button>
+              <button onClick={handleVerifyEmergencyPin} className="candy-button flex-1 rounded-[16px] border-2 border-red-600 bg-red-600 py-3 font-bold text-sm text-white">
+                Unlock Session
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Live Distraction Tracker Log Card */}
+      {distractionLogs.length > 0 && (
+        <div className="mt-6 rounded-[28px] border-2 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B]">
+          <div className="flex items-center justify-between">
+            <h3 className="font-display text-xl font-black text-red-500 flex items-center gap-2">
+              <ShieldAlert size={20} /> Live Distraction Log ({distractionLogs.length} Blocked)
+            </h3>
+            <span className="hard-chip px-3 py-1 text-xs font-black bg-red-100 text-red-700">Protected</span>
+          </div>
+          <div className="mt-4 space-y-2 max-h-40 overflow-y-auto pr-1">
+            {distractionLogs.map((log) => (
+              <div key={log.id} className="flex items-center justify-between rounded-[14px] border-2 border-[var(--foreground)] bg-[#FDF2F8] px-3 py-2 text-xs font-bold">
+                <span className="text-red-700">Killed {log.app || log.url || "Distraction Process"}</span>
+                <span className="text-[var(--muted-fg)]">{log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : "Just now"}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </section>

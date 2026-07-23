@@ -1,10 +1,21 @@
 import type { FocusState, BlockEvent } from "../shared/types";
 import { syncBlockEvent, fetchBlocklist } from "../shared/api";
 
+const FALLBACK_BLOCKLIST = [
+  "youtube.com",
+  "facebook.com",
+  "instagram.com",
+  "twitter.com",
+  "x.com",
+  "tiktok.com",
+  "reddit.com",
+  "netflix.com",
+];
+
 const DEFAULT_STATE: FocusState = {
   active: false,
   sessionId: null,
-  blocklist: [],
+  blocklist: FALLBACK_BLOCKLIST,
   allowedUrls: ["localhost", "127.0.0.1", "focusnyx"],
   userId: null,
   token: null,
@@ -86,14 +97,15 @@ function syncCompanionApp(isStart: boolean, durationMins = 25, pin = "1234") {
 
 function domainPattern(domain: string): string {
   const d = domain.replace(/^https?:\/\//, "").replace(/\/$/, "");
-  return `*://*.${d}/*`;
+  return `||${d}`;
 }
 
 function applyRules(state: FocusState): void {
+  const activeDomains = state.blocklist && state.blocklist.length > 0 ? state.blocklist : FALLBACK_BLOCKLIST;
   chrome.declarativeNetRequest.getDynamicRules((existing) => {
     const removeIds = existing.map((r) => r.id);
     const addRules = state.active
-      ? state.blocklist.map((domain, i) => ({
+      ? activeDomains.map((domain, i) => ({
           id: i + 1,
           priority: 1,
           action: { type: chrome.declarativeNetRequest.RuleActionType.BLOCK },
@@ -372,7 +384,9 @@ function handleMessage(request: any, _sender: any, sendResponse: (response?: any
       const token = request.token || currentState.token;
       const sessionId = request.sessionId || `session-${Date.now()}`;
       const userId = request.userId || currentState.userId;
-      const blocklist = token ? await fetchBlocklist(token) : currentState.blocklist;
+      const reqBlocklist = Array.isArray(request.blocklist) && request.blocklist.length > 0 ? request.blocklist : null;
+      const fetched = token ? await fetchBlocklist(token) : null;
+      const blocklist = reqBlocklist || (fetched && fetched.length > 0 ? fetched : null) || (currentState.blocklist && currentState.blocklist.length > 0 ? currentState.blocklist : FALLBACK_BLOCKLIST);
 
       chrome.alarms.create("autoUnlockFocus", { when: Date.now() + duration });
       syncCompanionApp(true, Math.round(duration / 60000), pin);
@@ -423,6 +437,17 @@ function handleMessage(request: any, _sender: any, sendResponse: (response?: any
         isActive: state.active,
         remainingTime: remaining,
       });
+    })();
+    return true;
+  }
+
+  if (request.action === "updateBlocklist") {
+    (async () => {
+      const state = await getState();
+      const newBlocklist = request.blocklist || state.blocklist;
+      await setState({ blocklist: newBlocklist });
+      applyRules({ ...state, blocklist: newBlocklist });
+      sendResponse({ ok: true, success: true, message: "Blocklist updated" });
     })();
     return true;
   }

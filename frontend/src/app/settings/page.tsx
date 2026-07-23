@@ -95,32 +95,41 @@ export default function SettingsPage() {
     return () => window.removeEventListener('focus', refresh);
   }, []);
 
-  const handleSaveKey = async (val: string) => {
-    const nextGemini = provider === "gemini" ? val : geminiApiKey;
-    const nextGroq = provider === "groq" ? val : groqApiKey;
+  const handleInputChange = (val: string) => {
+    if (provider === "gemini") {
+      setGeminiApiKey(val);
+      try { localStorage.setItem(STORAGE_KEY_GEMINI, val); } catch {}
+    } else {
+      setGroqApiKey(val);
+      try { localStorage.setItem(STORAGE_KEY_GROQ, val); } catch {}
+    }
+  };
 
-    if (provider === "gemini") setGeminiApiKey(val);
-    else setGroqApiKey(val);
+  const handleProviderChange = (newProv: AiProvider) => {
+    setProvider(newProv);
+    try { localStorage.setItem(STORAGE_AI_PROVIDER, newProv); } catch {}
+    void saveToDatabase(geminiApiKey, groqApiKey, newProv);
+  };
 
+  const saveToDatabase = async (geminiVal = geminiApiKey, groqVal = groqApiKey, provVal = provider) => {
     try {
-      localStorage.setItem(STORAGE_KEY_GEMINI, nextGemini);
-      localStorage.setItem(STORAGE_KEY_GROQ, nextGroq);
-      localStorage.setItem(STORAGE_AI_PROVIDER, provider);
+      localStorage.setItem(STORAGE_KEY_GEMINI, geminiVal);
+      localStorage.setItem(STORAGE_KEY_GROQ, groqVal);
+      localStorage.setItem(STORAGE_AI_PROVIDER, provVal);
 
-      // Persist directly to Supabase DB so cache clearing never loses the keys
+      // Persist directly to Supabase DB profiles table
       const sb = createClient();
       const { data: { user } } = await sb.auth.getUser();
       if (user) {
         await sb.from("profiles").update({
-          groq_api_key: nextGroq,
-          gemini_api_key: nextGemini,
-          ai_provider: provider,
+          groq_api_key: groqVal.trim(),
+          gemini_api_key: geminiVal.trim(),
+          ai_provider: provVal,
         }).eq("id", user.id);
       }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
     } catch {}
-
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   };
 
   const router = useRouter();
@@ -201,7 +210,8 @@ export default function SettingsPage() {
                   <input
                     type={showKey ? 'text' : 'password'}
                     value={provider === 'gemini' ? geminiApiKey : groqApiKey}
-                    onChange={(e) => handleSaveKey(e.target.value)}
+                    onChange={(e) => handleInputChange(e.target.value)}
+                    onBlur={() => void saveToDatabase()}
                     placeholder={provider === 'gemini' ? 'Enter Gemini API key' : 'gsk_...'}
                     className="w-full rounded-[10px] border-2 border-[var(--foreground)] bg-white px-3 py-2 pr-10 text-sm font-mono outline-none"
                   />
@@ -214,8 +224,19 @@ export default function SettingsPage() {
                   </button>
                 </div>
 
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void saveToDatabase()}
+                    className="candy-button rounded-[10px] border-2 border-[var(--foreground)] px-4 py-2 text-xs font-black"
+                  >
+                    Save API Key
+                  </button>
+                  <span className="text-[11px] text-[var(--muted-fg)]">Saved to Profile & Browser</span>
+                </div>
+
                 <div className="flex items-center justify-between text-xs text-[var(--muted-fg)]">
-                  <span>Stored in browser only · never sent to our servers</span>
+                  <span>Synced securely with your Focusnyx profile</span>
                   {provider === 'groq' && (
                     <a
                       href="https://console.groq.com/keys"
