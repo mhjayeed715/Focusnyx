@@ -57,6 +57,7 @@ export function ProductivityOverview() {
   const [pomoRate, setPomoRate] = useState<{ completed: number; total: number }>({ completed: 0, total: 0 });
 
   const [cgpaTrend, setCgpaTrend] = useState<Array<{ semester: string; gpa: number; target: number }>>([]);
+  const [savingsTrend, setSavingsTrend] = useState<Array<{ month: string; spent: number; allowance: number }>>([]);
   const [currentCgpa, setCurrentCgpa] = useState<number>(0);
   const [todaySpent, setTodaySpent] = useState<number>(0);
   const [burnoutScore, setBurnoutScore] = useState<number>(18);
@@ -225,6 +226,29 @@ export function ProductivityOverview() {
         if (profile) {
           if (profile.xp) setUserXp(Number(profile.xp));
         }
+
+        // 7. Monthly Savings Trend (Last 4 Months)
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const curDate = new Date();
+        const monthlyData = [];
+        const baseAllowance = profile?.monthly_allowance || 5000;
+        
+        for (let i = 3; i >= 0; i--) {
+          const d = new Date(curDate.getFullYear(), curDate.getMonth() - i, 1);
+          const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+          const monthLabel = monthNames[d.getMonth()];
+          
+          const spentThisMonth = transactions
+            .filter((t: Record<string, unknown>) => String(t.created_at || t.date || "").startsWith(monthKey))
+            .reduce((acc: number, t: Record<string, unknown>) => acc + Number(t.amount || 0), 0);
+            
+          monthlyData.push({
+            month: monthLabel,
+            spent: spentThisMonth,
+            allowance: baseAllowance
+          });
+        }
+        setSavingsTrend(monthlyData);
 
         // Calculate Burnout score based on sleep & focus
         const avgSleep = wellnessLogs.length ? wellnessLogs.reduce((a: number, b: Record<string, unknown>) => a + Number(b.sleep_hours || b.hours || 7), 0) / wellnessLogs.length : 7.4;
@@ -555,6 +579,20 @@ export function ProductivityOverview() {
                     <Area type="monotone" dataKey="gpa" name="Actual GPA" stroke="#8B5CF6" fill="#F3E8FF" strokeWidth={3} />
                     <Line type="monotone" dataKey="target" name="Target Curve" stroke="#FBBF24" strokeWidth={2} strokeDasharray="4 4" />
                   </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="h-48 w-full pt-4 mt-2 border-t-2 border-dashed border-[#E2E8F0]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={[...savingsTrend].reverse()} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="month" tick={{ fontSize: 11, fontWeight: 700 }} />
+                    <YAxis tick={{ fontSize: 11, fontWeight: 700 }} />
+                    <Tooltip cursor={{ fill: "#F1F5F9" }} contentStyle={{ borderRadius: 12, borderWidth: 2, borderColor: "#1E293B", fontWeight: 700 }} />
+                    <Legend wrapperStyle={{ fontSize: 12, fontWeight: 700 }} />
+                    <Bar dataKey="spent" name="Monthly Spent" fill="#F472B6" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="allowance" name="Allowance" fill="#34D399" radius={[4, 4, 0, 0]} />
+                  </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
