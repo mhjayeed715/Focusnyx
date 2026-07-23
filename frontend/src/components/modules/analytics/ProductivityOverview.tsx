@@ -196,9 +196,13 @@ export function ProductivityOverview() {
             const numB = Number(b.semester_no) || 0;
             return numA - numB;
           });
-
+          let currentMax = 0;
           const formattedSemesters = sorted.map((s: Record<string, unknown>, idx: number) => {
-            const semNum = Number(s.semester_no) > 0 ? Number(s.semester_no) : (idx + 1);
+            let semNum = Number(s.semester_no) > 0 ? Number(s.semester_no) : (idx + 1);
+            if (semNum <= currentMax) {
+              semNum = currentMax + 1;
+            }
+            currentMax = semNum;
             const val = Number(s.cgpa_value) || 0;
             return {
               semester: `Sem ${semNum}`,
