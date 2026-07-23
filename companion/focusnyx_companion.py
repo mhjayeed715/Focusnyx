@@ -12,7 +12,11 @@ import threading
 import webbrowser
 import ctypes
 from flask import Flask, request, jsonify
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 from keyboard_blocker import KeyboardBlocker
 from registry_manager import RegistryManager
@@ -28,7 +32,13 @@ try:
 except ImportError:
     HAS_PYSTRAY = False
 
-load_dotenv()
+# Import tkinter for Desktop GUI
+try:
+    import tkinter as tk
+    from tkinter import ttk, messagebox, simpledialog
+    HAS_TKINTER = True
+except ImportError:
+    HAS_TKINTER = False
 
 logging.basicConfig(
     level=logging.INFO,
@@ -37,6 +47,13 @@ logging.basicConfig(
 logger = logging.getLogger("focusnyx.companion")
 
 app = Flask(__name__)
+
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
 
 # Global Focus State
 focus_state = {
@@ -54,6 +71,14 @@ process_monitor = ProcessMonitor(log_callback=lambda event_type, app: sync.log_e
 window_manager = WindowManager()
 timer_thread = None
 tray_icon = None
+
+# Helper for asset path resolution (handles PyInstaller sys._MEIPASS)
+def get_asset_path(filename):
+    if hasattr(sys, '_MEIPASS'):
+        base_dir = getattr(sys, '_MEIPASS')
+    else:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_dir, "assets", filename)
 
 def auto_unlock_timer(duration_seconds):
     time.sleep(duration_seconds)
@@ -241,6 +266,209 @@ def shutdown():
     threading.Thread(target=exit_companion, daemon=True).start()
     return jsonify({"success": True, "message": "Focusnyx Companion shutting down."})
 
+@app.route("/update-blocklist", methods=["POST", "OPTIONS"])
+def update_blocklist():
+    if request.method == "OPTIONS":
+        return jsonify({"ok": True})
+    data = request.get_json(silent=True) or {}
+    blacklist = data.get("blacklist", [])
+    process_monitor.set_blacklist(blacklist)
+    return jsonify({"success": True, "message": f"Blocklist updated with {len(blacklist)} items.", "blacklist": process_monitor.blacklist})
+
+@app.route("/distraction-logs", methods=["GET", "OPTIONS"])
+def distraction_logs():
+    if request.method == "OPTIONS":
+        return jsonify({"ok": True})
+    return jsonify({
+        "success": True,
+        "logs": process_monitor.logs,
+        "blocks_count": process_monitor.block_count
+    })
+
+# ── Tkinter Desktop GUI Interface ─────────────────────────────────
+
+def start_gui():
+    if not HAS_TKINTER:
+        return
+
+    # Register AppUserModelID so Windows Taskbar uses Focusnyx icon instead of default feather
+    try:
+        myappid = 'focusnyx.companion.desktop.app'
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+    except Exception:
+        pass
+
+    root = tk.Tk()
+    root.title("Focusnyx Companion - Focus Lock")
+    root.geometry("480x620")
+    root.configure(bg="#0f172a")
+
+    # Set App Window & Taskbar Icon
+    ico_path = get_asset_path("icon.ico")
+    if os.path.exists(ico_path):
+        try:
+            root.iconbitmap(ico_path)
+        except Exception:
+            pass
+
+    # Header
+    header_frame = tk.Frame(root, bg="#1e293b", padx=15, pady=15)
+    header_frame.pack(fill="x", padx=15, pady=(15, 10))
+
+    title_label = tk.Label(
+        header_frame,
+        text="FOCUSNYX COMPANION",
+        font=("Segoe UI", 16, "bold"),
+        fg="#a855f7",
+        bg="#1e293b"
+    )
+    title_label.pack(anchor="w")
+
+    sub_label = tk.Label(
+        header_frame,
+        text="Windows OS-Level Focus Lock Engine v1.0.0",
+        font=("Segoe UI", 9),
+        fg="#94a3b8",
+        bg="#1e293b"
+    )
+    sub_label.pack(anchor="w")
+
+    # Status Card
+    card_frame = tk.Frame(root, bg="#1e293b", padx=20, pady=20)
+    card_frame.pack(fill="x", padx=15, pady=10)
+
+    status_badge = tk.Label(
+        card_frame,
+        text="INACTIVE (IDLE)",
+        font=("Segoe UI", 12, "bold"),
+        fg="#ffffff",
+        bg="#a855f7",
+        padx=14,
+        pady=4
+    )
+    status_badge.pack()
+
+    timer_label = tk.Label(
+        card_frame,
+        text="00:00",
+        font=("Segoe UI", 36, "bold"),
+        fg="#f8fafc",
+        bg="#1e293b",
+        pady=10
+    )
+    timer_label.pack()
+
+    blocks_label = tk.Label(
+        card_frame,
+        text="Distractions Blocked: 0",
+        font=("Segoe UI", 10, "bold"),
+        fg="#34d399",
+        bg="#1e293b"
+    )
+    blocks_label.pack()
+
+    # Buttons Frame
+    btn_frame = tk.Frame(root, bg="#0f172a")
+    btn_frame.pack(fill="x", padx=15, pady=10)
+
+    def gui_start(mins=25):
+        if focus_state["is_active"]:
+            messagebox.showinfo("Focusnyx", "Focus Lock is already active!")
+            return
+        start_focus_session(mins)
+
+    def gui_end():
+        if not focus_state["is_active"]:
+            messagebox.showinfo("Focusnyx", "No active focus session!")
+            return
+        pin = simpledialog.askstring("Emergency Exit", "Enter 4-digit Emergency PIN:", show="*")
+        if pin:
+            success, msg = stop_focus_session(pin)
+            if not success:
+                messagebox.showerror("Emergency Exit", msg)
+            else:
+                messagebox.showinfo("Emergency Exit", "Focus Lock Released!")
+
+    def gui_open_app():
+        webbrowser.open("http://localhost:3000/focus")
+
+    # Preset Durations Row (15m, 25m, 45m, 60m)
+    preset_frame = tk.Frame(btn_frame, bg="#0f172a")
+    preset_frame.pack(fill="x", pady=(0, 6))
+
+    for m in [15, 25, 45, 60]:
+        btn_preset = tk.Button(
+            preset_frame, text=f"▶ {m}m", font=("Segoe UI", 9, "bold"),
+            bg="#22c55e", fg="white", activebackground="#16a34a", activeforeground="white",
+            bd=0, padx=6, pady=8, command=lambda mins=m: gui_start(mins), cursor="hand2"
+        )
+        btn_preset.pack(side="left", expand=True, fill="x", padx=2)
+
+    btn_stop = tk.Button(
+        btn_frame, text="🔒 Emergency PIN Exit", font=("Segoe UI", 10, "bold"),
+        bg="#ef4444", fg="white", activebackground="#dc2626", activeforeground="white",
+        bd=0, pady=8, command=gui_end, cursor="hand2"
+    )
+    btn_stop.pack(fill="x", pady=4)
+
+    btn_web = tk.Button(
+        btn_frame, text="🌐 Open Focusnyx Web App", font=("Segoe UI", 10, "bold"),
+        bg="#6366f1", fg="white", activebackground="#4f46e5", activeforeground="white",
+        bd=0, pady=8, command=gui_open_app, cursor="hand2"
+    )
+    btn_web.pack(fill="x", pady=4)
+
+    # Live Distraction Log Frame
+    log_frame = tk.Frame(root, bg="#1e293b", padx=10, pady=10)
+    log_frame.pack(fill="both", expand=True, padx=15, pady=(10, 15))
+
+    log_title = tk.Label(
+        log_frame, text="LIVE DISTRACTION LOG", font=("Segoe UI", 9, "bold"),
+        fg="#f472b6", bg="#1e293b"
+    )
+    log_title.pack(anchor="w", pady=(0, 5))
+
+    log_list = tk.Listbox(
+        log_frame, bg="#0f172a", fg="#f8fafc", font=("Consolas", 9),
+        bd=0, highlightthickness=0, selectbackground="#334155"
+    )
+    log_list.pack(fill="both", expand=True)
+
+    # UI Auto Update Loop
+    def update_ui():
+        if focus_state["is_active"]:
+            status_badge.config(text="ACTIVE (LOCKED)", bg="#22c55e")
+            elapsed = (time.time() - focus_state["start_time"]) if focus_state["start_time"] else 0
+            remaining = max(0, (focus_state["duration_minutes"] * 60) - elapsed)
+            m, s = divmod(int(remaining), 60)
+            timer_label.config(text=f"{m:02d}:{s:02d}", fg="#22c55e")
+        else:
+            status_badge.config(text="INACTIVE (IDLE)", bg="#a855f7")
+            timer_label.config(text="00:00", fg="#94a3b8")
+
+        blocks_label.config(text=f"Distractions Blocked: {process_monitor.block_count}")
+
+        # Refresh distraction log list
+        log_list.delete(0, tk.END)
+        if process_monitor.logs:
+            for log in reversed(process_monitor.logs[-10:]):
+                log_list.insert(tk.END, f"[{log.get('timestamp','')[11:19]}] Terminated: {log.get('app','unknown')}")
+        else:
+            log_list.insert(tk.END, "No distraction processes blocked yet.")
+
+        root.after(1000, update_ui)
+
+    root.after(500, update_ui)
+
+    def on_close():
+        if messagebox.askyesno("Minimize to Tray", "Do you want to minimize Companion to System Tray?\n(No will exit the companion service entirely)"):
+            root.withdraw()
+        else:
+            exit_companion()
+
+    root.protocol("WM_DELETE_WINDOW", on_close)
+    root.mainloop()
+
 def is_admin():
     try:
         return ctypes.windll.shell32.IsUserAnAdmin()
@@ -261,9 +489,20 @@ if __name__ == "__main__":
     port = int(os.getenv("COMPANION_PORT", 5000))
     logger.info(f"🚀 Focusnyx Companion starting on http://localhost:{port} (Administrator)")
 
-    # Start System Tray GUI in background thread if pystray is installed
+    # 1. Start Flask HTTP API server in background daemon thread
+    flask_thread = threading.Thread(
+        target=lambda: app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False),
+        daemon=True
+    )
+    flask_thread.start()
+
+    # 2. Start System Tray GUI in background thread if pystray is installed
     if HAS_PYSTRAY:
         tray_thread = threading.Thread(target=start_tray, daemon=True)
         tray_thread.start()
 
-    app.run(host="0.0.0.0", port=port, debug=False)
+    # 3. Launch Desktop GUI on main thread if Tkinter is available
+    if HAS_TKINTER:
+        start_gui()
+    else:
+        flask_thread.join()

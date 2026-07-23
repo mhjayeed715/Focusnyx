@@ -118,16 +118,29 @@ export async function deleteTask(taskId: string) {
 }
 
 export async function completePomodoro(minutes = 25) {
-  const response = await backendRequest("/focus/pomodoro/complete", {
-    method: "POST",
-    body: JSON.stringify({ minutes, xpReward: 25 }),
-  });
+  try {
+    const response = await backendRequest("/focus/pomodoro/complete", {
+      method: "POST",
+      body: JSON.stringify({ minutes, xpReward: 25 }),
+    });
 
-  if (!response.ok) {
-    throw new Error("Unable to record the focus session.");
+    if (!response.ok) {
+      throw new Error("Unable to record the focus session.");
+    }
+
+    return response.json() as Promise<{ profile: unknown; reward: unknown }>;
+  } catch (err) {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from("focus_sessions").insert({
+        user_id: user.id,
+        duration: minutes,
+        completed: true,
+      });
+    }
+    throw err;
   }
-
-  return response.json() as Promise<{ profile: unknown; reward: unknown }>;
 }
 
 export type AcademicExam = {

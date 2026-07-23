@@ -14,6 +14,7 @@ import {
   saveStudyPlan,
 } from "@/lib/backend";
 import { trackGroqCall } from "@/lib/ai/groq";
+import { createClient } from "@/lib/supabase/client";
 import {
   BookOpenCheck,
   GraduationCap,
@@ -281,10 +282,39 @@ export default function AcademicPage() {
     return courses.reduce((sum, c) => sum + (pointsByGrade[c.grade.trim().toUpperCase()] ?? 0) * c.credits, 0) / totalCredits;
   }, [courses, pointsByGrade, totalCredits]);
 
-  const getAiConfig = () => {
+  const getAiConfig = async () => {
     if (typeof window === "undefined") return { provider: "groq", apiKey: "" };
-    const provider = localStorage.getItem("academicAiProviderV1") || "groq";
-    const apiKey = provider === "gemini" ? (localStorage.getItem("academicAiKeyGeminiV1") || "") : (localStorage.getItem("academicAiKeyGroqV1") || "");
+    let provider = localStorage.getItem("academicAiProviderV1") || "groq";
+    let apiKey = provider === "gemini" ? (localStorage.getItem("academicAiKeyGeminiV1") || "") : (localStorage.getItem("academicAiKeyGroqV1") || "");
+
+    if (!apiKey) {
+      try {
+        const sb = createClient();
+        const { data: { user } } = await sb.auth.getUser();
+        if (user) {
+          const { data: profile } = await sb
+            .from("profiles")
+            .select("groq_api_key, gemini_api_key, ai_provider")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          if (profile) {
+            if (profile.groq_api_key) {
+              apiKey = profile.groq_api_key;
+              localStorage.setItem("academicAiKeyGroqV1", profile.groq_api_key);
+            }
+            if (profile.gemini_api_key) {
+              localStorage.setItem("academicAiKeyGeminiV1", profile.gemini_api_key);
+            }
+            if (profile.ai_provider) {
+              provider = profile.ai_provider;
+              localStorage.setItem("academicAiProviderV1", profile.ai_provider);
+            }
+          }
+        }
+      } catch {}
+    }
+
     return { provider, apiKey };
   };
 
@@ -325,8 +355,12 @@ export default function AcademicPage() {
   const addPreviousSemester = () => {
     const value = Number(newSemesterCgpa);
     if (!Number.isFinite(value)) return;
-    const semesterNoValue = Number(newSemesterNumber);
-    createAcademicSemester({ cgpa: Math.max(0, Math.min(4, value)), semesterNo: Number.isFinite(semesterNoValue) ? Math.max(1, Math.round(semesterNoValue)) : undefined })
+    const trimmed = newSemesterNumber.trim();
+    const semesterNoValue = trimmed === "" ? undefined : Number(trimmed);
+    createAcademicSemester({ 
+      cgpa: Math.max(0, Math.min(4, value)), 
+      semesterNo: semesterNoValue !== undefined && Number.isFinite(semesterNoValue) ? Math.max(1, Math.round(semesterNoValue)) : undefined 
+    })
       .then((result) => { setPreviousSemesters((prev) => [...prev, { id: result.semester.id, value: result.semester.cgpa }]); setNewSemesterCgpa("3.5"); setNewSemesterNumber(""); })
       .catch(() => {});
   };
@@ -592,7 +626,7 @@ export default function AcademicPage() {
                   </button>
                   <button
                     onClick={async () => {
-                      const { provider, apiKey } = getAiConfig();
+                      const { provider, apiKey } = await getAiConfig();
                       if (!apiKey) { setPlanError(t.addApiKeyFirst); return; }
                       if (!studyPlan.trim()) { setPlanError(t.writePlanFirst); return; }
                       setPlanError(""); setStudyPlanLoading(true); setPlanOriginal(studyPlan);

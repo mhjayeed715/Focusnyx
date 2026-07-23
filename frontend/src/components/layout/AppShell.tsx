@@ -4,19 +4,23 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { ContactModal } from "@/components/ui/ContactModal";
 import {
   BrainCircuit,
   BookOpen,
   CircleDollarSign,
   CirclePlay,
+  FileText,
   HeartPulse,
   LayoutDashboard,
   LogOut,
   Menu,
   MessageCircle,
+  MessageSquareText,
   NotebookPen,
   Send,
   Settings2,
+  ShieldCheck,
   Sparkles,
   X,
 } from "lucide-react";
@@ -127,6 +131,7 @@ function ShellContent({
   const [provider,    setProvider]    = useState<AiProvider>("groq");
   const [geminiKey,   setGeminiKey]   = useState("");
   const [groqKey,     setGroqKey]     = useState("");
+  const [isContactOpen, setIsContactOpen] = useState(false);
 
   useEffect(() => {
     async function loadKeys() {
@@ -153,8 +158,8 @@ function ShellContent({
             .maybeSingle();
 
           if (profile) {
-            if (profile.groq_api_key && !r) r = profile.groq_api_key;
-            if (profile.gemini_api_key && !g) g = profile.gemini_api_key;
+            if (profile.groq_api_key) r = profile.groq_api_key;
+            if (profile.gemini_api_key) g = profile.gemini_api_key;
             if (profile.ai_provider && (profile.ai_provider === "gemini" || profile.ai_provider === "groq")) {
               p = profile.ai_provider as AiProvider;
             }
@@ -423,6 +428,39 @@ YOUR STRICT DOMAIN BOUNDARIES:
             <LanguageToggle />
           </header>
           {loading && skeleton ? skeleton : children}
+
+          {/* ── Persistent Minimal App Footer ── */}
+          <footer className="mt-12 rounded-[24px] border-2 border-[var(--foreground)] bg-white p-5 shadow-[4px_4px_0_0_#1E293B]">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-3 text-xs font-bold">
+                <button
+                  onClick={() => setIsContactOpen(true)}
+                  className="flex items-center gap-1.5 rounded-full border-2 border-[var(--foreground)] bg-[#FFF7D6] px-3.5 py-1.5 text-[var(--foreground)] shadow-[2px_2px_0_0_#1E293B] transition hover:bg-[#FFE885]"
+                >
+                  <MessageSquareText size={13} /> Help & Support
+                </button>
+                <Link
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 rounded-full border-2 border-[var(--foreground)] bg-white px-3.5 py-1.5 text-[var(--foreground)] shadow-[2px_2px_0_0_#1E293B] transition hover:bg-gray-50"
+                >
+                  <ShieldCheck size={13} /> Privacy
+                </Link>
+                <Link
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 rounded-full border-2 border-[var(--foreground)] bg-white px-3.5 py-1.5 text-[var(--foreground)] shadow-[2px_2px_0_0_#1E293B] transition hover:bg-gray-50"
+                >
+                  <FileText size={13} /> Terms
+                </Link>
+              </div>
+              <div className="text-right text-[11px] font-semibold text-[var(--muted-fg)]">
+                © 2026 Focusnyx • ADHD-Friendly Academic & Focus Suite
+              </div>
+            </div>
+          </footer>
         </div>
       </main>
 
@@ -492,6 +530,8 @@ YOUR STRICT DOMAIN BOUNDARIES:
           {chatOpen ? <X size={20} strokeWidth={2.5} /> : <MessageCircle size={20} strokeWidth={2.5} />}
         </button>
       </div>
+
+      <ContactModal isOpen={isContactOpen} onClose={() => setIsContactOpen(false)} />
     </div>
   );
 }

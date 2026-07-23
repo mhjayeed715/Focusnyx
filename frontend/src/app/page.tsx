@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { ContactModal } from "@/components/ui/ContactModal";
 import {
   ArrowRight,
   BadgeCheck,
@@ -207,7 +208,8 @@ function IconCircle({ icon: Icon, tone }: { icon: LucideIcon; tone: Tone }) {
 }
 
 export default function HomePage() {
-  const { lang } = useLanguage();
+  const [lang, setLang] = useState<"en" | "bn">("en");
+  const [isContactOpen, setIsContactOpen] = useState(false);
 
   const copy = localizedCopy[lang];
   const localizedFeatures: Feature[] = lang === "bn"
@@ -586,16 +588,13 @@ export default function HomePage() {
               </h3>
               <ul className="space-y-2 text-sm text-[var(--muted-fg)]">
                 <li>
-                  <a href="#" className="inline-flex items-center gap-2 leading-6 transition-colors hover:text-[var(--foreground)]">
+                  <button
+                    onClick={() => setIsContactOpen(true)}
+                    className="inline-flex items-center gap-2 leading-6 transition-colors hover:text-[var(--foreground)] text-left cursor-pointer"
+                  >
                     <MessageSquareText size={16} strokeWidth={2.5} />
                     Contact Us
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="inline-flex items-center gap-2 leading-6 transition-colors hover:text-[var(--foreground)]">
-                    <ShieldCheck size={16} strokeWidth={2.5} />
-                    Privacy Policy
-                  </a>
+                  </button>
                 </li>
               </ul>
             </div>
@@ -651,6 +650,8 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
+
+      <ContactModal isOpen={isContactOpen} onClose={() => setIsContactOpen(false)} />
     </div>
   );
 }

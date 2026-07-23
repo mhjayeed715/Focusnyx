@@ -1,3 +1,5 @@
+declare const chrome: any;
+
 import type { FocusState } from "../shared/types";
 import { authenticateUser } from "../shared/api";
 
@@ -145,7 +147,7 @@ function setupEventListeners() {
 }
 
 function loadSavedSettings() {
-  chrome.storage.local.get(["allowedUrls", "pin", "userAuth"], (result) => {
+  chrome.storage.local.get(["allowedUrls", "pin", "userAuth"], (result: any) => {
     if (result.allowedUrls && Array.isArray(result.allowedUrls)) {
       allowedUrls = result.allowedUrls;
     }
@@ -154,16 +156,14 @@ function loadSavedSettings() {
     if (result.pin && /^\d{4}$/.test(result.pin)) {
       savedEmergencyPin = result.pin;
       emergencyPinInput.value = result.pin;
-      pinRequiredBanner.style.display = "none";
-      focusBtn.disabled = false;
-      focusBtn.style.opacity = "1";
     } else {
-      savedEmergencyPin = "";
-      emergencyPinInput.value = "";
-      pinRequiredBanner.style.display = "block";
-      focusBtn.disabled = true;
-      focusBtn.style.opacity = "0.5";
+      savedEmergencyPin = "1234";
+      emergencyPinInput.value = "1234";
+      chrome.storage.local.set({ pin: "1234" });
     }
+    pinRequiredBanner.style.display = "none";
+    focusBtn.disabled = false;
+    focusBtn.style.opacity = "1";
 
     if (result.userAuth?.email) {
       authProfileCard.style.display = "block";
@@ -262,7 +262,7 @@ function updateUIForActive(remainingMs: number) {
 
   startTimerDisplay(remainingMs);
 
-  chrome.storage.local.get("pendingEvents", (res) => {
+  chrome.storage.local.get("pendingEvents", (res: any) => {
     const events = res.pendingEvents || [];
     blockCount.textContent = String(events.length);
   });
@@ -328,7 +328,7 @@ function startFocus() {
       allowedUrls,
       pin: savedEmergencyPin,
     },
-    (res) => {
+    (res: any) => {
       if (chrome.runtime.lastError) return;
       if (res && res.success) {
         focusActive = true;
@@ -357,7 +357,7 @@ function handleInlineUnlock() {
       action: "endFocus",
       pin: enteredPin,
     },
-    (res) => {
+    (res: any) => {
       if (chrome.runtime.lastError) return;
       if (res && res.success) {
         focusActive = false;

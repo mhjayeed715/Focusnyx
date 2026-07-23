@@ -93,9 +93,6 @@
     }
 
     window.addEventListener("storage", checkLocalStorageAction);
-    setInterval(checkLocalStorageAction, 1000);
-
-
 
     // 1. Listen for requests from Web App DOM
     window.addEventListener("message", (event) => {
@@ -104,15 +101,9 @@
       const durationMins = durationMinutes || (duration ? duration / 60000 : 25);
 
       if (action === "startFocus") {
-        try {
-          if (document.documentElement && !document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(() => {});
-          }
-        } catch {}
-
         const durationMs = durationMins * 60 * 1000;
         safeSendMessage(
-          { action: "startFocus", duration: durationMs, pin: pin || "1234" },
+          { action: "startFocus", duration: durationMs, blocklist: event.data.blocklist || event.data.blockedSites, pin: pin || "1234" },
           (res) => {
             if (res) {
               safeSendMessage({ action: "getStatus" }, (status) => postStateToWebApp(status));
@@ -120,12 +111,6 @@
           }
         );
       } else if (action === "endFocus") {
-        try {
-          if (document.fullscreenElement) {
-            document.exitFullscreen().catch(() => {});
-          }
-        } catch {}
-
         safeSendMessage(
           { action: "endFocus", pin: pin || "1234" },
           (res) => {
@@ -136,6 +121,10 @@
         );
       } else if (action === "getStatus") {
         safeSendMessage({ action: "getStatus" }, (res) => {
+          if (res) postStateToWebApp(res);
+        });
+      } else if (action === "updateBlocklist") {
+        safeSendMessage({ action: "updateBlocklist", blocklist: event.data.blocklist }, (res) => {
           if (res) postStateToWebApp(res);
         });
       }

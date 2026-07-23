@@ -95,7 +95,7 @@ export function ProductivityOverview() {
           sb.from("wellness_logs").select("*").eq("user_id", userId),
           sb.from("transactions").select("*").eq("user_id", userId),
           sb.from("academic_semester_cgpas").select("*").eq("user_id", userId),
-          sb.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
+          sb.from("profiles").select("*").eq("id", userId).maybeSingle(),
         ]);
 
         const focusSessions = focusRes.data || [];
@@ -181,7 +181,7 @@ export function ProductivityOverview() {
         // 5. Weekly Streak & Pomodoro Rate
         const weekFocusRows = focusSessions.filter((s: Record<string, unknown>) => String(s.created_at || s.started_at || "") >= weekAgo);
         const uniqueDays = new Set(weekFocusRows.map((s: Record<string, unknown>) => String(s.created_at || s.started_at || "").split("T")[0])).size;
-        setStreakDays(profile?.streak || uniqueDays);
+        setStreakDays(Math.max(Number(profile?.streak || 0), uniqueDays));
 
         const completedPomos = focusSessions.filter((s: Record<string, unknown>) => s.completed || s.is_completed || s.ended_at).length;
         setPomoRate({

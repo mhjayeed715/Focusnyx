@@ -28,6 +28,12 @@ class ProcessMonitor:
         self.is_running = False
         self._thread = None
         self.block_count = 0
+        self.logs = []
+
+    def set_blacklist(self, new_list):
+        if isinstance(new_list, list):
+            self.blacklist = [app.lower().strip() for app in new_list if app.strip()]
+            logger.info(f"[Focusnyx Companion] Process blacklist updated: {self.blacklist}")
 
     def start(self):
         if self.is_running:
@@ -55,6 +61,15 @@ class ProcessMonitor:
                         if pname and pname.lower() in self.blacklist:
                             proc.kill()
                             self.block_count += 1
+                            log_entry = {
+                                "id": f"log-{int(time.time()*1000)}-{self.block_count}",
+                                "type": "process_terminated",
+                                "app": pname,
+                                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                            }
+                            self.logs.append(log_entry)
+                            if len(self.logs) > 50:
+                                self.logs = self.logs[-50:]
                             logger.info(f"[Focusnyx Companion] Terminated distraction process: {pname} (PID {proc.info['pid']})")
                             if self.log_callback:
                                 self.log_callback("process_terminated", pname)

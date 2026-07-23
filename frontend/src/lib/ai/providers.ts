@@ -21,6 +21,36 @@ export function getStoredApiKey(provider: AiProvider): string {
   return "";
 }
 
+export async function getStoredApiKeyAsync(provider: AiProvider): Promise<string> {
+  let key = getStoredApiKey(provider);
+  if (key) return key;
+
+  try {
+    const { createClient } = await import("@/lib/supabase/client");
+    const sb = createClient();
+    const { data: { user } } = await sb.auth.getUser();
+    if (user) {
+      const { data: profile } = await sb
+        .from("profiles")
+        .select("groq_api_key, gemini_api_key")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profile) {
+        if (provider === "groq" && profile.groq_api_key) {
+          key = profile.groq_api_key;
+          try { localStorage.setItem(STORAGE_KEY_GROQ, key); } catch {}
+        } else if (provider === "gemini" && profile.gemini_api_key) {
+          key = profile.gemini_api_key;
+          try { localStorage.setItem(STORAGE_KEY_GEMINI, key); } catch {}
+        }
+      }
+    }
+  } catch {}
+
+  return key;
+}
+
 export interface GeneratePlanInput {
   subject: string;
   examDate: string;
@@ -34,7 +64,7 @@ export async function generateStudyPlan(
   const prompt = `Create a concise ADHD-friendly weekly study plan for "${input.subject}". Exam date: ${input.examDate}. Available hours per week: ${input.availableHours}. Use bullet points, keep it under 300 words.`;
 
   if (provider === "groq") {
-    const key = getStoredApiKey("groq");
+    const key = await getStoredApiKeyAsync("groq");
     return callGroq(key, prompt, "You are a concise academic study coach. Respond in plain text with bullet points.");
   }
 
@@ -44,7 +74,7 @@ export async function generateStudyPlan(
 
 export async function askAiCoach(question: string): Promise<string> {
   const provider = getStoredProvider();
-  const key = getStoredApiKey(provider);
+  const key = await getStoredApiKeyAsync(provider);
 
   const systemPrompt = `You are the Focusnyx AI Academic & Productivity Assistant.
 You MUST ONLY answer questions regarding Focusnyx app features, study planning, academic subjects (math, science, programming, literature, engineering, etc.), and student productivity.
