@@ -259,7 +259,7 @@ academicRoutes.put("/courses", async (request, response, next) => {
         throw error;
       }
 
-      const nextIds = new Set(courses.map((course) => course.id));
+      const nextIds = new Set(courses.map((course: any) => course.id));
       const staleIds = (existingRows ?? []).map((row) => row.id).filter((id) => !nextIds.has(id));
 
       if (staleIds.length > 0) {
