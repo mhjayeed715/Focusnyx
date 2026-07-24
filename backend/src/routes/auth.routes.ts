@@ -6,7 +6,7 @@ import { requireAuth } from "../middleware/auth.middleware.js";
 export const authRoutes = Router();
 
 async function getOrCreateDashboardUser(userId: string, email: string, fullName: string, token: string) {
-  const supabase = getSupabaseAdminClient(token);
+  const supabase = getSupabaseAdminClient();
 
   const { data: existingProfile, error: profileError } = await supabase
     .from("profiles")

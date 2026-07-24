@@ -7,7 +7,7 @@ const DEFAULT_STATE: FocusState = {
   active: false,
   sessionId: null,
   blocklist: [],
-  allowedUrls: ["localhost", "127.0.0.1", "focusnyx"],
+  allowedUrls: ["localhost", "127.0.0.1", "focusnyx", "vercel.app"],
   userId: null,
   token: null,
   focusStartTime: null,
@@ -30,9 +30,9 @@ async function getState(): Promise<FocusState> {
 
       // Ensure allowedUrls contains local PWA domains
       if (!state.allowedUrls || !Array.isArray(state.allowedUrls)) {
-        state.allowedUrls = ["localhost", "127.0.0.1", "focusnyx"];
+        state.allowedUrls = ["localhost", "127.0.0.1", "focusnyx", "vercel.app"];
       } else {
-        ["localhost", "127.0.0.1", "focusnyx"].forEach((d) => {
+        ["localhost", "127.0.0.1", "focusnyx", "vercel.app"].forEach((d) => {
           if (!state.allowedUrls.includes(d)) state.allowedUrls.push(d);
         });
       }
@@ -112,7 +112,7 @@ async function applyRules(state: FocusState): Promise<void> {
             ],
           },
         },
-        ...["localhost", "127.0.0.1", "focusnyx"].map((domain, i) => ({
+        ...["localhost", "127.0.0.1", "focusnyx", "vercel.app"].map((domain, i) => ({
           id: 2 + i,
           priority: 2,
           action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
@@ -203,7 +203,7 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
   // Instead, we check if there's any active focus tab left.
   const tabs = await chrome.tabs.query({});
   const focusTab = tabs.find(
-    (t) => t.url && (t.url.includes("localhost") || t.url.includes("focusnyx"))
+    (t) => t.url && (t.url.includes("localhost") || t.url.includes("focusnyx") || t.url.includes("vercel.app"))
   );
   
   if (!focusTab) {
@@ -220,7 +220,7 @@ chrome.runtime.onStartup.addListener(async () => {
   
   const tabs = await chrome.tabs.query({});
   const focusTab = tabs.find(
-    (t) => t.url && (t.url.includes("localhost") || t.url.includes("focusnyx"))
+    (t) => t.url && (t.url.includes("localhost") || t.url.includes("focusnyx") || t.url.includes("vercel.app"))
   );
   
   if (!focusTab) {
@@ -267,7 +267,7 @@ chrome.webNavigation?.onBeforeNavigate.addListener(async (details) => {
   }
 
   const activeDomains = state.blocklist ?? FALLBACK_BLOCKLIST;
-  const isAllowed = ["localhost", "127.0.0.1", "focusnyx", ...activeDomains].some((allowed) => {
+  const isAllowed = ["localhost", "127.0.0.1", "focusnyx", "vercel.app", ...activeDomains].some((allowed) => {
     const cleanAllowed = allowed.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim();
     const cleanHost = hostname.toLowerCase().replace(/^www\./, "").trim();
     if (!cleanAllowed) return false;
@@ -280,7 +280,7 @@ chrome.webNavigation?.onBeforeNavigate.addListener(async (details) => {
 
     const tabs = await chrome.tabs.query({});
     const focusTab = tabs.find(
-      (t) => t.url && (t.url.includes("localhost") || t.url.includes("focusnyx"))
+      (t) => t.url && (t.url.includes("localhost") || t.url.includes("focusnyx") || t.url.includes("vercel.app"))
     );
     if (focusTab && focusTab.id) {
       chrome.tabs.update(focusTab.id, { active: true });
@@ -319,7 +319,7 @@ chrome.tabs.onCreated.addListener(async (tab) => {
       }
 
       const activeDomains = state.blocklist ?? FALLBACK_BLOCKLIST;
-      const isAllowed = ["localhost", "127.0.0.1", "focusnyx", ...activeDomains].some(
+      const isAllowed = ["localhost", "127.0.0.1", "focusnyx", "vercel.app", ...activeDomains].some(
         (allowed) => hostname.includes(allowed) || allowed.includes(hostname)
       );
       const isBlocked = !isAllowed;
@@ -330,7 +330,7 @@ chrome.tabs.onCreated.addListener(async (tab) => {
         // Bring PWA tab back to focus
         const tabs = await chrome.tabs.query({});
         const focusTab = tabs.find(
-          (t) => t.url && (t.url.includes("localhost") || t.url.includes("focusnyx"))
+          (t) => t.url && (t.url.includes("localhost") || t.url.includes("focusnyx") || t.url.includes("vercel.app"))
         );
         if (focusTab && focusTab.id) {
           chrome.tabs.update(focusTab.id, { active: true });
@@ -368,7 +368,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     }
 
     const activeDomains = state.blocklist ?? FALLBACK_BLOCKLIST;
-    const isAllowed = ["localhost", "127.0.0.1", "focusnyx", ...activeDomains].some(
+    const isAllowed = ["localhost", "127.0.0.1", "focusnyx", "vercel.app", ...activeDomains].some(
       (allowed) => hostname.includes(allowed) || allowed.includes(hostname)
     );
     const isBlocked = !isAllowed;
@@ -406,7 +406,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     }
 
     const activeDomains = state.blocklist ?? FALLBACK_BLOCKLIST;
-    const isAllowed = ["localhost", "127.0.0.1", "focusnyx", ...activeDomains].some((allowed) => {
+    const isAllowed = ["localhost", "127.0.0.1", "focusnyx", "vercel.app", ...activeDomains].some((allowed) => {
       const cleanAllowed = allowed.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim();
       const cleanHost = hostname.toLowerCase().replace(/^www\./, "").trim();
       if (!cleanAllowed) return false;
@@ -417,7 +417,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     if (isBlocked) {
       const tabs = await chrome.tabs.query({});
       const focusTab = tabs.find(
-        (t) => t.url && (t.url.includes("localhost") || t.url.includes("focusnyx"))
+        (t) => t.url && (t.url.includes("localhost") || t.url.includes("focusnyx") || t.url.includes("vercel.app"))
       );
       if (focusTab && focusTab.id) {
         chrome.tabs.update(focusTab.id, { active: true });
@@ -438,7 +438,7 @@ chrome.webNavigation?.onErrorOccurred.addListener(async (details) => {
 });
 
 // Handle runtime messages (Internal & External from web app)
-function handleMessage(request: any, _sender: any, sendResponse: (response?: any) => void) {
+function handleMessage(request: any, sender: any, sendResponse: (response?: any) => void) {
   if (request.action === "syncAuth") {
     (async () => {
       const currentState = await getState();
@@ -458,7 +458,7 @@ function handleMessage(request: any, _sender: any, sendResponse: (response?: any
     (async () => {
       const currentState = await getState();
       const duration = request.duration || (request.durationMinutes ? request.durationMinutes * 60 * 1000 : 25 * 60 * 1000);
-      const allowedUrls = request.allowedUrls || currentState.allowedUrls || ["localhost", "127.0.0.1", "focusnyx"];
+      const allowedUrls = request.allowedUrls || currentState.allowedUrls || ["localhost", "127.0.0.1", "focusnyx", "vercel.app"];
       const pin = request.pin || currentState.focusPIN || "123456";
       const token = request.token || currentState.token;
       const sessionId = request.sessionId || `session-${Date.now()}`;
@@ -519,7 +519,7 @@ function handleMessage(request: any, _sender: any, sendResponse: (response?: any
       }
       const tabs = await chrome.tabs.query({});
       const focusTab = tabs.find(
-        (t) => t.url && (t.url.includes("localhost") || t.url.includes("focusnyx"))
+        (t) => t.url && (t.url.includes("localhost") || t.url.includes("focusnyx") || t.url.includes("vercel.app"))
       );
       if (focusTab && focusTab.id) {
         chrome.tabs.update(focusTab.id, { active: true });

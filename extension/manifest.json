@@ -50,7 +50,10 @@
   "externally_connectable": {
     "matches": [
       "http://localhost:3000/*",
-      "http://127.0.0.1:3000/*"
+      "http://127.0.0.1:3000/*",
+      "https://*.vercel.app/*",
+      "https://focusnyx.vercel.app/*",
+      "https://*.focusnyx.com/*"
     ]
   },
   "icons": {
