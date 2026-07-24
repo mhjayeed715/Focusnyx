@@ -921,7 +921,9 @@ export function PomodoroPanel() {
       if (realTask?.id) {
         // Replace optimistic ID with real DB ID
         updateTasks((current) => current.map((t) => (t.id === optimisticId ? { ...t, id: realTask.id } : t)));
-        setActiveTaskId((current) => (current === optimisticId ? realTask.id : current));
+        if (activeTaskId === optimisticId) {
+          setActiveTaskId(realTask.id);
+        }
       }
       toast.success(`Task "${optimisticTask.title}" saved!`, { id: toastId });
       setStatusMessage(`${copy.created} ${optimisticTask.title}.`);
