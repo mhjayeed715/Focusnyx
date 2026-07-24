@@ -56,6 +56,7 @@ export async function getDashboardBootstrap() {
       xpIntoLevel: number;
       xpNeededForNextLevel: number;
       xpProgressPercent: number;
+      emergencyPin?: string;
     };
     tasks: Array<{
       id: string;
