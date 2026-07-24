@@ -12,9 +12,15 @@ create table if not exists profiles (
   level int not null default 1,
   total_xp int not null default 0,
   streak int not null default 0,
+  completed_tasks_today int not null default 0,
+  total_focus_time int not null default 0,
+  sessions_completed int not null default 0,
+  focus_score int not null default 80,
   groq_api_key text,
   gemini_api_key text,
   ai_provider text default 'groq',
+  emergency_pin text default '123456',
+  last_active_at timestamptz,
   created_at timestamptz not null default now()
 );
 

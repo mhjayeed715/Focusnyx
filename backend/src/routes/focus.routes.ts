@@ -20,7 +20,7 @@ focusRoutes.post("/pomodoro/complete", async (request, response, next) => {
 
     const minutes = Number(request.body?.minutes ?? 25);
     const xpReward = Number(request.body?.xpReward ?? 25);
-    const supabase = getSupabaseAdminClient(request.authUser?.accessToken);
+    const supabase = getSupabaseAdminClient();
 
     const { data: profileRow, error: profileError } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
 

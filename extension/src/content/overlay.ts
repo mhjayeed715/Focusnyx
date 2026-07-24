@@ -3,7 +3,8 @@
   const isAppDomain =
     currentHost.includes("localhost") ||
     currentHost.includes("127.0.0.1") ||
-    currentHost.includes("focusnyx");
+    currentHost.includes("focusnyx") ||
+    currentHost.includes("vercel.app");
 
   const syncChannel = typeof BroadcastChannel !== "undefined"
     ? new BroadcastChannel("FOCUSNYX_SYNC_CHANNEL")

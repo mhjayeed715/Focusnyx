@@ -16,7 +16,7 @@ tasksRoutes.get("/", async (request, response, next) => {
       return;
     }
 
-    const supabase = getSupabaseAdminClient(request.authUser?.accessToken);
+    const supabase = getSupabaseAdminClient();
     const { data, error } = await supabase
       .from("academic_tasks")
       .select("id,title,subject,estimated_minutes,xp_reward,is_completed,subtasks,created_at")
@@ -63,7 +63,7 @@ tasksRoutes.post("/", async (request, response, next) => {
       return;
     }
 
-    const supabase = getSupabaseAdminClient(request.authUser?.accessToken);
+    const supabase = getSupabaseAdminClient();
     const payload = {
       user_id: userId,
       title,
@@ -107,7 +107,7 @@ tasksRoutes.patch("/:taskId", async (request, response, next) => {
       return;
     }
 
-    const supabase = getSupabaseAdminClient(request.authUser?.accessToken);
+    const supabase = getSupabaseAdminClient();
 
     const { data: existingTask, error: lookupError } = await supabase
       .from("academic_tasks")
@@ -227,7 +227,7 @@ tasksRoutes.delete("/:taskId", async (request, response, next) => {
       return;
     }
 
-    const supabase = getSupabaseAdminClient(request.authUser?.accessToken);
+    const supabase = getSupabaseAdminClient();
 
     const { error } = await supabase
       .from("academic_tasks")
