@@ -1,105 +1,71 @@
 {
-  "services": {
-    "frontend": {
-      "root": "frontend",
-      "framework": "nextjs"
+  "version": 2,
+  "builds": [
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/next"
     },
-    "backend": {
-      "root": "backend",
-      "entrypoint": "api/index.ts"
+    {
+      "src": "backend/api/index.ts",
+      "use": "@vercel/node"
     }
-  },
-  "rewrites": [
+  ],
+  "routes": [
     {
-      "source": "/api/backend(/.*)?",
-      "destination": {
-        "type": "service",
-        "service": "backend"
-      }
+      "src": "/health",
+      "dest": "backend/api/index.ts"
     },
     {
-      "source": "/auth(/.*)?",
-      "destination": {
-        "type": "service",
-        "service": "backend"
-      }
+      "src": "/auth/(.*)",
+      "dest": "backend/api/index.ts"
     },
     {
-      "source": "/tasks(/.*)?",
-      "destination": {
-        "type": "service",
-        "service": "backend"
-      }
+      "src": "/tasks/(.*)",
+      "dest": "backend/api/index.ts"
     },
     {
-      "source": "/focus(/.*)?",
-      "destination": {
-        "type": "service",
-        "service": "backend"
-      }
+      "src": "/tasks",
+      "dest": "backend/api/index.ts"
     },
     {
-      "source": "/notes(/.*)?",
-      "destination": {
-        "type": "service",
-        "service": "backend"
-      }
+      "src": "/focus/(.*)",
+      "dest": "backend/api/index.ts"
     },
     {
-      "source": "/finance(/.*)?",
-      "destination": {
-        "type": "service",
-        "service": "backend"
-      }
+      "src": "/notes/(.*)",
+      "dest": "backend/api/index.ts"
     },
     {
-      "source": "/wellness(/.*)?",
-      "destination": {
-        "type": "service",
-        "service": "backend"
-      }
+      "src": "/finance/(.*)",
+      "dest": "backend/api/index.ts"
     },
     {
-      "source": "/coach(/.*)?",
-      "destination": {
-        "type": "service",
-        "service": "backend"
-      }
+      "src": "/wellness/(.*)",
+      "dest": "backend/api/index.ts"
     },
     {
-      "source": "/analytics(/.*)?",
-      "destination": {
-        "type": "service",
-        "service": "backend"
-      }
+      "src": "/coach/(.*)",
+      "dest": "backend/api/index.ts"
     },
     {
-      "source": "/blocklist(/.*)?",
-      "destination": {
-        "type": "service",
-        "service": "backend"
-      }
+      "src": "/analytics/(.*)",
+      "dest": "backend/api/index.ts"
     },
     {
-      "source": "/academic(/.*)?",
-      "destination": {
-        "type": "service",
-        "service": "backend"
-      }
+      "src": "/blocklist/(.*)",
+      "dest": "backend/api/index.ts"
     },
     {
-      "source": "/health",
-      "destination": {
-        "type": "service",
-        "service": "backend"
-      }
+      "src": "/academic/(.*)",
+      "dest": "backend/api/index.ts"
     },
     {
-      "source": "/(.*)",
-      "destination": {
-        "type": "service",
-        "service": "frontend"
-      }
+      "src": "/api/backend/(.*)",
+      "dest": "backend/api/index.ts"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "frontend/$1"
     }
   ]
 }
