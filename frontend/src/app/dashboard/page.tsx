@@ -714,7 +714,7 @@ export default function DashboardPage() {
                             {editingTaskId === task.id ? (
                               <>
                                 <button
-                                  onClick={(e) => {
+                                  onClick={async (e) => {
                                     e.stopPropagation();
                                     const updatedTask: Task = {
                                       ...task,
@@ -735,6 +735,21 @@ export default function DashboardPage() {
                                       return next;
                                     });
                                     setEditingTaskId(null);
+                                    try {
+                                      await updateTask(task.id, {
+                                        title: updatedTask.title,
+                                        subject: updatedTask.subject,
+                                        estimate: updatedTask.estimate,
+                                        subtasks: updatedTask.subtasks.map((s) => ({
+                                          id: s.id,
+                                          title: s.title,
+                                          completed: s.completed,
+                                        })),
+                                      });
+                                      await loadDashboard();
+                                    } catch {
+                                      toast.error("Could not save task changes.", { duration: 3000 });
+                                    }
                                   }}
                                   className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-2.5 py-1 text-xs font-black"
                                 >
