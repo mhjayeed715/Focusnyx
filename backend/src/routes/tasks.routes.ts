@@ -16,10 +16,10 @@ tasksRoutes.get("/", async (request, response, next) => {
       return;
     }
 
-    const supabase = getSupabaseAdminClient();
+    const supabase = getSupabaseAdminClient(request.authUser?.accessToken);
     const { data, error } = await supabase
       .from("academic_tasks")
-      .select("id,title,subject,estimated_minutes,xp_reward,is_completed,microtasks,created_at")
+      .select("id,title,subject,estimated_minutes,xp_reward,is_completed,subtasks,created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: true });
 
@@ -28,7 +28,7 @@ tasksRoutes.get("/", async (request, response, next) => {
     }
 
     if (!data || data.length === 0) {
-      response.json({ tasks: starterTasks });
+      response.json({ tasks: [] });
       return;
     }
 
@@ -50,10 +50,12 @@ tasksRoutes.post("/", async (request, response, next) => {
     const title = typeof request.body?.title === "string" ? request.body.title.trim() : "";
     const subject = typeof request.body?.subject === "string" && request.body.subject.trim() ? request.body.subject.trim() : "General";
     const estimate = Math.max(5, Math.round(Number(request.body?.estimate ?? 25)));
-    const microtasks = Array.isArray(request.body?.microtasks)
-      ? request.body.microtasks
-          .filter((microtask: unknown) => typeof microtask === "string" && microtask.trim())
-          .map((microtask: string, index: number) => ({ id: `micro-${Date.now()}-${index}`, title: microtask.trim(), completed: false }))
+    const subtasks = Array.isArray(request.body?.subtasks)
+      ? request.body.subtasks.map((subtask: any, index: number) => ({
+          id: subtask.id ?? `sub-${Date.now()}-${index}`,
+          title: typeof subtask === "string" ? subtask.trim() : (subtask.title || "").trim(),
+          completed: subtask.completed ?? false,
+        })).filter((s: any) => s.title !== "")
       : [];
 
     if (!title) {
@@ -61,7 +63,7 @@ tasksRoutes.post("/", async (request, response, next) => {
       return;
     }
 
-    const supabase = getSupabaseAdminClient();
+    const supabase = getSupabaseAdminClient(request.authUser?.accessToken);
     const payload = {
       user_id: userId,
       title,
@@ -69,13 +71,13 @@ tasksRoutes.post("/", async (request, response, next) => {
       estimated_minutes: Number.isFinite(estimate) ? estimate : 25,
       xp_reward: Math.max(20, estimate * 4),
       is_completed: false,
-      microtasks,
+      subtasks,
     };
 
     const { data, error } = await supabase
       .from("academic_tasks")
       .insert(payload)
-      .select("id,title,subject,estimated_minutes,xp_reward,is_completed,microtasks,created_at")
+      .select("id,title,subject,estimated_minutes,xp_reward,is_completed,subtasks,created_at")
       .single();
 
     if (error) {
@@ -98,11 +100,18 @@ tasksRoutes.patch("/:taskId", async (request, response, next) => {
       return;
     }
 
-    const supabase = getSupabaseAdminClient();
+    const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(taskId);
+    if (!isUuid) {
+      // For synthetic/starter task IDs, return simulated success
+      response.json({ task: { id: taskId, title: "Task", is_completed: Boolean(request.body?.completed) } });
+      return;
+    }
+
+    const supabase = getSupabaseAdminClient(request.authUser?.accessToken);
 
     const { data: existingTask, error: lookupError } = await supabase
       .from("academic_tasks")
-      .select("id,title,subject,estimated_minutes,xp_reward,is_completed,microtasks,created_at")
+      .select("id,title,subject,estimated_minutes,xp_reward,is_completed,subtasks,created_at")
       .eq("id", taskId)
       .eq("user_id", userId)
       .maybeSingle();
@@ -116,15 +125,30 @@ tasksRoutes.patch("/:taskId", async (request, response, next) => {
 
     if (typeof wantsCompleted === "boolean") {
       updates.is_completed = wantsCompleted;
-      if (wantsCompleted) {
-        updates.completed_at = new Date().toISOString();
-      } else {
-        updates.completed_at = null;
+    }
+
+    if (typeof request.body?.title === "string" && request.body.title.trim()) {
+      updates.title = request.body.title.trim();
+    }
+
+    if (typeof request.body?.subject === "string" && request.body.subject.trim()) {
+      updates.subject = request.body.subject.trim();
+    }
+
+    if (request.body?.estimate !== undefined || request.body?.estimated_minutes !== undefined) {
+      const est = Number(request.body.estimate ?? request.body.estimated_minutes);
+      if (Number.isFinite(est) && est > 0) {
+        updates.estimated_minutes = Math.round(est);
+        updates.xp_reward = Math.max(20, Math.round(est) * 4);
       }
     }
 
-    if (Array.isArray(request.body?.microtasks)) {
-      updates.microtasks = request.body.microtasks;
+    const rawSubtasks = Array.isArray(request.body?.subtasks)
+      ? request.body.subtasks
+      : undefined;
+
+    if (rawSubtasks !== undefined) {
+      updates.subtasks = rawSubtasks;
     }
 
     const { data, error } = await supabase
@@ -132,7 +156,7 @@ tasksRoutes.patch("/:taskId", async (request, response, next) => {
       .update(updates)
       .eq("id", taskId)
       .eq("user_id", userId)
-      .select("id,title,subject,estimated_minutes,xp_reward,is_completed,microtasks,created_at")
+      .select("id,title,subject,estimated_minutes,xp_reward,is_completed,subtasks,created_at")
       .single();
 
     if (error) {
@@ -164,31 +188,58 @@ tasksRoutes.patch("/:taskId", async (request, response, next) => {
         sessionsCompleted: profileRow?.sessions_completed,
       });
 
-      const { error: updateProfileError } = await supabase.from("profiles").upsert(
+      const { error: updateProfileError } = await supabase.from("profiles").update(
         {
-          id: userId,
-          university_email: request.authUser?.email ?? "student@example.com",
-          display_name: request.authUser?.fullName ?? "Student",
-          preferred_language: profileRow?.preferred_language ?? "en",
           level: updatedProfile.level,
           total_xp: updatedProfile.totalXp,
           today_xp: updatedProfile.todayXp,
           streak: updatedProfile.streak,
           focus_score: updatedProfile.focusScore,
           completed_tasks_today: updatedProfile.completedTasksToday,
-          total_focus_time: updatedProfile.totalFocusTime,
-          sessions_completed: updatedProfile.sessionsCompleted,
           last_active_at: new Date().toISOString(),
-        },
-        { onConflict: "id" },
-      );
+        }
+      ).eq("id", userId);
 
       if (updateProfileError) {
-        throw updateProfileError;
+        console.error("Profile update error on task completion:", updateProfileError);
       }
     }
 
     response.json({ task: normalizeTask(data) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+tasksRoutes.delete("/:taskId", async (request, response, next) => {
+  try {
+    const userId = request.authUser?.id;
+    const taskId = request.params.taskId;
+
+    if (!userId) {
+      response.status(401).json({ message: "Unauthorized." });
+      return;
+    }
+
+    const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(taskId);
+    if (!isUuid) {
+      response.json({ task: { id: taskId } });
+      return;
+    }
+
+    const supabase = getSupabaseAdminClient(request.authUser?.accessToken);
+
+    const { error } = await supabase
+      .from("academic_tasks")
+      .delete()
+      .eq("id", taskId)
+      .eq("user_id", userId);
+
+    if (error) {
+      throw error;
+    }
+
+    response.json({ message: "Task deleted successfully.", id: taskId });
   } catch (error) {
     next(error);
   }

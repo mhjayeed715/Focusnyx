@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ContactModal } from "@/components/ui/ContactModal";
+import { Footer } from "@/components/ui/Footer";
 import {
   ArrowRight,
   BadgeCheck,
@@ -32,6 +33,9 @@ import {
   Triangle,
   Zap,
   Target,
+  Download,
+  Laptop,
+  Puzzle,
 } from "lucide-react";
 
 import { useLanguage } from "@/components/layout/language-context";
@@ -311,15 +315,20 @@ export default function HomePage() {
               <p className="mt-6 max-w-xl text-lg leading-8 text-[var(--muted-fg)] sm:text-xl">
                 {copy.hero}
               </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Link href="/signup" className="candy-button flex h-12 items-center justify-center gap-2 px-6 text-sm sm:h-14 sm:px-8 sm:text-base">
                   {copy.ctaPrimary}
                   <span className="grid h-7 w-7 place-items-center rounded-full bg-white text-[var(--foreground)] shadow-[2px_2px_0_0_#1E293B]">
                     <ArrowRight size={16} strokeWidth={2.5} />
                   </span>
                 </Link>
-                <a href="#features" className="secondary-button flex h-12 items-center justify-center px-6 text-sm sm:h-14 sm:px-8 sm:text-base">
-                  {copy.ctaSecondary}
+                <a href="/downloads/Focusnyx-Chrome-Extension.zip" download className="secondary-button flex h-12 items-center justify-center gap-2 px-5 text-sm sm:h-14 sm:px-6 sm:text-base bg-[#ECFDF5]">
+                  <Puzzle size={18} strokeWidth={2.5} className="text-[#059669]" />
+                  {lang === "bn" ? "এক্সটেনশন (ZIP)" : "Extension (ZIP)"}
+                </a>
+                <a href="/downloads/FocusnyxCompanionApp-Windows.zip" download className="secondary-button flex h-12 items-center justify-center gap-2 px-5 text-sm sm:h-14 sm:px-6 sm:text-base bg-[#F3E8FF]">
+                  <Laptop size={18} strokeWidth={2.5} className="text-[#7C3AED]" />
+                  {lang === "bn" ? "কম্প্যানিয়ন (Windows EXE)" : "Companion (Windows)"}
                 </a>
               </div>
 
@@ -507,6 +516,19 @@ export default function HomePage() {
                   </div>
                 ))}
               </div>
+
+              <div className="mt-8 flex flex-wrap gap-4">
+                <a href="/downloads/Focusnyx-Chrome-Extension.zip" download className="candy-button flex h-13 items-center justify-center gap-3 px-6 text-sm">
+                  <Puzzle size={20} strokeWidth={2.5} />
+                  {lang === "bn" ? "Chrome এক্সটেনশন ডাউনলোড" : "Download Chrome Extension"}
+                  <Download size={18} strokeWidth={2.5} />
+                </a>
+                <a href="/downloads/FocusnyxCompanionApp-Windows.zip" download className="secondary-button flex h-13 items-center justify-center gap-3 px-6 text-sm bg-white">
+                  <Laptop size={20} strokeWidth={2.5} />
+                  {lang === "bn" ? "Windows অ্যাপ ডাউনলোড" : "Download Companion App"}
+                  <Download size={18} strokeWidth={2.5} />
+                </a>
+              </div>
             </div>
 
             <motion.div
@@ -578,78 +600,7 @@ export default function HomePage() {
         </section>
       </main>
 
-      <footer id="about" className="border-t-2 border-[var(--foreground)] bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-          <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-12">
-            <div className="lg:col-span-3">
-              <h3 className="mb-4 flex items-center gap-2 font-display text-lg font-black leading-none">
-                <ShieldCheck size={18} strokeWidth={2.5} />
-                Help Center
-              </h3>
-              <ul className="space-y-2 text-sm text-[var(--muted-fg)]">
-                <li>
-                  <button
-                    onClick={() => setIsContactOpen(true)}
-                    className="inline-flex items-center gap-2 leading-6 transition-colors hover:text-[var(--foreground)] text-left cursor-pointer"
-                  >
-                    <MessageSquareText size={16} strokeWidth={2.5} />
-                    Contact Us
-                  </button>
-                </li>
-              </ul>
-            </div>
-
-            <div className="lg:col-span-4">
-              <h3 className="mb-4 flex items-center gap-2 font-display text-lg font-black leading-none">
-                <Mail size={18} strokeWidth={2.5} />
-                Contact
-              </h3>
-              <ul className="space-y-2 text-sm text-[var(--muted-fg)]">
-                <li className="flex items-center gap-2 leading-6">
-                  <Mail size={16} strokeWidth={2.5} />
-                  <span>mehrabjayeed715@gmail.com</span>
-                </li>
-                <li className="flex items-center gap-2 leading-6">
-                  <Phone size={16} strokeWidth={2.5} />
-                  <span>+8801533652232</span>
-                </li>
-                <li>
-                  <a href="https://linkedin.com/in/mhjayeed715" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 leading-6 transition-colors hover:text-[var(--foreground)]">
-                    <Linkedin size={16} strokeWidth={2.5} />
-                    linkedin.com/in/mhjayeed715
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div className="md:col-span-2 lg:col-span-5">
-              <div className="mb-4 flex items-center gap-3">
-                <Image
-                  src="/icons/focusnyx.png"
-                  alt="Focusnyx"
-                  width={48}
-                  height={48}
-                  className="h-12 w-12 rounded-xl border-2 border-[var(--foreground)] object-cover shadow-[4px_4px_0_0_#1E293B]"
-                />
-                <div>
-                  <p className="font-display text-xl font-black">Focusnyx</p>
-                  <p className="text-sm font-semibold text-[var(--muted-fg)]">{copy.footer}</p>
-                </div>
-              </div>
-              <p className="mb-4 max-w-md text-sm leading-6 text-[var(--muted-fg)]">© 2026 Focusnyx. All rights reserved.</p>
-              <div className="flex flex-wrap items-center gap-3 text-sm font-bold text-[var(--muted-fg)]">
-                <Link href="/privacy" className="transition-colors hover:text-[var(--foreground)] hover:underline">
-                  {lang === "bn" ? "গোপনীয়তা নীতি" : "Privacy Policy"}
-                </Link>
-                <span>•</span>
-                <Link href="/terms" className="transition-colors hover:text-[var(--foreground)] hover:underline">
-                  {lang === "bn" ? "ব্যবহারের শর্তাবলী" : "Terms of Service"}
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer onContactClick={() => setIsContactOpen(true)} lang={lang} />
 
       <ContactModal isOpen={isContactOpen} onClose={() => setIsContactOpen(false)} />
     </div>

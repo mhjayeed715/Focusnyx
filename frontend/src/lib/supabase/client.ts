@@ -20,6 +20,8 @@ export function createClient() {
   client = createBrowserClient(url, key, {
     auth: {
       lock: noOpLock,
+      persistSession: true,
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
     },
   });
   return client;

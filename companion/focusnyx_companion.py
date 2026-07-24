@@ -27,7 +27,7 @@ from supabase_sync import SupabaseSync
 # Try importing pystray for Windows System Tray GUI
 try:
     import pystray
-    from PIL import Image, ImageDraw
+    from PIL import Image, ImageDraw, ImageTk
     HAS_PYSTRAY = True
 except ImportError:
     HAS_PYSTRAY = False
@@ -60,7 +60,7 @@ focus_state = {
     "is_active": False,
     "start_time": None,
     "duration_minutes": 25,
-    "pin": os.getenv("DEFAULT_PIN", "1234"),
+    "pin": os.getenv("DEFAULT_PIN", "123456"),
     "blocks_count": 0,
 }
 
@@ -71,6 +71,7 @@ process_monitor = ProcessMonitor(log_callback=lambda event_type, app: sync.log_e
 window_manager = WindowManager()
 timer_thread = None
 tray_icon = None
+root = None
 
 # Helper for asset path resolution (handles PyInstaller sys._MEIPASS)
 def get_asset_path(filename):
@@ -121,7 +122,7 @@ def stop_focus_session(provided_pin=None):
     if not focus_state["is_active"]:
         return False, "No active focus session"
 
-    if provided_pin and provided_pin != focus_state["pin"] and provided_pin != "1234":
+    if provided_pin and provided_pin != focus_state["pin"] and provided_pin != "123456":
         sync.log_event("unlock_failed", "Incorrect PIN attempt")
         return False, "Incorrect PIN"
 
@@ -171,19 +172,26 @@ def start_tray():
     if not HAS_PYSTRAY:
         return
 
+    def show_dashboard(icon, item):
+        try:
+            # We must run deiconify on the main thread if possible, 
+            # or simply use root.deiconify() if Tkinter is running
+            import tkinter as tk
+            # Since root is global and running in the main thread, 
+            # we can safely call deiconify to restore it.
+            global root
+            if root:
+                root.deiconify()
+                root.lift()
+                root.focus_force()
+        except Exception as e:
+            logger.error(f"Failed to open dashboard: {e}")
+
     menu = pystray.Menu(
-        pystray.MenuItem("Focusnyx Companion v1.0.0", None, enabled=False),
-        pystray.MenuItem(
-            lambda item: f"Status: {'Active (Locked)' if focus_state['is_active'] else 'Inactive'}",
-            None,
-            enabled=False
-        ),
+        pystray.MenuItem("Focusnyx Companion", None, enabled=False),
         pystray.Menu.SEPARATOR,
-        pystray.MenuItem("Start 25m Focus Session", lambda icon, item: start_focus_session(25)),
-        pystray.MenuItem("End Focus Session", lambda icon, item: stop_focus_session()),
-        pystray.Menu.SEPARATOR,
-        pystray.MenuItem("Open Focusnyx Web App", lambda icon, item: webbrowser.open("http://localhost:3000/focus")),
-        pystray.MenuItem("Exit Focusnyx Companion", exit_companion),
+        pystray.MenuItem("Open Dashboard", show_dashboard, default=True),
+        pystray.MenuItem("Exit Completely", exit_companion),
     )
 
     tray_icon = pystray.Icon(
@@ -302,21 +310,41 @@ def start_gui():
     except Exception:
         pass
 
+    global root
     root = tk.Tk()
     root.title("Focusnyx Companion - Focus Lock")
     root.geometry("480x620")
     root.configure(bg="#0f172a")
 
+    # Set AppUserModelID so Windows Taskbar displays the Focusnyx icon instead of Tk feather
+    try:
+        myappid = 'focusnyx.companion.app.1.0'
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+    except Exception:
+        pass
+
     # Set App Window & Taskbar Icon
+    png_path = get_asset_path("icon-128.png")
     ico_path = get_asset_path("icon.ico")
+
+    try:
+        if os.path.exists(png_path) and 'ImageTk' in globals():
+            img = Image.open(png_path)
+            photo = ImageTk.PhotoImage(img)
+            root.iconphoto(True, photo)
+            root._app_icon = photo  # Keep reference to prevent GC
+    except Exception as e:
+        logger.warning(f"Failed to set iconphoto: {e}")
+
     if os.path.exists(ico_path):
         try:
             root.iconbitmap(ico_path)
+            root.iconbitmap(default=ico_path)
         except Exception:
             pass
 
     # Header
-    header_frame = tk.Frame(root, bg="#1e293b", padx=15, pady=15)
+    header_frame = tk.Frame(root, bg="#1e293b")
     header_frame.pack(fill="x", padx=15, pady=(15, 10))
 
     title_label = tk.Label(
@@ -338,7 +366,7 @@ def start_gui():
     sub_label.pack(anchor="w")
 
     # Status Card
-    card_frame = tk.Frame(root, bg="#1e293b", padx=20, pady=20)
+    card_frame = tk.Frame(root, bg="#1e293b")
     card_frame.pack(fill="x", padx=15, pady=10)
 
     status_badge = tk.Label(
@@ -393,6 +421,14 @@ def start_gui():
             else:
                 messagebox.showinfo("Emergency Exit", "Focus Lock Released!")
 
+    def gui_force_unlock():
+        if not focus_state["is_active"]:
+            messagebox.showinfo("Focusnyx", "No active focus session!")
+            return
+        if messagebox.askyesno("Force Unlock", "WARNING: This will forcefully terminate the Focus Lock without a PIN. Use only if you are locked out of your browser. Proceed?"):
+            stop_focus_session(focus_state["pin"])
+            messagebox.showinfo("Force Unlock", "System forcefully unlocked.")
+
     def gui_open_app():
         webbrowser.open("http://localhost:3000/focus")
 
@@ -410,10 +446,17 @@ def start_gui():
 
     btn_stop = tk.Button(
         btn_frame, text="🔒 Emergency PIN Exit", font=("Segoe UI", 10, "bold"),
-        bg="#ef4444", fg="white", activebackground="#dc2626", activeforeground="white",
+        bg="#f97316", fg="white", activebackground="#ea580c", activeforeground="white",
         bd=0, pady=8, command=gui_end, cursor="hand2"
     )
     btn_stop.pack(fill="x", pady=4)
+
+    btn_force = tk.Button(
+        btn_frame, text="⚠️ FORCE EMERGENCY UNLOCK (NO PIN)", font=("Segoe UI", 10, "bold"),
+        bg="#ef4444", fg="white", activebackground="#dc2626", activeforeground="white",
+        bd=0, pady=10, command=gui_force_unlock, cursor="hand2"
+    )
+    btn_force.pack(fill="x", pady=4)
 
     btn_web = tk.Button(
         btn_frame, text="🌐 Open Focusnyx Web App", font=("Segoe UI", 10, "bold"),
@@ -423,7 +466,7 @@ def start_gui():
     btn_web.pack(fill="x", pady=4)
 
     # Live Distraction Log Frame
-    log_frame = tk.Frame(root, bg="#1e293b", padx=10, pady=10)
+    log_frame = tk.Frame(root, bg="#1e293b")
     log_frame.pack(fill="both", expand=True, padx=15, pady=(10, 15))
 
     log_title = tk.Label(

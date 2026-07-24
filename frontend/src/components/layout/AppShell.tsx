@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ContactModal } from "@/components/ui/ContactModal";
+import { Footer } from "@/components/ui/Footer";
 import {
   BrainCircuit,
   BookOpen,
@@ -28,6 +29,7 @@ import { APP_ROUTES } from "@/lib/constants/routes";
 import { createClient } from "@/lib/supabase/client";
 import { LanguageToggle } from "./LanguageToggle";
 import { useLanguage } from "./language-context";
+import { useFocusContext } from "@/context/FocusContext";
 import { translations } from "@/lib/translations";
 import { trackGroqCall } from "@/lib/ai/groq";
 
@@ -110,6 +112,7 @@ function ShellContent({
   const router   = useRouter();
   const { lang } = useLanguage();
   const t = translations[lang];
+  const focusContext = useFocusContext();
 
   const [sidebarOpen,       setSidebarOpen]       = useState(false);
   const [collapsed,         setCollapsed]         = useState<boolean>(initialCollapsed ?? false);
@@ -131,6 +134,7 @@ function ShellContent({
   const [provider,    setProvider]    = useState<AiProvider>("groq");
   const [geminiKey,   setGeminiKey]   = useState("");
   const [groqKey,     setGroqKey]     = useState("");
+  const [groqUsage,   setGroqUsage]   = useState(0);
   const [isContactOpen, setIsContactOpen] = useState(false);
 
   useEffect(() => {
@@ -151,6 +155,17 @@ function ShellContent({
         const sb = createClient();
         const { data: { user } } = await sb.auth.getUser();
         if (user) {
+          const now = new Date();
+          const bdtTimeStr = now.toLocaleString("en-US", { timeZone: "Asia/Dhaka" });
+          const bdtTime = new Date(bdtTimeStr);
+          const bdtDateString = `${bdtTime.getFullYear()}-${bdtTime.getMonth() + 1}-${bdtTime.getDate()}`;
+          
+          if (user.user_metadata?.ai_usage_date === bdtDateString) {
+            setGroqUsage(user.user_metadata?.ai_usage_count || 0);
+          } else {
+            setGroqUsage(0);
+          }
+
           const { data: profile } = await sb
             .from("profiles")
             .select("groq_api_key, gemini_api_key, ai_provider")
@@ -244,12 +259,12 @@ function ShellContent({
     router.push(APP_ROUTES.auth);
   };
 
-  const sendChat = async () => {
-    const msg = chatInput.trim();
+  const sendChat = async (overrideMsg?: string) => {
+    const msg = (overrideMsg || chatInput).trim();
     if (!msg || chatLoading) return;
     const apiKey = provider === "gemini" ? geminiKey.trim() : groqKey.trim();
-    if (!apiKey) {
-      setChatMessages(p => [...p, { id: `a-${Date.now()}`, role: "assistant", content: lang === "bn" ? "চ্যাট করার আগে সেটিংসে আপনার API কী যোগ করুন।" : "Please add your API key in Settings before chatting." }]);
+    if (!apiKey && provider === "gemini") {
+      setChatMessages(p => [...p, { id: `a-${Date.now()}`, role: "assistant", content: lang === "bn" ? "চ্যাট করার আগে সেটিংসে আপনার Gemini API কী যোগ করুন।" : "Please add your Gemini API key in Settings before chatting." }]);
       return;
     }
     const FOCUSNYX_CHAT_SYSTEM_PROMPT = `You are the Focusnyx AI Academic & Productivity Assistant, designed strictly for university students using the Focusnyx app.
@@ -301,15 +316,34 @@ YOUR STRICT DOMAIN BOUNDARIES:
           { role: "system", content: FOCUSNYX_CHAT_SYSTEM_PROMPT },
           ...updatedMessages.slice(-10).map(m => ({ role: m.role, content: m.content }))
         ];
-        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-          body: JSON.stringify({ model: "llama-3.1-8b-instant", messages: groqMessages, temperature: 0.3 }),
-        });
-        if (!res.ok) throw new Error("Groq request failed.");
-        const d = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
+        
+        let res;
+        if (apiKey) {
+          res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+            body: JSON.stringify({ model: "llama-3.1-8b-instant", messages: groqMessages, temperature: 0.3 }),
+          });
+        } else {
+          res = await fetch("/api/ai/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ model: "llama-3.1-8b-instant", messages: groqMessages, temperature: 0.3 }),
+          });
+        }
+
+        const d = await res.json();
+        
+        if (!res.ok) {
+          throw new Error(d.error || "Groq request failed.");
+        }
+        
+        if (!apiKey && d.currentUsage !== undefined) {
+          setGroqUsage(d.currentUsage);
+        }
+
         text = d.choices?.[0]?.message?.content?.trim() ?? "";
-        trackGroqCall();
+        if (apiKey) trackGroqCall();
       }
       setChatMessages(p => [...p, { id: `a-${Date.now()}`, role: "assistant", content: text || "No response." }]);
     } catch (e) {
@@ -406,21 +440,23 @@ YOUR STRICT DOMAIN BOUNDARIES:
             <Settings2 size={17} strokeWidth={2.5} className="shrink-0" />
             {!collapsed && String(t.navSettings)}
           </Link>
-          <button
-            onClick={handleLogout}
-            title={collapsed ? String(t.navLogout) : undefined}
-            className={`flex items-center rounded-[14px] border-2 border-[var(--foreground)] bg-[#FDF2F8] px-3 py-2.5 text-sm font-bold shadow-[3px_3px_0_0_#1E293B] transition hover:translate-y-[-1px] ${collapsed ? "justify-center w-full" : "gap-3 w-full"}`}
-          >
-            <LogOut size={17} strokeWidth={2.5} className="shrink-0" />
-            {!collapsed && String(t.navLogout)}
-          </button>
+          {!focusContext?.isLocked && (
+            <button
+              onClick={handleLogout}
+              title={collapsed ? String(t.navLogout) : undefined}
+              className={`flex items-center rounded-[14px] border-2 border-[var(--foreground)] bg-[#FDF2F8] px-3 py-2.5 text-sm font-bold shadow-[3px_3px_0_0_#1E293B] transition hover:translate-y-[-1px] ${collapsed ? "justify-center w-full" : "gap-3 w-full"}`}
+            >
+              <LogOut size={17} strokeWidth={2.5} className="shrink-0" />
+              {!collapsed && String(t.navLogout)}
+            </button>
+          )}
         </div>
       </aside>
 
       {/* ── Main content ── */}
-      <main className={`flex-1 pb-10 transition-[margin] duration-300 lg:pb-12 ${mainML}`}>
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-          <header className="mb-6 flex items-center justify-between gap-4 rounded-[28px] border-2 border-[var(--foreground)] bg-white p-5 shadow-[6px_6px_0_0_#1E293B]">
+      <main className={`flex-1 transition-[margin] duration-300 flex flex-col ${mainML}`}>
+        <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8 flex-1 shrink-0">
+          <header className="mb-6 flex shrink-0 items-center justify-between gap-4 rounded-[28px] border-2 border-[var(--foreground)] bg-white p-5 shadow-[6px_6px_0_0_#1E293B]">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">Focusnyx</p>
               <h1 className="mt-1 font-display text-3xl font-black sm:text-4xl">{displayTitle}</h1>
@@ -429,39 +465,11 @@ YOUR STRICT DOMAIN BOUNDARIES:
           </header>
           {loading && skeleton ? skeleton : children}
 
-          {/* ── Persistent Minimal App Footer ── */}
-          <footer className="mt-12 rounded-[24px] border-2 border-[var(--foreground)] bg-white p-5 shadow-[4px_4px_0_0_#1E293B]">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-3 text-xs font-bold">
-                <button
-                  onClick={() => setIsContactOpen(true)}
-                  className="flex items-center gap-1.5 rounded-full border-2 border-[var(--foreground)] bg-[#FFF7D6] px-3.5 py-1.5 text-[var(--foreground)] shadow-[2px_2px_0_0_#1E293B] transition hover:bg-[#FFE885]"
-                >
-                  <MessageSquareText size={13} /> Help & Support
-                </button>
-                <Link
-                  href="/privacy"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 rounded-full border-2 border-[var(--foreground)] bg-white px-3.5 py-1.5 text-[var(--foreground)] shadow-[2px_2px_0_0_#1E293B] transition hover:bg-gray-50"
-                >
-                  <ShieldCheck size={13} /> Privacy
-                </Link>
-                <Link
-                  href="/terms"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 rounded-full border-2 border-[var(--foreground)] bg-white px-3.5 py-1.5 text-[var(--foreground)] shadow-[2px_2px_0_0_#1E293B] transition hover:bg-gray-50"
-                >
-                  <FileText size={13} /> Terms
-                </Link>
-              </div>
-              <div className="text-right text-[11px] font-semibold text-[var(--muted-fg)]">
-                © 2026 Focusnyx • ADHD-Friendly Academic & Focus Suite
-              </div>
-            </div>
-          </footer>
-        </div>
+          </div>
+          {/* ── Global App Footer ── */}
+          <div className="mt-auto pt-12">
+            <Footer onContactClick={() => setIsContactOpen(true)} lang={lang} />
+          </div>
       </main>
 
       {/* ── Logout confirm ── */}
@@ -483,11 +491,19 @@ YOUR STRICT DOMAIN BOUNDARIES:
         {chatOpen && (
           <div className="flex h-[480px] w-[340px] flex-col rounded-[24px] border-2 border-[var(--foreground)] bg-white shadow-[8px_8px_0_0_#1E293B]">
             <div className="flex items-center justify-between gap-3 border-b-2 border-[var(--border)] px-4 py-3">
-              <div>
-                <p className="font-display text-base font-black">Focusnyx AI</p>
-                <p className="text-xs font-semibold text-[var(--muted-fg)]">{provider.toUpperCase()}</p>
+              <div className="flex items-center gap-2">
+                <Image src="/icons/focusnyx.png" alt="Focusnyx" width={24} height={24} className="rounded-md border border-[var(--foreground)] shadow-[1px_1px_0_0_#1E293B]" />
+                <div>
+                  <p className="font-display text-base font-black leading-none">Focusnyx AI</p>
+                  {!groqKey && provider === "groq" && (
+                    <p className="text-[10px] font-bold text-amber-600 mt-1">{groqUsage}/5 AI calls today</p>
+                  )}
+                </div>
               </div>
-              <button onClick={() => setChatOpen(false)} className="rounded-full border-2 border-[var(--foreground)] p-1.5"><X size={14} /></button>
+              <div className="flex gap-1.5">
+                <button onClick={() => setChatOpen(false)} className="rounded-full border-2 border-[var(--foreground)] p-1.5 hover:bg-gray-100 transition" title="Minimize"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg></button>
+                <button onClick={() => setChatOpen(false)} className="rounded-full border-2 border-[var(--foreground)] p-1.5 hover:bg-gray-100 transition"><X size={14} /></button>
+              </div>
             </div>
             <div className="flex-1 space-y-2 overflow-y-auto p-3">
               {chatMessages.map(m => (
@@ -504,9 +520,33 @@ YOUR STRICT DOMAIN BOUNDARIES:
               <div ref={chatEndRef} />
             </div>
             <div className="border-t-2 border-[var(--border)] p-3">
-              {!groqKey && !geminiKey && (
+              {!groqKey && provider === "groq" && groqUsage >= 5 && (
+                <p className="mb-2 rounded-[10px] border-2 border-amber-400 bg-amber-50 px-2 py-1.5 text-xs font-semibold text-amber-700">Limit reached. Add your Groq API key in Settings.</p>
+              )}
+              {!geminiKey && provider === "gemini" && (
                 <p className="mb-2 rounded-[10px] border-2 border-amber-400 bg-amber-50 px-2 py-1.5 text-xs font-semibold text-amber-700">{String(t.addApiKeyFirst)}</p>
               )}
+              
+              <div className="mb-3 flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                {[
+                  "How do I build a study habit?",
+                  "What is the Pomodoro technique?",
+                  "Summarize my weekly progress.",
+                  "Tips to avoid burnout?"
+                ].map((q, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      setChatInput(q);
+                      setTimeout(() => sendChat(q), 50);
+                    }}
+                    className="whitespace-nowrap rounded-full border-2 border-[var(--foreground)] bg-gray-50 px-3 py-1.5 text-[10px] font-bold text-[var(--muted-fg)] transition hover:bg-gray-100 hover:text-gray-900"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+
               <div className="flex gap-2">
                 <input
                   value={chatInput}

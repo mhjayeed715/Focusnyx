@@ -27,6 +27,7 @@ export type DashboardProfile = {
   completedTasksToday: number;
   totalFocusTime: number;
   sessionsCompleted: number;
+  emergencyPin?: string;
   xpIntoLevel: number;
   xpNeededForNextLevel: number;
   xpProgressPercent: number;
@@ -73,21 +74,26 @@ export function calculateStreak(previousLastActiveAt: string | null | undefined,
     return 1;
   }
 
+  const getBdtDateString = (date: Date) => {
+    const bdtStr = date.toLocaleString("en-US", { timeZone: "Asia/Dhaka" });
+    const bdtDate = new Date(bdtStr);
+    return `${bdtDate.getFullYear()}-${bdtDate.getMonth() + 1}-${bdtDate.getDate()}`;
+  };
+
   const lastActive = new Date(previousLastActiveAt);
   const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
+  const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
 
-  const lastActiveDay = lastActive.toDateString();
-  const todayDay = today.toDateString();
-  const yesterdayDay = yesterday.toDateString();
+  const lastActiveDay = getBdtDateString(lastActive);
+  const todayDay = getBdtDateString(today);
+  const yesterdayDay = getBdtDateString(yesterday);
 
   if (lastActiveDay === todayDay) {
     return Math.max(1, currentStreak);
   }
 
   if (lastActiveDay === yesterdayDay) {
-    return Math.min(maxLevel, Math.max(1, currentStreak) + 1);
+    return Math.max(1, currentStreak) + 1;
   }
 
   return 1;
@@ -105,6 +111,7 @@ export function buildProfile(input: {
   completedTasksToday?: number | null;
   totalFocusTime?: number | null;
   sessionsCompleted?: number | null;
+  emergencyPin?: string | null;
 }): DashboardProfile {
   const totalXp = input.totalXp ?? 0;
   const xpState = getXpState(totalXp);
@@ -121,6 +128,7 @@ export function buildProfile(input: {
     completedTasksToday: input.completedTasksToday ?? 0,
     totalFocusTime: input.totalFocusTime ?? 0,
     sessionsCompleted: input.sessionsCompleted ?? 0,
+    emergencyPin: input.emergencyPin ?? "123456",
     xpIntoLevel: xpState.xpIntoLevel,
     xpNeededForNextLevel: xpState.xpNeededForNextLevel,
     xpProgressPercent: xpState.xpProgressPercent,
@@ -198,7 +206,7 @@ export function normalizeTask(task: {
   estimated_minutes?: number | null;
   xp_reward?: number | null;
   is_completed?: boolean | null;
-  microtasks?: Array<{ id?: string; title: string; completed?: boolean }> | null;
+  subtasks?: Array<{ id?: string; title: string; completed?: boolean }> | null;
   created_at?: string | null;
 }): DashboardTask {
   return {
@@ -208,10 +216,10 @@ export function normalizeTask(task: {
     estimate: task.estimated_minutes ?? 25,
     xp: task.xp_reward ?? 0,
     completed: task.is_completed ?? false,
-    subtasks: (task.microtasks ?? []).map((microtask, index) => ({
-      id: microtask.id ?? `${task.id}-${index + 1}`,
-      title: microtask.title,
-      completed: microtask.completed ?? false,
+    subtasks: (task.subtasks ?? []).map((subtask, index) => ({
+      id: subtask.id ?? `${task.id}-${index + 1}`,
+      title: subtask.title,
+      completed: subtask.completed ?? false,
     })),
     createdAt: task.created_at ?? undefined,
   };

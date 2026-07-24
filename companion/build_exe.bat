@@ -8,7 +8,7 @@ echo 1. Checking Python dependencies...
 pip install -r requirements.txt
 
 echo 2. Packaging Focusnyx Companion executable...
-pyinstaller --noconfirm --onedir --windowed --name "FocusnyxCompanion" ^
+pyinstaller --noconfirm --onedir --windowed --uac-admin --name "FocusnyxCompanion" ^
   --icon="assets\icon.ico" ^
   --add-data ".env;.env" ^
   --add-data "assets;assets" ^

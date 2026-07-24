@@ -14,6 +14,7 @@ import { SettingsSkeleton } from '@/components/ui/PageSkeleton';
 const STORAGE_KEY_GEMINI = 'academicAiKeyGeminiV1';
 const STORAGE_KEY_GROQ = 'academicAiKeyGroqV1';
 const STORAGE_AI_PROVIDER = 'academicAiProviderV1';
+const STORAGE_KEY_PIN = 'focusnyxEmergencyPinV1';
 
 type AiProvider = 'gemini' | 'groq';
 
@@ -22,6 +23,8 @@ export default function SettingsPage() {
   const [provider, setProvider] = useState<AiProvider>('groq');
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [groqApiKey, setGroqApiKey] = useState('');
+  const [emergencyPin, setEmergencyPin] = useState('123456');
+  const [userId, setUserId] = useState<string>('');
   const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
   const [usage, setUsage] = useState({ callsToday: 0, limit: 20, nearLimit: false });
@@ -32,11 +35,14 @@ export default function SettingsPage() {
     async function loadKeys() {
       let gKey = "";
       let rKey = "";
+      let pin = "123456";
       let prov: AiProvider = "groq";
 
       try {
         gKey = localStorage.getItem(STORAGE_KEY_GEMINI) || "";
         rKey = localStorage.getItem(STORAGE_KEY_GROQ) || "";
+        const savedPin = localStorage.getItem(STORAGE_KEY_PIN);
+        if (savedPin) pin = savedPin;
         const savedProvider = localStorage.getItem(STORAGE_AI_PROVIDER);
         if (savedProvider === "gemini" || savedProvider === "groq") prov = savedProvider;
       } catch {}
@@ -48,11 +54,19 @@ export default function SettingsPage() {
         if (user) {
           const { data: profile } = await sb
             .from("profiles")
-            .select("groq_api_key, gemini_api_key, ai_provider")
+            .select("groq_api_key, gemini_api_key, ai_provider, emergency_pin")
             .eq("id", user.id)
             .maybeSingle();
 
           if (profile) {
+            setUserId(user.id);
+            if (profile.emergency_pin) {
+              pin = profile.emergency_pin;
+              localStorage.setItem(STORAGE_KEY_PIN, pin);
+            } else {
+              const savedPin = localStorage.getItem(`focusnyxEmergencyPinV1_${user.id}`);
+              if (savedPin) pin = savedPin;
+            }
             if (profile.groq_api_key && !rKey) rKey = profile.groq_api_key;
             if (profile.gemini_api_key && !gKey) gKey = profile.gemini_api_key;
             if (profile.ai_provider && (profile.ai_provider === "gemini" || profile.ai_provider === "groq")) {
@@ -64,12 +78,17 @@ export default function SettingsPage() {
 
       if (gKey) setGeminiApiKey(gKey);
       if (rKey) setGroqApiKey(rKey);
+      setEmergencyPin(pin);
       setProvider(prov);
 
       try {
         if (gKey) localStorage.setItem(STORAGE_KEY_GEMINI, gKey);
         if (rKey) localStorage.setItem(STORAGE_KEY_GROQ, rKey);
+        localStorage.setItem(STORAGE_KEY_PIN, pin);
         localStorage.setItem(STORAGE_AI_PROVIDER, prov);
+        
+        // Sync PIN to extension on load
+        window.postMessage({ type: "FOCUSNYX_WEB_APP_ACTION", action: "syncAuth", pin }, "*");
       } catch {}
 
       setReady(true);
@@ -111,11 +130,15 @@ export default function SettingsPage() {
     void saveToDatabase(geminiApiKey, groqApiKey, newProv);
   };
 
-  const saveToDatabase = async (geminiVal = geminiApiKey, groqVal = groqApiKey, provVal = provider) => {
+  const saveToDatabase = async (geminiVal = geminiApiKey, groqVal = groqApiKey, provVal = provider, pinVal = emergencyPin) => {
     try {
       localStorage.setItem(STORAGE_KEY_GEMINI, geminiVal);
       localStorage.setItem(STORAGE_KEY_GROQ, groqVal);
       localStorage.setItem(STORAGE_AI_PROVIDER, provVal);
+      localStorage.setItem(STORAGE_KEY_PIN, pinVal);
+
+      // Sync to extension
+      window.postMessage({ type: "FOCUSNYX_WEB_APP_ACTION", action: "syncAuth", pin: pinVal }, "*");
 
       // Persist directly to Supabase DB profiles table
       const sb = createClient();
@@ -125,6 +148,7 @@ export default function SettingsPage() {
           groq_api_key: groqVal.trim(),
           gemini_api_key: geminiVal.trim(),
           ai_provider: provVal,
+          emergency_pin: pinVal,
         }).eq("id", user.id);
       }
       setSaved(true);
@@ -178,6 +202,49 @@ export default function SettingsPage() {
                 <p className="mt-1 text-sm font-semibold text-[var(--muted-fg)]">
                   Use the EN / BN toggle at the top-right of the screen.
                 </p>
+              </div>
+
+              {/* Emergency PIN */}
+              <div className="rounded-[16px] border-2 border-[var(--foreground)] bg-[var(--muted)] p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--muted-fg)]">Emergency Focus PIN</p>
+                  {saved && (
+                    <span className="flex items-center gap-1 text-xs font-black text-[#34d399]">
+                      <CheckCircle2 size={13} strokeWidth={2.5} /> Saved
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type={showKey ? 'text' : 'password'}
+                    value={emergencyPin}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '');
+                      setEmergencyPin(val);
+                    }}
+                    onBlur={() => void saveToDatabase()}
+                    placeholder="Enter 6 digit PIN (e.g., 12345656)"
+                    maxLength={6}
+                    className="w-full rounded-[10px] border-2 border-[var(--foreground)] bg-white px-3 py-2 pr-10 text-sm font-mono outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowKey(v => !v)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--muted-fg)]"
+                  >
+                    {showKey ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void saveToDatabase()}
+                    className="candy-button rounded-[10px] border-2 border-[var(--foreground)] px-4 py-2 text-xs font-black"
+                  >
+                    Save PIN
+                  </button>
+                  <span className="text-[11px] text-[var(--muted-fg)]">Synced to Extension & Companion App</span>
+                </div>
               </div>
 
               {/* AI Integration */}
@@ -249,41 +316,12 @@ export default function SettingsPage() {
                   )}
                 </div>
 
-                {/* Usage counter — Groq only */}
-                {provider === 'groq' && (
-                  <div className={`flex items-center gap-2 rounded-[10px] border-2 px-3 py-2 ${
-                    usage.nearLimit ? 'border-[#f97316] bg-orange-50' : 'border-[var(--border)] bg-white'
-                  }`}>
-                    {usage.nearLimit
-                      ? <AlertTriangle size={14} className="text-[#f97316] shrink-0" />
-                      : <CheckCircle2 size={14} className="text-[#34d399] shrink-0" />}
-                    <p className="text-xs font-semibold">
-                      <span className="font-black">{usage.callsToday}</span>/{usage.limit} AI calls today
-                      {usage.nearLimit ? ' — use sparingly, responses are cached for 6h' : ' — responses cached to save quota'}
-                    </p>
-                  </div>
-                )}
               </div>
             </>
           )}
           {settingsTab === 'academic' && <GradeScaleSettings />}
 
-          {/* Coming soon placeholder */}
-          <div className="rounded-[16px] border-2 border-dashed border-[var(--foreground)] bg-white p-4 text-center">
-            <p className="text-sm font-semibold text-[var(--muted-fg)]">
-              More settings coming soon — notifications, theme, data export.
-            </p>
-          </div>
-          {/* Legal Links */}
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2 text-xs font-bold text-[var(--muted-fg)]">
-            <Link href="/privacy" className="hover:text-[var(--foreground)] hover:underline">
-              Privacy Policy
-            </Link>
-            <span>•</span>
-            <Link href="/terms" className="hover:text-[var(--foreground)] hover:underline">
-              Terms of Service
-            </Link>
-          </div>
+
 
           <div className="mt-4 flex justify-center">
             <button onClick={handleLogout} className="flex items-center gap-2 rounded-[18px] border-2 border-[var(--foreground)] bg-[#FDF2F8] px-4 py-3 font-bold text-[var(--foreground)] shadow-[4px_4px_0_0_#1E293B] hover:translate-y-[-2px]">

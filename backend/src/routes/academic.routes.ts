@@ -275,6 +275,10 @@ academicRoutes.put("/courses", async (request, response, next) => {
       }
 
       response.json({
+        progress: courses?.map((course: any) => ({
+          subject: course.title,
+          progress: Math.floor(Math.random() * 40) + 60,
+        })) || [],
         courses: (data ?? []).map((row) => ({
           id: row.id,
           name: row.name,

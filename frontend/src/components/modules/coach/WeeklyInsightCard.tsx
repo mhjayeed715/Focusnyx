@@ -86,7 +86,7 @@ export function WeeklyInsightCard({ userId }: WeeklyInsightCardProps) {
       const res = await fetch("/api/weekly-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: uid }),
+        body: JSON.stringify({ userId: uid, force: true }),
       });
 
       const data = await res.json();

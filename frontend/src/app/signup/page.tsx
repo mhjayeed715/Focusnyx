@@ -126,7 +126,7 @@ export default function SignupPage() {
                   <input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Jayeed Rahman"
+                    placeholder="Mehrab Hossain Jayeed"
                     className="w-full rounded-[18px] border-2 border-[var(--foreground)] bg-white px-4 py-3.5 text-base shadow-[4px_4px_0_0_#1E293B] outline-none transition placeholder:text-slate-400 focus:translate-y-[-1px]"
                   />
                 </div>
