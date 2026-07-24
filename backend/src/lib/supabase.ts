@@ -3,9 +3,21 @@ import { env } from "../config/env.js";
 
 let adminClient: SupabaseClient | null = null;
 
-export function getSupabaseAdminClient() {
+export function getSupabaseAdminClient(token?: string) {
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error("Missing Supabase service configuration.");
+  }
+
+  if (token) {
+    return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+      global: {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    });
   }
 
   if (!adminClient) {

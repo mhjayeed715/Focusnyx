@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const resendApiKey = process.env.RESEND_API_KEY || "re_CuhLsrwV_L58YyzCBcuCSVK8Tp9DXHJRB";
+    const resendApiKey = process.env.RESEND_API_KEY;
 
     if (!resendApiKey) {
       return NextResponse.json(

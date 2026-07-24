@@ -70,7 +70,7 @@
             if (action === "startFocus") {
               const durationMs = (durationMinutes || 25) * 60 * 1000;
               safeSendMessage(
-                { action: "startFocus", duration: durationMs, pin: pin || "1234" },
+                { action: "startFocus", duration: durationMs, pin: pin || "123456" },
                 (res) => {
                   if (res) {
                     safeSendMessage({ action: "getStatus" }, (status) => postStateToWebApp(status));
@@ -79,7 +79,7 @@
               );
             } else if (action === "endFocus") {
               safeSendMessage(
-                { action: "endFocus", pin: pin || "1234" },
+                { action: "endFocus", pin: pin || "123456" },
                 (res) => {
                   if (res) {
                     safeSendMessage({ action: "getStatus" }, (status) => postStateToWebApp(status));
@@ -103,7 +103,7 @@
       if (action === "startFocus") {
         const durationMs = durationMins * 60 * 1000;
         safeSendMessage(
-          { action: "startFocus", duration: durationMs, blocklist: event.data.blocklist || event.data.blockedSites, pin: pin || "1234" },
+          { action: "startFocus", duration: durationMs, blocklist: event.data.blocklist || event.data.blockedSites, pin: pin || "123456" },
           (res) => {
             if (res) {
               safeSendMessage({ action: "getStatus" }, (status) => postStateToWebApp(status));
@@ -112,7 +112,7 @@
         );
       } else if (action === "endFocus") {
         safeSendMessage(
-          { action: "endFocus", pin: pin || "1234" },
+          { action: "endFocus", pin: pin || "123456" },
           (res) => {
             if (res) {
               safeSendMessage({ action: "getStatus" }, (status) => postStateToWebApp(status));
@@ -135,13 +135,13 @@
       const { action, durationMinutes, pin } = event.detail;
       const durationMins = durationMinutes || 25;
       if (action === "startFocus") {
-        safeSendMessage({ action: "startFocus", duration: durationMins * 60 * 1000, pin: pin || "1234" }, (res) => {
+        safeSendMessage({ action: "startFocus", duration: durationMins * 60 * 1000, pin: pin || "123456" }, (res) => {
           if (res) {
             safeSendMessage({ action: "getStatus" }, (status) => postStateToWebApp(status));
           }
         });
       } else if (action === "endFocus") {
-        safeSendMessage({ action: "endFocus", pin: pin || "1234" }, (res) => {
+        safeSendMessage({ action: "endFocus", pin: pin || "123456" }, (res) => {
           if (res) {
             safeSendMessage({ action: "getStatus" }, (status) => postStateToWebApp(status));
           }
@@ -160,13 +160,13 @@
         const { action, durationMinutes, pin } = event.data;
         if (action === "startFocus") {
           const durationMs = (durationMinutes || 25) * 60 * 1000;
-          safeSendMessage({ action: "startFocus", duration: durationMs, pin: pin || "1234" }, (res) => {
+          safeSendMessage({ action: "startFocus", duration: durationMs, pin: pin || "123456" }, (res) => {
             if (res) {
               safeSendMessage({ action: "getStatus" }, (status) => postStateToWebApp(status));
             }
           });
         } else if (action === "endFocus") {
-          safeSendMessage({ action: "endFocus", pin: pin || "1234" }, (res) => {
+          safeSendMessage({ action: "endFocus", pin: pin || "123456" }, (res) => {
             if (res) {
               safeSendMessage({ action: "getStatus" }, (status) => postStateToWebApp(status));
             }
@@ -208,96 +208,7 @@
       if (res) postStateToWebApp(res);
     });
 
-    // App domain does not render the block overlay
+    // App domain does not render block overlay
     return;
   }
-
-  // Never show block overlay on internal browser pages
-  if (window.location.protocol.startsWith("chrome")) return;
-
-  // ── Block Overlay Rendering for Distraction Sites ──
-  function showOverlay() {
-    if (document.getElementById("fnyx-overlay")) return;
-
-    const overlay = document.createElement("div");
-    overlay.id = "fnyx-overlay";
-    overlay.style.cssText = `
-      position: fixed;
-      inset: 0;
-      z-index: 2147483647;
-      background: rgba(15, 23, 42, 0.96);
-      backdrop-filter: blur(12px);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      color: #f8fafc;
-      text-align: center;
-      padding: 20px;
-    `;
-
-    overlay.innerHTML = `
-      <div style="background: linear-gradient(135deg, #1e1b4b 0%, #311b92 100%); padding: 40px 52px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.12); max-width: 460px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);">
-        <div style="margin-bottom: 16px;">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-          </svg>
-        </div>
-        <h1 style="margin: 0 0 12px 0; font-size: 26px; font-weight: 700; background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Focusnyx Focus Lock Active</h1>
-        <p style="color: #94a3b8; font-size: 14px; margin: 0 0 24px 0; line-height: 1.5;">This site is blocked during your Pomodoro focus session. Attempt logged to your Focusnyx report.</p>
-        <div style="display: flex; gap: 12px; justify-content: center;">
-          <button id="fnyx-back" style="padding: 12px 24px; background: #6366f1; color: #fff; border: none; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 600;">Go Back</button>
-          <button id="fnyx-app" style="padding: 12px 24px; background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.25); border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 600;">Return to Focusnyx</button>
-        </div>
-      </div>
-    `;
-
-    document.documentElement.appendChild(overlay);
-
-    document.getElementById("fnyx-back")?.addEventListener("click", () => history.back());
-    document.getElementById("fnyx-app")?.addEventListener("click", () => {
-      window.location.href = "http://localhost:3000";
-    });
-  }
-
-  function removeOverlay() {
-    const existing = document.getElementById("fnyx-overlay");
-    if (existing) existing.remove();
-  }
-
-  safeSendMessage({ action: "getStatus" }, (res) => {
-    if (res && res.isActive) {
-      const allowed = res.allowedUrls || ["localhost", "127.0.0.1", "focusnyx"];
-      const isAllowed = allowed.some(
-        (a: string) => currentHost.includes(a) || a.includes(currentHost)
-      );
-      if (!isAllowed) {
-        showOverlay();
-      }
-    }
-  });
-
-  try {
-    if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessage) {
-      chrome.runtime.onMessage.addListener((msg) => {
-        if (msg.action === "focusStateChanged") {
-          if (msg.isActive) {
-            safeSendMessage({ action: "getStatus" }, (res) => {
-              if (res && res.isActive) {
-                const allowed = res.allowedUrls || ["localhost", "127.0.0.1", "focusnyx"];
-                const isAllowed = allowed.some(
-                  (a: string) => currentHost.includes(a) || a.includes(currentHost)
-                );
-                if (!isAllowed) showOverlay();
-              }
-            });
-          } else {
-            removeOverlay();
-          }
-        }
-      });
-    }
-  } catch {}
 })();

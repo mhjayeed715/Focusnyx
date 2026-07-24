@@ -25,13 +25,17 @@ export async function POST(req: NextRequest) {
 
     let userId = user?.id;
 
-    if (!userId) {
-      // Allow passing userId in body for development or fallback if authed
-      const body = await req.json().catch(() => ({}));
-      if (body?.userId) {
-        userId = body.userId;
-      }
+    let parsedBody: any = {};
+    try {
+      const bodyText = await req.text();
+      if (bodyText) parsedBody = JSON.parse(bodyText);
+    } catch {}
+
+    if (!userId && parsedBody?.userId) {
+      userId = parsedBody.userId;
     }
+    
+    const isForce = !!parsedBody?.force;
 
     if (!userId) {
       return NextResponse.json(
@@ -40,22 +44,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const thisMonday = getThisMonday();
+    const weekChunk = getCurrentWeekChunk();
+    const weekStartStr = weekChunk.start.split("T")[0];
+    const weekEndStr = weekChunk.end.split("T")[0];
 
-    // Check if report already exists for this week
-    const { data: existingReport } = await sb
-      .from("weekly_reports")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("week_start", thisMonday)
-      .maybeSingle();
+    // Check if report already exists for this week chunk
+    if (!isForce) {
+      const { data: existingReport } = await sb
+        .from("weekly_reports")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("week_start", weekStartStr)
+        .maybeSingle();
 
-    if (existingReport) {
-      return NextResponse.json({ report: existingReport });
+      if (existingReport) {
+        return NextResponse.json({ report: existingReport });
+      }
+    } else {
+      // Delete old report if forcing regenerate
+      await sb
+        .from("weekly_reports")
+        .delete()
+        .eq("user_id", userId)
+        .eq("week_start", weekStartStr);
     }
 
     // Collect weekly data
-    const weeklyData = await collectWeeklyData(userId, sb);
+    const weeklyData = await collectWeeklyData(userId, sb, weekChunk.start, weekChunk.end);
     const { summary } = weeklyData;
 
     // Call Groq API
@@ -120,8 +135,8 @@ Write like a friend who knows their habits well, not like a corporate report.`,
       .from("weekly_reports")
       .insert({
         user_id: userId,
-        week_start: thisMonday,
-        week_end: todayIso,
+        week_start: weekStartStr,
+        week_end: weekEndStr,
         raw_data: summary,
         ai_report: aiReport,
         highlights,
@@ -136,8 +151,8 @@ Write like a friend who knows their habits well, not like a corporate report.`,
         report: {
           id: "temp-" + Date.now(),
           user_id: userId,
-          week_start: thisMonday,
-          week_end: todayIso,
+          week_start: weekStartStr,
+          week_end: weekEndStr,
           raw_data: summary,
           ai_report: aiReport,
           highlights,
@@ -211,10 +226,25 @@ function generateFallbackReport(summary: WeeklySummary): string {
 Remember that building deep focus is a journey of small daily wins. For next week, try scheduling your toughest core study block right before your usual peak distraction hours to stay ahead of tiredness!`;
 }
 
-function getThisMonday(): string {
+function getCurrentWeekChunk(): { start: string, end: string } {
   const today = new Date();
-  const day = today.getDay();
-  const diff = today.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(today.setDate(diff));
-  return monday.toISOString().split("T")[0];
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const date = today.getDate();
+
+  let startDay = 1;
+  let endDay = 7;
+
+  if (date >= 1 && date <= 7) { startDay = 1; endDay = 7; }
+  else if (date >= 8 && date <= 14) { startDay = 8; endDay = 14; }
+  else if (date >= 15 && date <= 21) { startDay = 15; endDay = 21; }
+  else {
+    startDay = 22;
+    endDay = new Date(year, month + 1, 0).getDate();
+  }
+
+  const start = new Date(year, month, startDay).toISOString();
+  const end = new Date(year, month, endDay, 23, 59, 59, 999).toISOString();
+  
+  return { start, end };
 }

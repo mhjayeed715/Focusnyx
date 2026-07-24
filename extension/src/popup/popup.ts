@@ -25,26 +25,8 @@ const blockCount = document.getElementById("blockCount")!;
 const durationBtns = document.querySelectorAll<HTMLButtonElement>(".duration-btn");
 const durationSection = document.getElementById("durationSection")!;
 const manualDurationInput = document.getElementById("manualDurationInput") as HTMLInputElement;
-const allowedSection = document.getElementById("allowedSection")!;
-const pinRequiredBanner = document.getElementById("pinRequiredBanner")!;
-const goToSettingsBtn = document.getElementById("goToSettingsBtn") as HTMLButtonElement;
-
-const urlInput = document.getElementById("urlInput") as HTMLInputElement;
-const addUrlBtn = document.getElementById("addUrlBtn") as HTMLButtonElement;
-const allowedUrlsList = document.getElementById("allowedUrlsList")!;
 
 const focusBtn = document.getElementById("focusBtn") as HTMLButtonElement;
-const endFocusBtn = document.getElementById("endFocusBtn") as HTMLButtonElement;
-
-const endFocusPinContainer = document.getElementById("endFocusPinContainer")!;
-const unlockPinInput = document.getElementById("unlockPinInput") as HTMLInputElement;
-const confirmUnlockBtn = document.getElementById("confirmUnlockBtn") as HTMLButtonElement;
-const cancelUnlockBtn = document.getElementById("cancelUnlockBtn") as HTMLButtonElement;
-const unlockErrorMessage = document.getElementById("unlockErrorMessage")!;
-
-const emergencyPinInput = document.getElementById("emergencyPinInput") as HTMLInputElement;
-const savePinBtn = document.getElementById("savePinBtn") as HTMLButtonElement;
-const pinStatusMessage = document.getElementById("pinStatusMessage")!;
 
 const authProfileCard = document.getElementById("authProfileCard")!;
 const authLoginForm = document.getElementById("authLoginForm")!;
@@ -60,6 +42,7 @@ function init() {
   setupTabs();
   loadSavedSettings();
   checkFocusStatus();
+  startStatusPolling();
   setupEventListeners();
 }
 
@@ -76,10 +59,6 @@ function setupTabs() {
     tabFocusBtn.classList.remove("active");
     tabSettings.classList.add("active");
     tabFocus.classList.remove("active");
-  });
-
-  goToSettingsBtn?.addEventListener("click", () => {
-    tabSettingsBtn.click();
   });
 }
 
@@ -104,35 +83,7 @@ function setupEventListeners() {
     }
   });
 
-  // Emergency PIN save handler
-  savePinBtn.addEventListener("click", saveEmergencyPin);
-  emergencyPinInput.addEventListener("input", () => {
-    emergencyPinInput.value = emergencyPinInput.value.replace(/\D/g, "").slice(0, 4);
-  });
-
-  addUrlBtn.addEventListener("click", addUrl);
-  urlInput.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") addUrl();
-  });
-
   focusBtn.addEventListener("click", startFocus);
-  endFocusBtn.addEventListener("click", showInlineUnlockModal);
-
-  confirmUnlockBtn.addEventListener("click", handleInlineUnlock);
-  cancelUnlockBtn.addEventListener("click", () => {
-    endFocusPinContainer.style.display = "none";
-    unlockPinInput.value = "";
-    unlockErrorMessage.textContent = "";
-  });
-
-  unlockPinInput.addEventListener("input", () => {
-    unlockPinInput.value = unlockPinInput.value.replace(/\D/g, "").slice(0, 4);
-    unlockErrorMessage.textContent = "";
-  });
-  unlockPinInput.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") handleInlineUnlock();
-  });
-
   authLoginBtn.addEventListener("click", handleAuthLogin);
   authLogoutBtn.addEventListener("click", () => {
     chrome.storage.local.remove(["userAuth"], () => {
@@ -151,19 +102,6 @@ function loadSavedSettings() {
     if (result.allowedUrls && Array.isArray(result.allowedUrls)) {
       allowedUrls = result.allowedUrls;
     }
-    renderAllowedUrls();
-
-    if (result.pin && /^\d{4}$/.test(result.pin)) {
-      savedEmergencyPin = result.pin;
-      emergencyPinInput.value = result.pin;
-    } else {
-      savedEmergencyPin = "1234";
-      emergencyPinInput.value = "1234";
-      chrome.storage.local.set({ pin: "1234" });
-    }
-    pinRequiredBanner.style.display = "none";
-    focusBtn.disabled = false;
-    focusBtn.style.opacity = "1";
 
     if (result.userAuth?.email) {
       authProfileCard.style.display = "block";
@@ -176,70 +114,18 @@ function loadSavedSettings() {
   });
 }
 
-function saveEmergencyPin() {
-  const pinVal = emergencyPinInput.value.replace(/\D/g, "").slice(0, 4);
-  if (pinVal.length !== 4) {
-    pinStatusMessage.style.color = "#ef4444";
-    pinStatusMessage.textContent = "Emergency PIN must be exactly 4 numeric digits.";
-    return;
-  }
-
-  savedEmergencyPin = pinVal;
-  chrome.storage.local.set({ pin: pinVal }, () => {
-    pinStatusMessage.style.color = "#22c55e";
-    pinStatusMessage.textContent = "Emergency PIN saved successfully!";
-    pinRequiredBanner.style.display = "none";
-    focusBtn.disabled = false;
-    focusBtn.style.opacity = "1";
-  });
-}
-
-function renderAllowedUrls() {
-  allowedUrlsList.innerHTML = allowedUrls
-    .map(
-      (url) => `
-    <div class="url-item">
-      <span>${url}</span>
-      <button class="remove-btn" data-url="${url}">Remove</button>
-    </div>
-  `
-    )
-    .join("");
-
-  allowedUrlsList.querySelectorAll(".remove-btn").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      const target = e.currentTarget as HTMLButtonElement;
-      const urlToRemove = target.dataset.url;
-      if (urlToRemove) removeUrl(urlToRemove);
-    });
-  });
-}
-
-function addUrl() {
-  const val = urlInput.value.trim().toLowerCase();
-  if (!val) return;
-  const clean = val.replace(/^https?:\/\//, "").replace(/\/$/, "");
-  if (!allowedUrls.includes(clean)) {
-    allowedUrls.push(clean);
-    chrome.storage.local.set({ allowedUrls });
-    renderAllowedUrls();
-  }
-  urlInput.value = "";
-}
-
-function removeUrl(url: string) {
-  if (url === "localhost" || url === "127.0.0.1" || url === "focusnyx") return;
-  allowedUrls = allowedUrls.filter((u) => u !== url);
-  chrome.storage.local.set({ allowedUrls });
-  renderAllowedUrls();
-}
-
 function checkFocusStatus() {
   chrome.runtime.sendMessage({ action: "getStatus" }, (response: FocusState & { isActive?: boolean; remainingTime?: number }) => {
     if (chrome.runtime.lastError) return;
     if (response && (response.isActive || response.active)) {
       focusActive = true;
-      updateUIForActive(response.remainingTime || 0);
+      // Use focusStartTime + focusDuration to calculate accurate remaining time
+      let remainingMs = response.remainingTime || 0;
+      if (response.focusStartTime && response.focusDuration) {
+        const elapsed = Date.now() - response.focusStartTime;
+        remainingMs = Math.max(0, response.focusDuration - elapsed);
+      }
+      updateUIForActive(remainingMs);
     } else {
       focusActive = false;
       updateUIForInactive();
@@ -247,18 +133,41 @@ function checkFocusStatus() {
   });
 }
 
+// Re-poll every 2 seconds while popup is open to stay in sync with web app
+let statusPollInterval: ReturnType<typeof setInterval> | null = null;
+function startStatusPolling() {
+  if (statusPollInterval) clearInterval(statusPollInterval);
+  statusPollInterval = setInterval(checkFocusStatus, 2000);
+}
+
+// Listen for storage changes from service worker state updates
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.focusState) {
+    const newState = changes.focusState.newValue;
+    if (newState) {
+      if (newState.active) {
+        focusActive = true;
+        let remainingMs = 0;
+        if (newState.focusStartTime && newState.focusDuration) {
+          remainingMs = Math.max(0, newState.focusDuration - (Date.now() - newState.focusStartTime));
+        }
+        updateUIForActive(remainingMs);
+      } else {
+        focusActive = false;
+        updateUIForInactive();
+      }
+    }
+  }
+});
+
 function updateUIForActive(remainingMs: number) {
   statusDot.className = "status-dot active";
   statusText.textContent = "Active (Locked)";
   focusBtn.style.display = "none";
-  endFocusBtn.style.display = "block";
   timerDisplay.style.display = "block";
   statsDisplay.style.display = "flex";
 
   durationSection.style.display = "none";
-  allowedSection.style.display = "none";
-  pinRequiredBanner.style.display = "none";
-  endFocusPinContainer.style.display = "none";
 
   startTimerDisplay(remainingMs);
 
@@ -272,23 +181,13 @@ function updateUIForInactive() {
   statusDot.className = "status-dot idle";
   statusText.textContent = "Inactive";
   focusBtn.style.display = "block";
-  endFocusBtn.style.display = "none";
   timerDisplay.style.display = "none";
   statsDisplay.style.display = "none";
 
   durationSection.style.display = "block";
-  allowedSection.style.display = "block";
-  endFocusPinContainer.style.display = "none";
 
-  if (!savedEmergencyPin) {
-    pinRequiredBanner.style.display = "block";
-    focusBtn.disabled = true;
-    focusBtn.style.opacity = "0.5";
-  } else {
-    pinRequiredBanner.style.display = "none";
-    focusBtn.disabled = false;
-    focusBtn.style.opacity = "1";
-  }
+  focusBtn.disabled = false;
+  focusBtn.style.opacity = "1";
 
   if (timerInterval) clearInterval(timerInterval);
 }
@@ -315,10 +214,7 @@ function startTimerDisplay(durationMs: number) {
 
 function startFocus() {
   if (!savedEmergencyPin || savedEmergencyPin.length !== 4) {
-    tabSettingsBtn.click();
-    pinStatusMessage.style.color = "#f59e0b";
-    pinStatusMessage.textContent = "Please set your 4-digit Emergency Exit PIN first.";
-    return;
+    savedEmergencyPin = "123456";
   }
 
   chrome.runtime.sendMessage(
@@ -338,37 +234,7 @@ function startFocus() {
   );
 }
 
-function showInlineUnlockModal() {
-  endFocusPinContainer.style.display = "block";
-  unlockPinInput.value = "";
-  unlockErrorMessage.textContent = "";
-  unlockPinInput.focus();
-}
 
-function handleInlineUnlock() {
-  const enteredPin = unlockPinInput.value.replace(/\D/g, "");
-  if (enteredPin.length !== 4) {
-    unlockErrorMessage.textContent = "PIN must be exactly 4 numeric digits.";
-    return;
-  }
-
-  chrome.runtime.sendMessage(
-    {
-      action: "endFocus",
-      pin: enteredPin,
-    },
-    (res: any) => {
-      if (chrome.runtime.lastError) return;
-      if (res && res.success) {
-        focusActive = false;
-        updateUIForInactive();
-        endFocusPinContainer.style.display = "none";
-      } else {
-        unlockErrorMessage.textContent = "Incorrect PIN. Focus Lock remains active.";
-      }
-    }
-  );
-}
 
 async function handleAuthLogin() {
   const email = authEmail.value.trim();

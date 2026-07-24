@@ -44,6 +44,12 @@ export interface FinanceRow {
   date?: string;
 }
 
+export interface TaskRow {
+  id: string;
+  is_completed?: boolean;
+  created_at?: string;
+}
+
 export interface WeeklySummary {
   focus: {
     totalSessions: number;
@@ -73,6 +79,10 @@ export interface WeeklySummary {
     totalSpent: number;
     entries: number;
   };
+  tasks: {
+    total: number;
+    completed: number;
+  };
 }
 
 export interface WeeklyDataResult {
@@ -83,12 +93,12 @@ export interface WeeklyDataResult {
 
 export async function collectWeeklyData(
   userId: string,
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  weekStartStr: string,
+  weekEndStr: string
 ): Promise<WeeklyDataResult> {
-  const now = new Date();
-  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const weekStart = weekAgo.toISOString();
-  const weekEnd = now.toISOString();
+  const weekStart = weekStartStr;
+  const weekEnd = weekEndStr;
 
   // Fetch all user data in parallel
   const [
@@ -97,6 +107,7 @@ export async function collectWeeklyData(
     notesRes,
     wellnessRes,
     financeRes,
+    tasksRes,
   ] = await Promise.all([
     supabase
       .from("focus_sessions")
@@ -128,6 +139,11 @@ export async function collectWeeklyData(
       .select("amount, category, type, date, created_at")
       .eq("user_id", userId)
       .gte("created_at", weekStart),
+
+    supabase
+      .from("academic_tasks")
+      .select("id, is_completed, created_at")
+      .eq("user_id", userId),
   ]);
 
   const sessions: FocusSessionRow[] = focusRes.data || [];
@@ -135,6 +151,7 @@ export async function collectWeeklyData(
   const notes: NoteRow[] = notesRes.data || [];
   const wellness: WellnessLogRow[] = wellnessRes.data || [];
   const finances: FinanceRow[] = financeRes.data || [];
+  const tasks: TaskRow[] = tasksRes.data || [];
 
   // Focus calculations
   const getSessionMinutes = (s: FocusSessionRow): number => {
@@ -235,6 +252,10 @@ export async function collectWeeklyData(
     new Set(notes.map((n) => n.subject).filter((s): s is string => Boolean(s)))
   );
 
+  // Tasks calculation
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter(t => t.is_completed).length;
+
   return {
     weekStart,
     weekEnd,
@@ -258,6 +279,10 @@ export async function collectWeeklyData(
       notes: {
         total: notes.length,
         subjects: noteSubjects,
+      },
+      tasks: {
+        total: totalTasks,
+        completed: completedTasks,
       },
       wellness: {
         avgMoodScore: avgMood,

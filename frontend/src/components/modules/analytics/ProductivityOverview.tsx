@@ -58,6 +58,7 @@ export function ProductivityOverview() {
 
   const [cgpaTrend, setCgpaTrend] = useState<Array<{ semester: string; gpa: number; target: number }>>([]);
   const [savingsTrend, setSavingsTrend] = useState<Array<{ month: string; spent: number; allowance: number }>>([]);
+  const [avgSleep, setAvgSleep] = useState("0");
   const [currentCgpa, setCurrentCgpa] = useState<number>(0);
   const [todaySpent, setTodaySpent] = useState<number>(0);
   const [burnoutScore, setBurnoutScore] = useState<number>(18);
@@ -85,7 +86,8 @@ export function ProductivityOverview() {
           focusRes,
           distractionRes,
           tasksRes,
-          wellnessRes,
+          moodRes,
+          wellnessLogRes,
           financeRes,
           cgpaRes,
           profileRes,
@@ -93,6 +95,7 @@ export function ProductivityOverview() {
           sb.from("focus_sessions").select("*").eq("user_id", userId),
           sb.from("distraction_logs").select("*").eq("user_id", userId),
           sb.from("tasks").select("*").eq("user_id", userId),
+          sb.from("wellness_mood_entries").select("*").eq("user_id", userId),
           sb.from("wellness_logs").select("*").eq("user_id", userId),
           sb.from("transactions").select("*").eq("user_id", userId),
           sb.from("academic_semester_cgpas").select("*").eq("user_id", userId),
@@ -101,11 +104,25 @@ export function ProductivityOverview() {
 
         const focusSessions = focusRes.data || [];
         const distractionLogs = distractionRes.data || [];
-        const tasks = tasksRes.data || [];
-        const wellnessLogs = wellnessRes.data || [];
+        let tasks = tasksRes.data || [];
+        const moodEntries = moodRes.data || [];
+        const wellnessLogs = wellnessLogRes.data || [];
         const transactions = financeRes.data || [];
         const cgpaSemesters = cgpaRes.data || [];
         const profile = profileRes.data;
+
+        // Try reading local tasks if db has none
+        if (tasks.length === 0) {
+          try {
+            const savedTasks = localStorage.getItem("localTasks");
+            if (savedTasks) {
+              const parsedTasks = JSON.parse(savedTasks);
+              if (Array.isArray(parsedTasks)) {
+                tasks = parsedTasks;
+              }
+            }
+          } catch {}
+        }
 
         // 1. Daily Focus & Distractions
         const timeBlocks = [
@@ -147,15 +164,15 @@ export function ProductivityOverview() {
         setDailyFocus(computedFocusBlocks);
 
         // 2. Tasks Completed vs Planned
-        const completedTasksCount = tasks.filter((t: Record<string, unknown>) => t.completed || t.is_completed).length;
+        const completedTasksCount = tasks.filter((t: Record<string, unknown>) => t.completed || t.is_completed || t.status === "done").length;
         setDailyTasks({ done: completedTasksCount, total: tasks.length });
 
         // 3. Wellness & Sleep & Mood
-        if (wellnessLogs.length > 0) {
-          const latest = wellnessLogs[wellnessLogs.length - 1];
+        if (moodEntries.length > 0) {
+          const latest = moodEntries[moodEntries.length - 1];
           setDailyMood({
             mood: String(latest.mood || "Good"),
-            energyPct: Number(latest.energy_level || 85),
+            energyPct: 85, // Note: energy_level is not in wellness_mood_entries
           });
         } else {
           setDailyMood({ mood: "Not Tracked", energyPct: 0 });
@@ -225,6 +242,40 @@ export function ProductivityOverview() {
         // Profile XP & Burnout Risk
         if (profile) {
           if (profile.xp) setUserXp(Number(profile.xp));
+        }
+
+        // 6.5 Weekly Trend (Tasks & Sleep for last 7 days)
+        const past7Days = [];
+        let totalSleep = 0;
+        let sleepDays = 0;
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+          const dStr = d.toISOString().split("T")[0];
+          
+          const dayTasks = tasks.filter((t: Record<string, unknown>) => String(t.created_at || t.start_date || "").startsWith(dStr));
+          const planned = dayTasks.length;
+          const done = dayTasks.filter((t: Record<string, unknown>) => t.completed || t.is_completed || t.status === "done").length;
+          
+          const dayWellness = wellnessLogs.find((w: Record<string, unknown>) => String(w.logged_at || w.created_at || "").startsWith(dStr));
+          const sleep = dayWellness ? Number(dayWellness.sleep_hours || dayWellness.hours || 0) : 0;
+          
+          if (sleep > 0) {
+            totalSleep += sleep;
+            sleepDays += 1;
+          }
+          
+          past7Days.push({
+            day: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()],
+            planned,
+            done,
+            sleep
+          });
+        }
+        setWeeklyTrend(past7Days);
+        if (sleepDays > 0) {
+          setAvgSleep((totalSleep / sleepDays).toFixed(1));
+        } else {
+          setAvgSleep("0");
         }
 
         // 7. Monthly Savings Trend (Last 4 Months)
@@ -460,7 +511,7 @@ export function ProductivityOverview() {
                   </p>
                 </div>
                 <span className="hard-chip px-3 py-1 text-xs font-black bg-[#ECFDF5]">
-                  7.4 hrs sleep avg
+                  {avgSleep || "0"} hrs sleep avg
                 </span>
               </div>
 
@@ -491,18 +542,23 @@ export function ProductivityOverview() {
                   </span>
                   <span className="hard-chip px-2 py-0.5 text-[10px] font-black bg-[#FEF3C7]">🔥 {streakDays} DAYS</span>
                 </div>
-                <p className="font-display text-2xl font-black">94% Consistency</p>
+                <p className="font-display text-2xl font-black">{Math.min(100, Math.round((streakDays / 30) * 100))}% Consistency</p>
                 <div className="flex gap-1 pt-1">
-                  {["S", "S", "M", "T", "W", "T", "F"].map((d, i) => (
+                  {weeklyTrend.length === 7 ? weeklyTrend.map((d, i) => (
                     <div
                       key={i}
+                      title={`${d.day} - ${d.planned > 0 ? "Active" : "Missed"}`}
                       className={`flex-1 h-7 rounded-lg border-2 border-[#1E293B] grid place-items-center text-[10px] font-black ${
-                        i < 6 ? "bg-[#34D399] text-white" : "bg-amber-200 text-[#1E293B]"
+                        (d.planned > 0 || d.done > 0 || d.sleep > 0) ? "bg-[#34D399] text-white" : "bg-amber-200 text-[#1E293B]"
                       }`}
                     >
-                      {d}
+                      {d.day.charAt(0)}
                     </div>
-                  ))}
+                  )) : (
+                    ["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+                      <div key={i} className="flex-1 h-7 rounded-lg border-2 border-[#1E293B] grid place-items-center text-[10px] font-black bg-amber-200 text-[#1E293B]">{d}</div>
+                    ))
+                  )}
                 </div>
               </div>
 

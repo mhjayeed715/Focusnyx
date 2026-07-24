@@ -20,7 +20,7 @@ focusRoutes.post("/pomodoro/complete", async (request, response, next) => {
 
     const minutes = Number(request.body?.minutes ?? 25);
     const xpReward = Number(request.body?.xpReward ?? 25);
-    const supabase = getSupabaseAdminClient();
+    const supabase = getSupabaseAdminClient(request.authUser?.accessToken);
 
     const { data: profileRow, error: profileError } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
 
@@ -41,29 +41,23 @@ focusRoutes.post("/pomodoro/complete", async (request, response, next) => {
       completedTasksToday: profileRow?.completed_tasks_today,
       totalFocusTime: (profileRow?.total_focus_time ?? 0) + minutes,
       sessionsCompleted: (profileRow?.sessions_completed ?? 0) + 1,
+      emergencyPin: profileRow?.emergency_pin,
     });
 
-    const { error: updateError } = await supabase.from("profiles").upsert(
-      {
-        id: userId,
-        university_email: userEmail,
-        display_name: userName,
-        preferred_language: profileRow?.preferred_language ?? "en",
-        level: profile.level,
-        total_xp: profile.totalXp,
-        today_xp: profile.todayXp,
-        streak: profile.streak,
-        focus_score: Math.min(100, (profileRow?.focus_score ?? 80) + 1),
-        completed_tasks_today: profile.completedTasksToday,
-        total_focus_time: profile.totalFocusTime,
-        sessions_completed: profile.sessionsCompleted,
-        last_active_at: new Date().toISOString(),
-      },
-      { onConflict: "id" },
-    );
+    const { error: updateError } = await supabase.from("profiles").update({
+      level: profile.level,
+      total_xp: profile.totalXp,
+      today_xp: profile.todayXp,
+      streak: profile.streak,
+      focus_score: Math.min(100, (profileRow?.focus_score ?? 80) + 1),
+      completed_tasks_today: profile.completedTasksToday,
+      total_focus_time: profile.totalFocusTime,
+      sessions_completed: profile.sessionsCompleted,
+      last_active_at: new Date().toISOString(),
+    }).eq("id", userId);
 
     if (updateError) {
-      throw updateError;
+      console.error("Profile update error in focus completion:", updateError);
     }
 
     await supabase.from("focus_sessions").insert({

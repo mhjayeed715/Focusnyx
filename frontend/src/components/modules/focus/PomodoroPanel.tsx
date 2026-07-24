@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
-import { CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, FileText, Image as ImageIcon, LibraryBig, Link2, Lock, Maximize2, Minimize2, Music2, Pause, Play, Plus, Radio, RotateCcw, ShieldAlert, Sparkles, Target, TimerReset, Volume2, X, Youtube } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, FileText, Image as ImageIcon, LibraryBig, Link2, Lock, Maximize2, Minimize2, Music2, Pause, PenTool, Play, Plus, Radio, RotateCcw, ShieldAlert, Sparkles, Target, TimerReset, Trash2, Volume2, X, Youtube } from "lucide-react";
 import { useLanguage } from "@/components/layout/language-context";
 import { usePomodoro } from "@/hooks/usePomodoro";
-import { completePomodoro, createTask } from "@/lib/backend";
+import { completePomodoro, createTask, updateTask, deleteTask, getDashboardBootstrap } from "@/lib/backend";
+import toast from "react-hot-toast";
 
 type FocusSubtask = {
   id: string;
@@ -117,39 +119,7 @@ function readLocalBlocklist(): DistractionSite[] {
   }
 }
 
-const FALLBACK_FOCUS_TASKS: FocusTask[] = [
-  {
-    id: "focus-fb-1",
-    title: "Finish discrete math revision pack",
-    subject: "Mathematics",
-    minutes: 25,
-    xp: 100,
-    status: "ready",
-    subtasks: [
-      { id: "focus-fb-1-1", title: "Review chapter 1-3 examples", completed: false },
-      { id: "focus-fb-1-2", title: "Solve practice problems set A", completed: false },
-      { id: "focus-fb-1-3", title: "Create summary notes", completed: false },
-    ],
-  },
-  {
-    id: "focus-fb-2",
-    title: "Plan next Pomodoro sprint",
-    subject: "Focus",
-    minutes: 15,
-    xp: 60,
-    status: "in-progress",
-    subtasks: [],
-  },
-  {
-    id: "focus-fb-3",
-    title: "Write quiz answers draft",
-    subject: "English",
-    minutes: 15,
-    xp: 60,
-    status: "ready",
-    subtasks: [],
-  },
-];
+// FALLBACK_FOCUS_TASKS removed — tasks are always loaded from the database.
 
 function parseMicrotasks(text: string) {
   return text
@@ -356,9 +326,8 @@ export function PomodoroPanel() {
   const [durationMinutes, setDurationMinutes] = useState(25);
   const [customMinutesInput, setCustomMinutesInput] = useState("25");
   const [statusMessage, setStatusMessage] = useState("");
-  const [tasks, setTasks] = useState<FocusTask[]>(FALLBACK_FOCUS_TASKS);
-  const [activeTaskId, setActiveTaskId] = useState(FALLBACK_FOCUS_TASKS[0]?.id ?? "");
-  const [blockedSites, setBlockedSites] = useState<DistractionSite[]>(readLocalBlocklist);
+  const [tasks, setTasks] = useState<FocusTask[]>([]);
+  const [blockedSites, setBlockedSites] = useState<DistractionSite[]>(INITIAL_DISTRACTION_SITES);
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskSubject, setNewTaskSubject] = useState("Focus");
@@ -366,7 +335,6 @@ export function PomodoroPanel() {
   const [newTaskMicrotasks, setNewTaskMicrotasks] = useState("Define the goal\nBreak into steps\nStart the first step");
   const [totalXp, setTotalXp] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isLocked, setIsLocked] = useState(false);
   const [focusSound, setFocusSound] = useState<"none" | "rain" | "white" | "lofi">("rain");
   const [focusVolume, setFocusVolume] = useState(70);
   const [resources, setResources] = useState<StudyResource[]>([]);
@@ -378,6 +346,13 @@ export function PomodoroPanel() {
   const [selectedMimeType, setSelectedMimeType] = useState("");
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [selectedResourceIndex, setSelectedResourceIndex] = useState(0);
+
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editTaskTitle, setEditTaskTitle] = useState("");
+  const [editTaskSubject, setEditTaskSubject] = useState("");
+  const [editTaskEstimate, setEditTaskEstimate] = useState("");
+  const [editTaskMicrotasks, setEditTaskMicrotasks] = useState("");
+  const [taskToDeleteId, setTaskToDeleteId] = useState<string | null>(null);
 
   // Emergency PIN Modal state
   const [showPinModal, setShowPinModal] = useState(false);
@@ -398,31 +373,53 @@ export function PomodoroPanel() {
   // Live Distraction Log State
   const [distractionLogs, setDistractionLogs] = useState<Array<{ id: string; type: string; app?: string; url?: string; timestamp: string }>>([]);
 
-  // Poll distraction logs from Companion App
+  // Poll distraction logs from Companion App (with failure backoff)
   useEffect(() => {
-    const fetchDistractionLogs = async () => {
+    let isSubscribed = true;
+    let timerId: NodeJS.Timeout;
+
+    const poll = async () => {
+      let nextInterval = 4000;
       try {
         const res = await fetch("http://localhost:5000/distraction-logs");
         if (res.ok) {
           const data = await res.json();
-          if (data.logs && Array.isArray(data.logs)) {
+          if (data.logs && Array.isArray(data.logs) && isSubscribed) {
             setDistractionLogs(data.logs);
           }
+        } else {
+          nextInterval = 15000;
         }
-      } catch {}
+      } catch {
+        nextInterval = 15000;
+      }
+      if (isSubscribed) {
+        timerId = setTimeout(poll, nextInterval);
+      }
     };
 
-    fetchDistractionLogs();
-    const interval = setInterval(fetchDistractionLogs, 4000);
-    return () => clearInterval(interval);
+    poll();
+    return () => {
+      isSubscribed = false;
+      clearTimeout(timerId);
+    };
+  }, []);
+
+  const [isBlocklistLoaded, setIsBlocklistLoaded] = useState(false);
+
+  useEffect(() => {
+    setBlockedSites(readLocalBlocklist());
+    setIsBlocklistLoaded(true);
   }, []);
 
   useEffect(() => {
+    if (!isBlocklistLoaded) return;
     try {
       localStorage.setItem(LOCAL_BLOCKLIST_KEY, JSON.stringify(blockedSites));
     } catch {}
     syncBlocklistToAll(blockedSites, blockedApps);
-  }, [blockedSites, blockedApps]);
+  }, [blockedSites, blockedApps, isBlocklistLoaded]);
+
 
   const syncBlocklistToAll = (sites: typeof blockedSites, apps: string[]) => {
     const enabledDomains = sites.filter((s) => s.enabled).map((s) => s.site);
@@ -458,6 +455,12 @@ export function PomodoroPanel() {
     setNewSiteInput("");
   };
 
+  const handleRemoveSite = (site: string) => {
+    const nextSites = blockedSites.filter((s) => s.site !== site);
+    setBlockedSites(nextSites);
+    syncBlocklistToAll(nextSites, blockedApps);
+  };
+
   const handleAddCustomApp = () => {
     if (!newAppInput.trim()) return;
     let appName = newAppInput.trim().toLowerCase();
@@ -476,10 +479,15 @@ export function PomodoroPanel() {
   };
 
   const handleVerifyEmergencyPin = () => {
-    if (emergencyPinInput.trim() === "1234") {
+    const storedPin = (() => {
+      try { return localStorage.getItem("focusnyxEmergencyPinV1") || "123456"; }
+      catch { return "123456"; }
+    })();
+
+    if (emergencyPinInput.trim() === storedPin) {
       pause();
       setIsLocked(false);
-      notifyExtension("endFocus", durationMinutes, "1234");
+      notifyExtension("endFocus", durationMinutes, storedPin);
       setShowPinModal(false);
       setEmergencyPinInput("");
       setPinError("");
@@ -489,36 +497,41 @@ export function PomodoroPanel() {
     }
   };
   useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const dashboard = await getDashboardBootstrap();
+        if (dashboard && dashboard.tasks && dashboard.tasks.length > 0) {
+          const normalizedTasks: FocusTask[] = dashboard.tasks.map((task: any) => ({
+            id: String(task.id),
+            title: String(task.title ?? "Untitled task"),
+            subject: String(task.subject ?? "Focus"),
+            minutes: Number(task.estimate ?? 25),
+            xp: Number(task.xp ?? 40),
+            status: task.completed ? "done" : "ready",
+            subtasks: Array.isArray(task.subtasks)
+              ? task.subtasks.map((sub: any, index: number) => ({
+                  id: `sub-${task.id}-${index}`,
+                  title: String(sub.title || sub),
+                  completed: Boolean(sub.completed),
+                }))
+              : [],
+          }));
+          setTasks(normalizedTasks);
+          setActiveTaskId(normalizedTasks[0]?.id ?? "");
+        } else {
+          // No tasks returned; clear state
+          setTasks([]);
+          setActiveTaskId("");
+        }
+      } catch {
+        // fallback: clear tasks
+        setTasks([]);
+        setActiveTaskId("");
+      }
+    };
+    void fetchTasks();
+
     try {
-      const saved = localStorage.getItem(LOCAL_TASKS_KEY);
-      if (!saved) {
-        return;
-      }
-
-      const parsed = JSON.parse(saved);
-      if (!Array.isArray(parsed) || parsed.length === 0) {
-        return;
-      }
-
-      const normalizedTasks: FocusTask[] = parsed.map((task: Record<string, unknown>) => ({
-        id: String(task.id ?? `focus-${Date.now()}`),
-        title: String(task.title ?? "Untitled task"),
-        subject: String(task.subject ?? "Focus"),
-        minutes: Number(task.estimate ?? task.minutes ?? 25),
-        xp: Number(task.xp ?? 40),
-        status: task.completed ? "done" : "ready",
-        subtasks: Array.isArray(task.subtasks)
-          ? task.subtasks.map((subtask: Record<string, unknown>, index: number) => ({
-              id: String(subtask.id ?? `${task.id ?? "task"}-${index}`),
-              title: String(subtask.title ?? "Untitled subtask"),
-              completed: Boolean(subtask.completed),
-            }))
-          : [],
-      }));
-
-      setTasks(normalizedTasks);
-      setActiveTaskId(normalizedTasks[0]?.id ?? "");
-
       const progress = readLocalProgress();
       setTotalXp(progress.xp);
     } catch {
@@ -543,12 +556,6 @@ export function PomodoroPanel() {
     return () => document.removeEventListener("fullscreenchange", syncFullscreenState);
   }, []);
 
-  // Enforce fullscreen while lock mode is active
-  useEffect(() => {
-    if (isLocked && !isFullscreen) {
-      document.documentElement.requestFullscreen().catch(() => {});
-    }
-  }, [isLocked, isFullscreen]);
 
   useEffect(() => {
     writeStudyResources(resources);
@@ -567,22 +574,18 @@ export function PomodoroPanel() {
     };
   }, [focusSound, focusVolume]);
 
-  const activeTask = tasks.find((task) => task.id === activeTaskId) ?? tasks[0] ?? null;
-
   const updateTasks = (updater: (current: FocusTask[]) => FocusTask[]) => {
     setTasks((current) => {
       const next = updater(current);
-      try {
-        localStorage.setItem(LOCAL_TASKS_KEY, JSON.stringify(toSharedTaskShape(next)));
-      } catch {
-        // ignore
-      }
       return next;
     });
   };
 
-  const { minutes, seconds, isRunning, start, pause, reset, setDuration, syncState } = usePomodoro(durationMinutes, async () => {
+  const { minutes, seconds, isRunning, isLocked, setIsLocked, activeTaskId, setActiveTaskId, start, pause, reset, setDuration, syncState } = usePomodoro(durationMinutes, async () => {
     const fallbackXp = Math.max(25, durationMinutes * 4);
+    
+    // Compute activeTask inside the callback or rely on the latest state
+    const currentActiveTask = tasks.find((task) => task.id === activeTaskId) ?? tasks[0] ?? null;
 
     try {
       const result = await completePomodoro(durationMinutes);
@@ -597,11 +600,14 @@ export function PomodoroPanel() {
         sessionsCompleted: currentProgress.sessionsCompleted + 1,
       });
 
-      if (activeTask && activeTask.status !== "done") {
-        updateTasks((current) => current.map((entry) => (entry.id === activeTask.id ? { ...entry, status: "done" } : entry)));
+      if (currentActiveTask && currentActiveTask.status !== "done") {
+        updateTasks((current) => current.map((entry) => (entry.id === currentActiveTask.id ? { ...entry, status: "done" } : entry)));
+        if (!currentActiveTask.id.startsWith("focus-local-")) {
+          updateTask(currentActiveTask.id, { completed: true }).catch(() => {});
+        }
       }
 
-      setStatusMessage(activeTask ? `${copy.sessionComplete}. +${earnedXp} XP for ${activeTask.title}` : `${copy.sessionComplete}. +${earnedXp} XP`);
+      setStatusMessage(currentActiveTask ? `${copy.sessionComplete}. +${earnedXp} XP for ${currentActiveTask.title}` : `${copy.sessionComplete}. +${earnedXp} XP`);
       setIsLocked(false);
       // Exit fullscreen after session ends
       if (document.fullscreenElement) {
@@ -624,20 +630,51 @@ export function PomodoroPanel() {
     }
   });
 
+  const activeTask = tasks.find((task) => task.id === activeTaskId) ?? tasks[0] ?? null;
+
   useEffect(() => {
     setDuration(durationMinutes);
   }, [durationMinutes, setDuration]);
 
+  // Prevent closing the web app if locked
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isLocked) {
+        e.preventDefault();
+        e.returnValue = "Focus Lock is active. Are you sure you want to exit?";
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isLocked]);
+
+
+
   // ── Extension & Companion App Bidirectional Synchronization ──
-  const notifyExtension = (action: "startFocus" | "endFocus" | "getStatus", durationMins?: number, customPin?: string) => {
+  const notifyExtension = (action: "startFocus" | "endFocus" | "getStatus", durationMins?: number, customPin?: string, remainingSecs?: number) => {
     const enabledDomains = blockedSites.filter((s) => s.enabled).map((s) => s.site);
+    
+    const storedPin = (() => {
+      try { return localStorage.getItem("focusnyxEmergencyPinV1") || "123456"; }
+      catch { return "123456"; }
+    })();
+    const pinToUse = customPin || storedPin;
+    const durationMs = (durationMins || durationMinutes) * 60 * 1000;
+
     const payload = {
       type: "FOCUSNYX_WEB_APP_ACTION",
       action,
       durationMinutes: durationMins || durationMinutes,
+      duration: durationMs,
       blocklist: enabledDomains,
-      pin: customPin || "1234",
+      pin: pinToUse,
       timestamp: Date.now(),
+      // Send remaining time so extension popup can show live countdown
+      remainingSeconds: remainingSecs,
+      focusStartTime: action === "startFocus" ? Date.now() : undefined,
+      focusDuration: durationMs,
     };
 
     // 1. PostMessage to window DOM for Extension content script
@@ -660,13 +697,13 @@ export function PomodoroPanel() {
       fetch("http://localhost:5000/start-focus", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ duration: durationMins || durationMinutes, pin: customPin || "1234" }),
+        body: JSON.stringify({ duration: durationMins || durationMinutes, pin: pinToUse }),
       }).catch(() => {});
     } else if (action === "endFocus") {
       fetch("http://localhost:5000/end-focus", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin: customPin || "1234" }),
+        body: JSON.stringify({ pin: pinToUse }),
       }).catch(() => {});
     }
   };
@@ -707,30 +744,41 @@ export function PomodoroPanel() {
       };
     } catch {}
 
-    // Polling Companion App & Extension status to maintain 3-way lockstep sync
+    // Polling Companion App & Extension status to maintain 3-way lockstep sync (with failure backoff)
+    let isSubscribed = true;
+    let timerId: NodeJS.Timeout;
+
     const checkCompanionStatus = async () => {
       notifyExtension("getStatus");
+      let nextInterval = 4000;
       try {
         const res = await fetch("http://localhost:5000/status");
         if (res.ok) {
           const data = await res.json();
-          if (data.is_active) {
+          if (data.is_active && isSubscribed) {
             setIsLocked(true);
             if (typeof data.remaining_seconds === "number" && data.remaining_seconds > 0) {
               syncState(data.remaining_seconds, true);
             }
           }
+        } else {
+          nextInterval = 15000;
         }
-      } catch {}
+      } catch {
+        nextInterval = 15000;
+      }
+      if (isSubscribed) {
+        timerId = setTimeout(checkCompanionStatus, nextInterval);
+      }
     };
 
     checkCompanionStatus();
-    const interval = setInterval(checkCompanionStatus, 4000);
 
     return () => {
+      isSubscribed = false;
       window.removeEventListener("message", handleMessage);
       syncChannel?.close();
-      clearInterval(interval);
+      clearTimeout(timerId);
     };
   }, [syncState]);
 
@@ -792,12 +840,13 @@ export function PomodoroPanel() {
     setStatusMessage(`${copy.loaded} ${task.title} into the timer.`);
   };
 
-  const handleCompleteTask = (taskId: string) => {
+  const handleCompleteTask = async (taskId: string) => {
     const task = tasks.find((entry) => entry.id === taskId);
     if (!task || task.status === "done") {
       return;
     }
 
+    // Optimistic update
     updateTasks((current) => current.map((entry) => (entry.id === taskId ? { ...entry, status: "done" } : entry)));
     setTotalXp((current) => current + task.xp);
     const currentProgress = readLocalProgress();
@@ -812,6 +861,18 @@ export function PomodoroPanel() {
       setActiveTaskId(nextTask.id);
     }
 
+    // Always persist to DB (skip only truly local optimistic tasks not yet saved)
+    if (!taskId.startsWith("focus-local-") && !taskId.startsWith("starter-")) {
+      try {
+        await updateTask(taskId, { completed: true });
+        toast.success(`✓ "${task.title}" completed! +${task.xp} XP`);
+      } catch {
+        toast.error("Could not sync completion to server.");
+      }
+    } else {
+      toast.success(`✓ "${task.title}" marked done! +${task.xp} XP`);
+    }
+
     setStatusMessage(`${task.title} ${copy.done.toLowerCase()}. +${task.xp} XP`);
   };
 
@@ -822,8 +883,9 @@ export function PomodoroPanel() {
 
     const estimatedMinutes = Math.max(5, Number(newTaskEstimate) || 25);
     const subtasks = parseMicrotasks(newTaskMicrotasks);
+    const optimisticId = `focus-local-${Date.now()}`;
     const optimisticTask: FocusTask = {
-      id: `focus-local-${Date.now()}`,
+      id: optimisticId,
       title: newTaskTitle.trim(),
       subject: newTaskSubject.trim() || "Focus",
       minutes: estimatedMinutes,
@@ -847,20 +909,30 @@ export function PomodoroPanel() {
     setNewTaskEstimate("25");
     setNewTaskMicrotasks("Define the goal\nBreak into steps\nStart the first step");
 
+    const toastId = toast.loading("Saving task...");
     try {
-      await createTask({
+      const response = await createTask({
         title: optimisticTask.title,
         subject: optimisticTask.subject,
         estimate: optimisticTask.minutes,
         subtasks: optimisticTask.subtasks.map((subtask) => subtask.title),
       });
+      const realTask = response.task as { id: string } | undefined;
+      if (realTask?.id) {
+        // Replace optimistic ID with real DB ID
+        updateTasks((current) => current.map((t) => (t.id === optimisticId ? { ...t, id: realTask.id } : t)));
+        setActiveTaskId((current) => (current === optimisticId ? realTask.id : current));
+      }
+      toast.success(`Task "${optimisticTask.title}" saved!`, { id: toastId });
       setStatusMessage(`${copy.created} ${optimisticTask.title}.`);
     } catch {
+      toast.error("Could not save task to server. Will retry when online.", { id: toastId });
       setStatusMessage(copy.localSync);
     }
   };
 
-  const toggleSite = (site: string) => {
+  const toggleSite = (site: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setBlockedSites((current) => {
       const next = current.map((entry) => (entry.site === site ? { ...entry, enabled: !entry.enabled } : entry));
       syncBlocklistToAll(next, blockedApps);
@@ -933,18 +1005,20 @@ export function PomodoroPanel() {
   };
 
   const toggleSubtask = (taskId: string, subtaskId: string) => {
+    let updatedSubtasks: FocusSubtask[] = [];
     updateTasks((current) =>
-      current.map((task) =>
-        task.id === taskId
-          ? {
-              ...task,
-              subtasks: task.subtasks.map((subtask) =>
-                subtask.id === subtaskId ? { ...subtask, completed: !subtask.completed } : subtask,
-              ),
-            }
-          : task,
-      ),
+      current.map((task) => {
+        if (task.id !== taskId) return task;
+        updatedSubtasks = task.subtasks.map((subtask) =>
+          subtask.id === subtaskId ? { ...subtask, completed: !subtask.completed } : subtask,
+        );
+        return { ...task, subtasks: updatedSubtasks };
+      }),
     );
+    // Persist subtask state to DB
+    if (!taskId.startsWith("focus-local-")) {
+      updateTask(taskId, { subtasks: updatedSubtasks }).catch(() => {});
+    }
   };
 
   const removeResource = (resourceId: string) => {
@@ -1166,6 +1240,87 @@ export function PomodoroPanel() {
               const isDone = task.status === "done";
               const isExpanded = expandedTaskId === task.id;
 
+              if (editingTaskId === task.id) {
+                return (
+                  <div key={task.id} className="rounded-[20px] border-2 border-[var(--foreground)] bg-white p-4 shadow-[4px_4px_0_0_#1E293B]">
+                    <input
+                      className="w-full rounded-[14px] border-2 border-[var(--foreground)] bg-white px-3 py-2 text-sm font-bold outline-none"
+                      value={editTaskTitle}
+                      onChange={(e) => setEditTaskTitle(e.target.value)}
+                      placeholder="Task Title"
+                    />
+                    <div className="mt-2 flex gap-2">
+                      <input
+                        className="w-1/2 rounded-[14px] border-2 border-[var(--foreground)] bg-white px-3 py-2 text-sm outline-none"
+                        value={editTaskSubject}
+                        onChange={(e) => setEditTaskSubject(e.target.value)}
+                        placeholder="Subject"
+                      />
+                      <input
+                        type="number"
+                        className="w-1/2 rounded-[14px] border-2 border-[var(--foreground)] bg-white px-3 py-2 text-sm outline-none"
+                        value={editTaskEstimate}
+                        onChange={(e) => setEditTaskEstimate(e.target.value)}
+                        placeholder="Minutes"
+                      />
+                    </div>
+                    <textarea
+                      className="mt-2 w-full rounded-[14px] border-2 border-[var(--foreground)] bg-white px-3 py-2 text-sm outline-none"
+                      rows={3}
+                      value={editTaskMicrotasks}
+                      onChange={(e) => setEditTaskMicrotasks(e.target.value)}
+                      placeholder="Microtasks (one per line)"
+                    />
+                    <div className="mt-3 flex justify-end gap-2">
+                      <button
+                        onClick={() => setEditingTaskId(null)}
+                        className="rounded-full border-2 border-[var(--foreground)] bg-[var(--muted)] px-4 py-1.5 text-xs font-black"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => {
+                          const updatedTask: FocusTask = {
+                            ...task,
+                            title: editTaskTitle,
+                            subject: editTaskSubject,
+                            minutes: Number(editTaskEstimate),
+                            subtasks: editTaskMicrotasks
+                              .split("\n")
+                              .filter(Boolean)
+                              .map((title, index) => ({
+                                id: task.subtasks[index]?.id ?? `sub-${Date.now()}-${index}`,
+                                title,
+                                completed: task.subtasks[index]?.completed ?? false,
+                              })),
+                          };
+                          setTasks((prev) => prev.map((t) => (t.id === task.id ? updatedTask : t)));
+                          setEditingTaskId(null);
+                          if (!task.id.startsWith("focus-local-")) {
+                            const saveToast = toast.loading("Saving changes...");
+                            updateTask(task.id, {
+                              title: updatedTask.title,
+                              subject: updatedTask.subject,
+                              estimate: updatedTask.minutes,
+                              subtasks: updatedTask.subtasks,
+                            }).then(() => {
+                              toast.success("Task updated!", { id: saveToast });
+                            }).catch(() => {
+                              toast.error("Could not save changes.", { id: saveToast });
+                            });
+                          } else {
+                            toast.success("Task updated!");
+                          }
+                        }}
+                        className="rounded-full border-2 border-[var(--foreground)] bg-[#34D399] px-4 py-1.5 text-xs font-black shadow-[3px_3px_0_0_#1E293B]"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
               return (
                 <div key={task.id}>
                   <div
@@ -1186,16 +1341,40 @@ export function PomodoroPanel() {
                     </div>
                     <div className="mt-3 flex items-center justify-between gap-3">
                       <span className="text-xs font-semibold text-[var(--muted-fg)]">{isDone ? copy.done : task.status.replace("-", " ")}</span>
-                      <button
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          handleCompleteTask(task.id);
-                        }}
-                        disabled={isDone}
-                        className="rounded-full border-2 border-[var(--foreground)] bg-white px-3 py-1.5 text-xs font-black shadow-[3px_3px_0_0_#1E293B] disabled:opacity-50"
-                      >
-                        {isDone ? copy.done : copy.complete}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setEditingTaskId(task.id);
+                            setEditTaskTitle(task.title);
+                            setEditTaskSubject(task.subject);
+                            setEditTaskEstimate(String(task.minutes));
+                            setEditTaskMicrotasks(task.subtasks.map((s) => s.title).join("\n"));
+                          }}
+                          className="rounded-full border-2 border-[var(--foreground)] bg-white px-3 py-1.5 text-[10px] font-black shadow-[3px_3px_0_0_#1E293B] hover:bg-[var(--muted)]"
+                        >
+                          <PenTool size={14} />
+                        </button>
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setTaskToDeleteId(task.id);
+                          }}
+                          className="rounded-full border-2 border-[var(--foreground)] bg-white px-3 py-1.5 text-[10px] font-black shadow-[3px_3px_0_0_#1E293B] text-red-500 hover:bg-red-50"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleCompleteTask(task.id);
+                          }}
+                          disabled={isDone}
+                          className="rounded-full border-2 border-[var(--foreground)] bg-white px-3 py-1.5 text-xs font-black shadow-[3px_3px_0_0_#1E293B] disabled:opacity-50"
+                        >
+                          {isDone ? copy.done : copy.complete}
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -1287,7 +1466,7 @@ export function PomodoroPanel() {
 
           {/* Web Domains Section */}
           <div className="mt-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-[var(--muted-fg)]">Website Domain Blacklist</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-[var(--muted-fg)]">Website Domain Whitelist</p>
             <div className="mt-2 flex gap-2">
               <input
                 value={newSiteInput}
@@ -1301,17 +1480,22 @@ export function PomodoroPanel() {
             </div>
             <div className="mt-3 space-y-2 max-h-48 overflow-y-auto pr-1">
               {blockedSites.map((item) => (
-                <button
+                <div
                   key={item.site}
-                  type="button"
-                  onClick={() => toggleSite(item.site)}
-                  className="flex w-full items-center justify-between rounded-[14px] border-2 border-[var(--foreground)] bg-[#FFF7D6] px-3 py-2 text-left text-sm shadow-[3px_3px_0_0_#1E293B]"
+                  className="flex w-full items-center justify-between rounded-[14px] border-2 border-[var(--foreground)] bg-[#FFF7D6] px-3 py-2 text-sm shadow-[3px_3px_0_0_#1E293B]"
                 >
-                  <span className="font-bold">{item.site}</span>
-                  <span className={`rounded-full border border-[var(--foreground)] px-2 py-0.5 text-[10px] font-black ${item.enabled ? "bg-[#34D399]" : "bg-[#F472B6] text-white"}`}>
-                    {item.enabled ? "BLOCKED" : "ALLOWED"}
-                  </span>
-                </button>
+                  <div className="flex-1">
+                    <span className="font-bold">{item.site}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full border border-[var(--foreground)] bg-[#34D399] px-2 py-0.5 text-[10px] font-black text-black">
+                      ✓ ALLOWED
+                    </span>
+                    <button type="button" onClick={() => handleRemoveSite(item.site)} className="text-red-500 hover:text-red-700 p-1" title="Remove from Whitelist (Block)">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
@@ -1579,69 +1763,44 @@ export function PomodoroPanel() {
         </div>
       ) : null}
 
-      {isLocked && !isFullscreen && (
-        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/90 text-white backdrop-blur-md">
-          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex max-w-md flex-col items-center text-center">
-            <Lock className="mb-6 h-16 w-16 text-red-500" />
-            <h2 className="mb-4 text-3xl font-black uppercase tracking-tight text-red-500">Focus Lock Active</h2>
-            <p className="mb-8 text-lg font-medium text-gray-300">You must be in fullscreen mode to continue working. Escaping is not allowed.</p>
-            <div className="flex flex-col gap-3 w-full">
-              <button
-                onClick={() => {
-                  document.documentElement.requestFullscreen().catch(() => {});
-                }}
-                className="candy-button w-full rounded-2xl border-4 border-red-500 bg-red-600 px-8 py-4 text-xl font-bold uppercase tracking-widest text-white hover:bg-red-500"
-              >
-                Return to Fullscreen
-              </button>
-              <button
-                onClick={() => {
-                  setPinError("");
-                  setEmergencyPinInput("");
-                  setShowPinModal(true);
-                }}
-                className="w-full rounded-2xl border-2 border-gray-600 bg-gray-800 px-6 py-3 text-sm font-bold uppercase tracking-wider text-gray-300 hover:bg-gray-700"
-              >
-                Emergency PIN Exit
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
+
 
       {/* Emergency Exit PIN Modal */}
-      {showPinModal && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-sm rounded-[28px] border-4 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B]">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-display text-xl font-black text-red-600 flex items-center gap-2">
-                <Lock size={20} /> Emergency Exit PIN
-              </h3>
-              <button onClick={() => setShowPinModal(false)} className="font-black text-gray-400 hover:text-black">✕</button>
-            </div>
-            <p className="text-xs font-semibold text-[var(--muted-fg)] mb-4">
-              Enter your 4-digit Emergency PIN to disengage Focus Lock.
-            </p>
-            <input
-              type="password"
-              maxLength={4}
-              value={emergencyPinInput}
-              onChange={(e) => setEmergencyPinInput(e.target.value.replace(/\D/g, ""))}
-              placeholder="••••"
-              className="w-full rounded-[16px] border-2 border-[var(--foreground)] bg-[#FFF7D6] px-4 py-3 text-center text-2xl font-black tracking-widest outline-none mb-3"
-            />
-            {pinError && <p className="text-xs font-bold text-red-500 mb-3 text-center">{pinError}</p>}
-            <div className="flex gap-2">
-              <button onClick={() => setShowPinModal(false)} className="secondary-button flex-1 rounded-[16px] border-2 border-[var(--foreground)] py-3 font-bold text-sm">
-                Cancel
-              </button>
-              <button onClick={handleVerifyEmergencyPin} className="candy-button flex-1 rounded-[16px] border-2 border-red-600 bg-red-600 py-3 font-bold text-sm text-white">
-                Unlock Session
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
+      {showPinModal && typeof document !== "undefined"
+        ? createPortal(
+            <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-sm rounded-[28px] border-4 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B]">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-display text-xl font-black text-red-600 flex items-center gap-2">
+                    <Lock size={20} /> Emergency Exit PIN
+                  </h3>
+                  <button onClick={() => setShowPinModal(false)} className="font-black text-gray-400 hover:text-black">✕</button>
+                </div>
+                <p className="text-xs font-semibold text-[var(--muted-fg)] mb-4">
+                  Enter your Emergency PIN to disengage Focus Lock.
+                </p>
+                <input
+                  type="password"
+                  maxLength={6}
+                  value={emergencyPinInput}
+                  onChange={(e) => setEmergencyPinInput(e.target.value.replace(/\D/g, ""))}
+                  placeholder="••••"
+                  className="w-full rounded-[16px] border-2 border-[var(--foreground)] bg-[#FFF7D6] px-4 py-3 text-center text-2xl font-black tracking-widest outline-none mb-3"
+                />
+                {pinError && <p className="text-xs font-bold text-red-500 mb-3 text-center">{pinError}</p>}
+                <div className="flex gap-2">
+                  <button onClick={() => setShowPinModal(false)} className="secondary-button flex-1 rounded-[16px] border-2 border-[var(--foreground)] py-3 font-bold text-sm">
+                    Cancel
+                  </button>
+                  <button onClick={handleVerifyEmergencyPin} className="candy-button flex-1 rounded-[16px] border-2 border-red-600 bg-red-600 py-3 font-bold text-sm text-white">
+                    Unlock Session
+                  </button>
+                </div>
+              </motion.div>
+            </div>,
+            document.body
+          )
+        : null}
 
       {/* Live Distraction Tracker Log Card */}
       {distractionLogs.length > 0 && (
@@ -1659,6 +1818,41 @@ export function PomodoroPanel() {
                 <span className="text-[var(--muted-fg)]">{log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : "Just now"}</span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+      {/* ── Custom Task Delete Confirmation Modal ── */}
+      {taskToDeleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-[28px] border-2 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B]">
+            <h3 className="font-display text-xl font-black">Delete Task?</h3>
+            <p className="mt-2 text-sm font-semibold text-[var(--muted-fg)]">
+              Are you sure you want to delete this task? This action cannot be undone.
+            </p>
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => setTaskToDeleteId(null)}
+                className="secondary-button flex-1 rounded-[18px] border-2 border-[var(--foreground)] px-4 py-3 font-bold text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const id = taskToDeleteId;
+                  setTaskToDeleteId(null);
+                  deleteTask(id)
+                    .then(() => {
+                      setTasks((prev) => prev.filter((t) => t.id !== id));
+                    })
+                    .catch(() => {
+                      setTasks((prev) => prev.filter((t) => t.id !== id));
+                    });
+                }}
+                className="candy-button flex-1 rounded-[18px] border-2 border-[var(--foreground)] bg-red-500 text-white px-4 py-3 font-bold text-sm hover:bg-red-600"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}

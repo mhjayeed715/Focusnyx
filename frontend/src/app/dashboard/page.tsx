@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { ArrowRight, Award, BookOpen, CheckCircle2, ChevronDown, ClipboardList, CircleDollarSign, CirclePlay, Clock3, Flame, HeartPulse, LayoutDashboard, NotebookPen, Sparkles, Target, X, BrainCircuit, PenTool, Trash2 } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { createTask, deleteTask, getDashboardBootstrap, updateTask } from "@/lib/backend";
+import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { cumulativeXpForLevel, getXpState, maxLevel } from "@/lib/xp";
 import { useLanguage } from "@/components/layout/language-context";
@@ -83,33 +84,7 @@ const sidebarItems: SidebarItem[] = [
   { label: "Coach", href: "/coach", icon: BrainCircuit },
 ];
 
-const fallbackTasks: Task[] = [
-  {
-    id: "fallback-1",
-    title: "Finish discrete math revision pack",
-    subject: "Mathematics",
-    estimate: 25,
-    xp: 40,
-    completed: false,
-    subtasks: [
-      { id: "fallback-1-1", title: "Review chapter 1-3 examples", completed: false },
-      { id: "fallback-1-2", title: "Solve practice problems set A", completed: false },
-      { id: "fallback-1-3", title: "Create summary notes", completed: false },
-    ],
-  },
-  {
-    id: "fallback-2",
-    title: "Plan next Pomodoro sprint",
-    subject: "Focus",
-    estimate: 10,
-    xp: 25,
-    completed: false,
-    subtasks: [
-      { id: "fallback-2-1", title: "Set a 25 minute timer", completed: false },
-      { id: "fallback-2-2", title: "Pick one subject", completed: false },
-    ],
-  },
-];
+// fallbackTasks removed — tasks always come from the database.
 
 const dashboardCopy = {
   en: {
@@ -244,7 +219,8 @@ export default function DashboardPage() {
   const [user, setUser] = useState<Profile | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isTaskListOpen, setIsTaskListOpen] = useState(true);
   const [showAddTask, setShowAddTask] = useState(false);
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -252,6 +228,7 @@ export default function DashboardPage() {
   const [editTaskSubject, setEditTaskSubject] = useState("");
   const [editTaskEstimate, setEditTaskEstimate] = useState("");
   const [editTaskMicrotasks, setEditTaskMicrotasks] = useState("");
+  const [taskToDeleteId, setTaskToDeleteId] = useState<string | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskSubject, setNewTaskSubject] = useState("Focus");
   const [newTaskEstimate, setNewTaskEstimate] = useState("25");
@@ -268,26 +245,10 @@ export default function DashboardPage() {
       setUser(dashboard.profile);
       setTasks(dashboard.tasks);
 
-      const sharedTasks = dashboard.tasks.map((task) => ({
-        ...task,
-        minutes: task.estimate,
-        status: task.completed ? "done" : "ready",
-      }));
-
       try {
         localStorage.setItem("userEmail", dashboard.profile.email);
         localStorage.setItem("userFullName", dashboard.profile.fullName);
-        const saved = localStorage.getItem(LOCAL_TASKS_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setTasks(parsed.map((task, index) => normalizeTaskFromStorage(task as Record<string, unknown>, index)));
-          } else {
-            localStorage.setItem(LOCAL_TASKS_KEY, JSON.stringify(sharedTasks));
-          }
-        } else {
-          localStorage.setItem(LOCAL_TASKS_KEY, JSON.stringify(sharedTasks));
-        }
+        localStorage.setItem("focusnyxEmergencyPinV1", dashboard.profile.emergencyPin || "123456");
       } catch {
         // ignore
       }
@@ -310,15 +271,10 @@ export default function DashboardPage() {
         fallbackEmail.split("@")[0] ||
         "Student";
 
-      let localTasks = fallbackTasks;
+      let localTasks: Task[] = [];
       try {
-        const saved = localStorage.getItem(LOCAL_TASKS_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            localTasks = parsed.map((task, index) => normalizeTaskFromStorage(task as Record<string, unknown>, index));
-          }
-        }
+        localStorage.removeItem(LOCAL_TASKS_KEY);
+        localStorage.removeItem("userTasks");
       } catch {
         // ignore
       }
@@ -339,7 +295,7 @@ export default function DashboardPage() {
         xpNeededForNextLevel: cumulativeXpForLevel(2),
         xpProgressPercent: 0,
       });
-      setTasks(localTasks);
+      setTasks([]);
     } finally {
       setLoading(false);
     }
@@ -391,7 +347,6 @@ export default function DashboardPage() {
     // optimistic local update
     setTasks((current) => {
       const updated = current.map((t) => t.id === task.id ? { ...t, completed: nowCompleted } : t);
-      persistLocalTasks(updated);
       return updated;
     });
     try {
@@ -410,7 +365,6 @@ export default function DashboardPage() {
     // optimistic local update
     setTasks((current) => {
       const updated = current.map((t) => t.id === task.id ? { ...t, subtasks: nextSubtasks } : t);
-      persistLocalTasks(updated);
       return updated;
     });
     try {
@@ -455,24 +409,7 @@ export default function DashboardPage() {
     }
   };
 
-  const persistLocalTasks = (updated: Task[]) => {
-    try {
-      const sharedShape = updated.map((task) => ({
-        id: task.id,
-        title: task.title,
-        subject: task.subject,
-        estimate: task.estimate,
-        minutes: task.estimate,
-        xp: task.xp,
-        completed: task.completed,
-        status: task.completed ? "done" : "ready",
-        subtasks: task.subtasks,
-      }));
-      localStorage.setItem(LOCAL_TASKS_KEY, JSON.stringify(sharedShape));
-    } catch {
-      // ignore
-    }
-  };
+
 
   const handleAddTask = async () => {
     if (!newTaskTitle.trim()) return;
@@ -502,11 +439,11 @@ export default function DashboardPage() {
 
     setTasks((current) => {
       const updated = [optimisticTask, ...current];
-      persistLocalTasks(updated);
       return updated;
     });
     resetForm();
 
+    const toastId = toast.loading("Saving task...");
     try {
       await createTask({
         title: optimisticTask.title,
@@ -514,9 +451,11 @@ export default function DashboardPage() {
         estimate: optimisticTask.estimate,
         subtasks: optimisticTask.subtasks.map((s) => s.title),
       });
+      toast.success("Task saved!", { id: toastId });
       await loadDashboard();
     } catch {
-      // backend unavailable — task stays in local state, already persisted
+      toast.error("Could not save task to server.", { id: toastId });
+      // keep optimistic task in local state
     }
   };
 
@@ -689,28 +628,37 @@ export default function DashboardPage() {
       </section>
 
       <section className="mt-6 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
-        <motion.aside
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: 0.05 }}
-          className="sticker-card bg-white p-6 shadow-[8px_8px_0_0_#F9A8D4]"
-        >
-          <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-6">
+          <motion.aside
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.05 }}
+            className="sticker-card self-start w-full bg-white p-6 shadow-[8px_8px_0_0_#F9A8D4]"
+          >
+          <div 
+            className="flex items-center justify-between gap-3 cursor-pointer select-none"
+            onClick={() => setIsTaskListOpen(!isTaskListOpen)}
+          >
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">{copy.todaysTasks}</p>
-              <h2 className="mt-2 font-display text-2xl font-black">{copy.taskList}</h2>
+              <div className="flex items-center gap-2 mt-2">
+                <h2 className="font-display text-2xl font-black">{copy.taskList}</h2>
+                <ChevronDown size={20} className={`transition-transform ${isTaskListOpen ? 'rotate-180' : ''}`} />
+              </div>
             </div>
             <span className="grid h-10 w-10 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#FDF2F8]">
               <ClipboardList size={16} strokeWidth={2.5} />
             </span>
           </div>
 
-          <div className="mt-5 max-h-[560px] space-y-3 overflow-y-auto pr-1">
-            {tasks.length === 0 ? (
-              <div className="rounded-[16px] border-2 border-dashed border-[var(--foreground)] bg-white px-4 py-8 text-center">
-                <p className="text-sm text-[var(--muted-fg)]">{copy.noTasks}</p>
-              </div>
-            ) : (
+          {isTaskListOpen && (
+            <>
+              <div className="mt-5 max-h-[560px] space-y-3 overflow-y-auto pr-1">
+                {tasks.length === 0 ? (
+                  <div className="rounded-[16px] border-2 border-dashed border-[var(--foreground)] bg-white px-4 py-8 text-center">
+                    <p className="text-sm text-[var(--muted-fg)]">{copy.noTasks}</p>
+                  </div>
+                ) : (
               tasks.map((task) => (
                 <div key={task.id}>
                   <div
@@ -756,28 +704,12 @@ export default function DashboardPage() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (window.confirm("Are you sure you want to delete this task?")) {
-                                  deleteTask(task.id)
-                                    .then(() => {
-                                      setTasks((prev) => {
-                                        const next = prev.filter((t) => t.id !== task.id);
-                                        persistLocalTasks(next);
-                                        return next;
-                                      });
-                                    })
-                                    .catch(() => {
-                                      setTasks((prev) => {
-                                        const next = prev.filter((t) => t.id !== task.id);
-                                        persistLocalTasks(next);
-                                        return next;
-                                      });
-                                    });
-                                }
+                                setTaskToDeleteId(task.id);
                               }}
-                              className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-2 py-1"
+                              className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-2 py-1 hover:bg-red-50"
                               aria-label="Delete task"
                             >
-                              <Trash2 size={13} strokeWidth={2} />
+                              <Trash2 size={13} strokeWidth={2} className="text-red-500" />
                             </button>
                             {editingTaskId === task.id ? (
                               <>
@@ -800,7 +732,6 @@ export default function DashboardPage() {
                                     };
                                     setTasks((prev) => {
                                       const next = prev.map((t) => (t.id === task.id ? updatedTask : t));
-                                      persistLocalTasks(next);
                                       return next;
                                     });
                                     setEditingTaskId(null);
@@ -854,18 +785,46 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <div className="mt-5 flex flex-wrap gap-3">
-            <button onClick={() => setShowAddTask(true)} className="candy-button inline-flex h-12 items-center justify-center px-5 text-sm leading-none">{copy.addNewTask}</button>
-            <Link href="/focus" className="secondary-button inline-flex h-12 items-center justify-center px-5 text-sm font-bold leading-none">{copy.openFocus}</Link>
-          </div>
-        </motion.aside>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <button onClick={() => setShowAddTask(true)} className="candy-button inline-flex h-12 items-center justify-center px-5 text-sm leading-none">{copy.addNewTask}</button>
+                <Link href="/focus" className="secondary-button inline-flex h-12 items-center justify-center px-5 text-sm font-bold leading-none">{copy.openFocus}</Link>
+              </div>
+            </>
+          )}
+          </motion.aside>
+        </div>
 
-        <div className="space-y-6">
+        <div className="flex flex-col gap-6">
           <motion.aside
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.1 }}
-            className="sticker-card bg-white p-6 shadow-[8px_8px_0_0_#D6BCFA]"
+            transition={{ duration: 0.35, delay: 0.18 }}
+            className="sticker-card bg-white p-6 shadow-[8px_8px_0_0_#FCD34D]"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">{copy.aiInsights}</p>
+                <h2 className="mt-1 font-display text-2xl font-black">{copy.simpleRecommendations}</h2>
+              </div>
+              <span className="grid h-10 w-10 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#ECFDF5]">
+                <BrainCircuit size={16} strokeWidth={2.5} />
+              </span>
+            </div>
+
+            <ul className="mt-4 space-y-2 text-sm text-[var(--muted-fg)]">
+              <li className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
+                {copy.insightOne}
+              </li>
+              <li className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
+                {copy.insightTwo}
+              </li>
+            </ul>
+          </motion.aside>
+          <motion.aside
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.12 }}
+            className="sticker-card self-start bg-white p-6 shadow-[8px_8px_0_0_#93C5FD] w-full"
           >
             <div className="flex items-center justify-between">
               <div>
@@ -989,34 +948,46 @@ export default function DashboardPage() {
               </div>
             </div>
           </motion.aside>
-
-          <motion.aside
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.18 }}
-            className="sticker-card bg-white p-6 shadow-[8px_8px_0_0_#FCD34D]"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">{copy.aiInsights}</p>
-                <h2 className="mt-1 font-display text-2xl font-black">{copy.simpleRecommendations}</h2>
-              </div>
-              <span className="grid h-10 w-10 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#ECFDF5]">
-                <BrainCircuit size={16} strokeWidth={2.5} />
-              </span>
-            </div>
-
-            <ul className="mt-4 space-y-2 text-sm text-[var(--muted-fg)]">
-              <li className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
-                {copy.insightOne}
-              </li>
-              <li className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
-                {copy.insightTwo}
-              </li>
-            </ul>
-          </motion.aside>
         </div>
       </section>
+      {/* ── Custom Task Delete Confirmation Modal ── */}
+      {taskToDeleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-[28px] border-2 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B]">
+            <h3 className="font-display text-xl font-black">Delete Task?</h3>
+            <p className="mt-2 text-sm font-semibold text-[var(--muted-fg)]">
+              Are you sure you want to delete this task? This action cannot be undone.
+            </p>
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => setTaskToDeleteId(null)}
+                className="secondary-button flex-1 rounded-[18px] border-2 border-[var(--foreground)] px-4 py-3 font-bold text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const id = taskToDeleteId;
+                  setTaskToDeleteId(null);
+                  // Optimistic remove from UI immediately
+                  setTasks((prev) => prev.filter((t) => t.id !== id));
+                  const delToast = toast.loading("Deleting task...");
+                  deleteTask(id)
+                    .then(() => toast.success("Task deleted.", { id: delToast }))
+                    .catch(() => {
+                      toast.error("Could not delete from server.", { id: delToast });
+                      // Re-fetch to restore correct state
+                      loadDashboard();
+                    });
+                }}
+                className="candy-button flex-1 rounded-[18px] border-2 border-[var(--foreground)] bg-red-500 text-white px-4 py-3 font-bold text-sm hover:bg-red-600"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
