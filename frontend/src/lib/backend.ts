@@ -1,9 +1,15 @@
 import { createClient } from "@/lib/supabase/client";
 import { getXpState } from "@/lib/xp";
 
+// Returns YYYY-MM-DD in Bangladesh Standard Time (UTC+6)
+// BD 12:00 AM = UTC 18:00 of the previous day — all date logic must use this
+function bdDateStr(offsetDays = 0): string {
+  const d = new Date(Date.now() + (6 * 60 - new Date().getTimezoneOffset()) * 60000 + offsetDays * 86400000);
+  return d.toISOString().slice(0, 10);
+}
+
 function localDateStr(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return bdDateStr(0);
 }
 
 const defaultBackendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080";
@@ -118,13 +124,17 @@ export async function getDashboardBootstrap() {
       rawTasks = seeded ?? [];
     }
 
-    // ── Streak logic: increment if logged in on a new day, reset if missed ──
-    const today = localDateStr();
+    // ── Streak logic: BD timezone — day resets at 12AM BST (UTC+6) ──
+    const today = bdDateStr(0);
+    const yesterday = bdDateStr(-1);
     const lastActive = profile?.last_active_at ? profile.last_active_at.slice(0, 10) : null;
-    if (lastActive !== today) {
-      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    // last_active_at is stored as UTC ISO string; convert to BD date for comparison
+    const lastActiveBD = profile?.last_active_at
+      ? new Date(new Date(profile.last_active_at).getTime() + 6 * 3600000).toISOString().slice(0, 10)
+      : null;
+    if (lastActiveBD !== today) {
       const currentStreak = profile?.streak ?? 1;
-      const newStreak = lastActive === yesterday ? currentStreak + 1 : 1;
+      const newStreak = lastActiveBD === yesterday ? currentStreak + 1 : 1;
       await supabase
         .from("profiles")
         .update({ streak: newStreak, last_active_at: new Date().toISOString() })
@@ -501,7 +511,7 @@ export async function completePomodoro(minutes = 25) {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("total_xp,today_xp,total_focus_time,sessions_completed,focus_score")
+      .select("total_xp,today_xp,total_focus_time,sessions_completed,focus_score,streak,last_active_at")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -513,13 +523,14 @@ export async function completePomodoro(minutes = 25) {
       const newFocusScore = Math.min(100, (profile.focus_score ?? 80) + 2);
       const levelState = getXpState(newTotalXp);
 
-      // Streak: increment if first session today
-      const today = localDateStr();
-      const lastActive = profile.last_active_at ? profile.last_active_at.slice(0, 10) : null;
-      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-      const { data: profileStreak } = await supabase.from("profiles").select("streak").eq("id", user.id).maybeSingle();
-      const currentStreak = profileStreak?.streak ?? 1;
-      const newStreak = lastActive === today ? currentStreak : (lastActive === yesterday ? currentStreak + 1 : 1);
+      // Streak: BD timezone — increment if first activity today in BST
+      const today = bdDateStr(0);
+      const yesterday = bdDateStr(-1);
+      const lastActiveBD = profile.last_active_at
+        ? new Date(new Date(profile.last_active_at).getTime() + 6 * 3600000).toISOString().slice(0, 10)
+        : null;
+      const currentStreak = profile.streak ?? 1;
+      const newStreak = lastActiveBD === today ? currentStreak : (lastActiveBD === yesterday ? currentStreak + 1 : 1);
 
       await supabase
         .from("profiles")
