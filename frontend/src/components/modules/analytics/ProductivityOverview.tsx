@@ -94,7 +94,7 @@ export function ProductivityOverview() {
         ] = await Promise.all([
           sb.from("focus_sessions").select("*").eq("user_id", userId),
           sb.from("distraction_logs").select("*").eq("user_id", userId),
-          sb.from("tasks").select("*").eq("user_id", userId),
+          sb.from("academic_tasks").select("*").eq("user_id", userId),
           sb.from("wellness_mood_entries").select("*").eq("user_id", userId),
           sb.from("wellness_logs").select("*").eq("user_id", userId),
           sb.from("transactions").select("*").eq("user_id", userId),

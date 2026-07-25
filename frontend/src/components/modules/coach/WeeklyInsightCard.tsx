@@ -51,12 +51,12 @@ export function WeeklyInsightCard({ userId }: WeeklyInsightCardProps) {
         return;
       }
 
-      const thisMonday = getThisMonday();
       const { data } = await sb
         .from("weekly_reports")
         .select("*")
         .eq("user_id", uid)
-        .eq("week_start", thisMonday)
+        .order("generated_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (data) setReport(data as WeeklyReport);
