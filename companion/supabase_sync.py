@@ -22,6 +22,7 @@ class SupabaseSync:
         url = os.getenv("SUPABASE_URL", "")
         key = os.getenv("SUPABASE_KEY", "")
         self.client = None
+        self.user_id = None
         if create_client and url and "your-supabase" not in url:
             try:
                 self.client = create_client(url, key)
@@ -29,13 +30,25 @@ class SupabaseSync:
             except Exception as e:
                 logger.warning(f"[Focusnyx Companion] Supabase connection failed: {e}")
 
-    def log_event(self, event_type, details):
+    def set_user_id(self, user_id: str):
+        """Set the current user ID for log attribution."""
+        self.user_id = user_id
+
+    def log_event(self, event_type, details, app_name=None, url=None):
         data = {
-            "event_type": event_type,
+            "type": event_type,
             "details": str(details),
             "timestamp": datetime.utcnow().isoformat(),
-            "source": "windows_companion"
+            "blocked_at": datetime.utcnow().isoformat(),
+            "source": "windows_companion",
         }
+        if self.user_id:
+            data["user_id"] = self.user_id
+        if app_name:
+            data["domain"] = app_name
+        if url:
+            data["domain"] = url
+
         if self.client:
             try:
                 self.client.table("distraction_logs").insert(data).execute()

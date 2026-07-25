@@ -636,6 +636,23 @@ export function PomodoroPanel() {
     setDuration(durationMinutes);
   }, [durationMinutes, setDuration]);
 
+  // Fullscreen focus lock overlay — blocks all clicks except number inputs
+  useEffect(() => {
+    if (!isLocked) return;
+
+    const blockNonNumeric = (e: KeyboardEvent) => {
+      // Allow: numbers, backspace, delete, tab, escape (for PIN modal), enter
+      const allowed = /^[0-9]$/.test(e.key) || ["Backspace", "Delete", "Tab", "Enter", "Escape"].includes(e.key);
+      if (!allowed) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    document.addEventListener("keydown", blockNonNumeric, true);
+    return () => document.removeEventListener("keydown", blockNonNumeric, true);
+  }, [isLocked]);
+
   // Prevent closing the web app if locked
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -694,10 +711,11 @@ export function PomodoroPanel() {
 
     // 4. Direct HTTP API sync to Companion App
     if (action === "startFocus") {
+      const storedUserId = (() => { try { return localStorage.getItem("focusnyxUserId") || ""; } catch { return ""; } })();
       fetch("http://localhost:5000/start-focus", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ duration: durationMins || durationMinutes, pin: pinToUse }),
+        body: JSON.stringify({ duration: durationMins || durationMinutes, pin: pinToUse, userId: storedUserId }),
       }).catch(() => {});
     } else if (action === "endFocus") {
       fetch("http://localhost:5000/end-focus", {
@@ -1055,6 +1073,23 @@ export function PomodoroPanel() {
 
   return (
     <section className="space-y-6">
+      {/* Focus lock overlay — blocks all clicks except PIN modal when locked */}
+      {isLocked && !showPinModal && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed inset-0 z-[9999] cursor-not-allowed"
+          style={{ pointerEvents: "all" }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Show PIN modal on any click attempt
+            setPinError("");
+            setEmergencyPinInput("");
+            setShowPinModal(true);
+          }}
+          onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
+        />,
+        document.body
+      )}
       <div className="rounded-[32px] border-2 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B]">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>

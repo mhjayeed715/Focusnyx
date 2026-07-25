@@ -1,4 +1,3 @@
-const BASE = "http://localhost:4000";
 const SUPABASE_URL = "https://vavppeevglpvyfoorfje.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_daFD2p7ydAis9gUmaMtVxQ_OD7ccyze";
 
@@ -40,26 +39,40 @@ export async function syncBlockEvent(
   details?: Record<string, any>
 ): Promise<void> {
   if (!token) return;
-  await fetch(`${BASE}/focus/block-event`, {
+
+  const resolvedDomain = domain || (url ? (() => { try { return new URL(url).hostname; } catch { return url; } })() : "unknown");
+  const now = new Date().toISOString();
+
+  // Write directly to Supabase distraction_logs table
+  await fetch(`${SUPABASE_URL}/rest/v1/distraction_logs`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": SUPABASE_ANON_KEY,
+      "Authorization": `Bearer ${token}`,
+      "Prefer": "return=minimal",
+    },
     body: JSON.stringify({
-      session_id: sessionId,
-      url,
       type,
-      domain: domain || (url ? (() => { try { return new URL(url).hostname; } catch { return url; } })() : "unknown"),
-      details: details || { url, timestamp: new Date().toISOString() },
-      timestamp: Date.now()
+      domain: resolvedDomain,
+      blocked_at: now,
+      timestamp: now,
+      details: details || { url, timestamp: now },
+      source: "chrome_extension",
     }),
-  }).catch((err) => console.warn("[Focusnyx API] Failed to sync block event:", err));
+  }).catch((err) => console.warn("[Focusnyx Extension] Failed to sync block event:", err));
 }
 
 export async function fetchBlocklist(token: string): Promise<string[]> {
   if (!token) return [];
-  const res = await fetch(`${BASE}/blocklist`, {
-    headers: { Authorization: `Bearer ${token}` },
+  // Fetch from Supabase profiles blocklist if available
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=blocklist`, {
+    headers: {
+      "apikey": SUPABASE_ANON_KEY,
+      "Authorization": `Bearer ${token}`,
+    },
   }).catch(() => null);
   if (!res?.ok) return [];
   const data = await res.json();
-  return data.domains ?? [];
+  return data?.[0]?.blocklist ?? [];
 }
