@@ -3,6 +3,13 @@ var SUPABASE_URL = "https://vavppeevglpvyfoorfje.supabase.co";
 var SUPABASE_ANON_KEY = "sb_publishable_daFD2p7ydAis9gUmaMtVxQ_OD7ccyze";
 async function syncBlockEvent(token, sessionId, url, type = "navigation_blocked", domain, details) {
   if (!token) return;
+  let userId = null;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    userId = payload.sub || null;
+  } catch {
+  }
+  if (!userId) return;
   const resolvedDomain = domain || (url ? (() => {
     try {
       return new URL(url).hostname;
@@ -20,10 +27,10 @@ async function syncBlockEvent(token, sessionId, url, type = "navigation_blocked"
       "Prefer": "return=minimal"
     },
     body: JSON.stringify({
+      user_id: userId,
       type,
       domain: resolvedDomain,
       blocked_at: now,
-      timestamp: now,
       details: details || { url, timestamp: now },
       source: "chrome_extension"
     })
