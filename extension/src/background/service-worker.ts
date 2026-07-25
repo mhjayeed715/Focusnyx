@@ -454,7 +454,7 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
       const focusTab = tabs.find(
         (t) => t.url && (t.url.includes("localhost") || t.url.includes("focusnyx") || t.url.includes("vercel.app"))
       );
-      const defaultAppUrl = "http://localhost:3000/focus";
+      const defaultAppUrl = "https://focusnyx.vercel.app/focus";
 
       if (focusTab && focusTab.id) {
         chrome.tabs.update(focusTab.id, { active: true }, () => {

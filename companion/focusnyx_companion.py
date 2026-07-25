@@ -229,7 +229,7 @@ def home():
             <p style="color: #94a3b8; font-size: 13px;">Windows OS-Level Focus Lock Service</p>
             <div class="badge">{status_label}</div>
             <p style="font-size: 12px; color: #cbd5e1;">Listening on <strong>http://localhost:5000</strong></p>
-            <a href="http://localhost:3000/focus" target="_blank" class="btn btn-app">Open Focusnyx Web App</a>
+            <a href="https://focusnyx.vercel.app/focus" target="_blank" class="btn btn-app">Open Focusnyx Web App</a>
             <form action="/shutdown" method="POST">
                 <button type="submit" class="btn btn-stop">Exit & Shutdown Companion</button>
             </form>
@@ -424,7 +424,7 @@ def start_gui():
             messagebox.showinfo("Force Unlock", "System forcefully unlocked.")
 
     def gui_open_app():
-        webbrowser.open("http://localhost:3000/focus")
+        webbrowser.open("https://focusnyx.vercel.app/focus")
 
     # Preset Durations Row (15m, 25m, 45m, 60m)
     preset_frame = tk.Frame(btn_frame, bg="#0f172a")
