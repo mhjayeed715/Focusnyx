@@ -212,7 +212,7 @@ function IconCircle({ icon: Icon, tone }: { icon: LucideIcon; tone: Tone }) {
 }
 
 export default function HomePage() {
-  const [lang, setLang] = useState<"en" | "bn">("en");
+  const { lang } = useLanguage();
   const [isContactOpen, setIsContactOpen] = useState(false);
 
   const copy = localizedCopy[lang];

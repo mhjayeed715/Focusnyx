@@ -66,7 +66,7 @@ export function Footer({ onContactClick, lang = "en" }: FooterProps) {
           <div className="md:col-span-3 lg:col-span-3">
             <h3 className="mb-3 flex items-center gap-2 font-display text-sm font-black uppercase tracking-wider text-[var(--foreground)]">
               <ShieldCheck size={16} strokeWidth={2.5} />
-              Help & Support
+              {isBn ? "সাহায্য ও সাপোর্ট" : "Help & Support"}
             </h3>
             <ul className="space-y-2 text-sm text-[var(--muted-fg)]">
               <li>
@@ -75,7 +75,7 @@ export function Footer({ onContactClick, lang = "en" }: FooterProps) {
                   className="inline-flex items-center gap-2 leading-6 transition-colors hover:text-[var(--foreground)] text-left cursor-pointer font-bold"
                 >
                   <MessageSquareText size={16} strokeWidth={2.5} />
-                  Contact Us
+                  {isBn ? "যোগাযোগ করুন" : "Contact Us"}
                 </button>
               </li>
             </ul>
@@ -85,7 +85,7 @@ export function Footer({ onContactClick, lang = "en" }: FooterProps) {
           <div className="md:col-span-3 lg:col-span-4">
             <h3 className="mb-3 flex items-center gap-2 font-display text-sm font-black uppercase tracking-wider text-[var(--foreground)]">
               <Mail size={16} strokeWidth={2.5} />
-              Get in Touch
+              {isBn ? "যোগাযোগ তথ্য" : "Get in Touch"}
             </h3>
             <ul className="space-y-3 text-xs font-bold text-[var(--muted-fg)]">
               <li className="flex items-center gap-2.5">
@@ -113,14 +113,14 @@ export function Footer({ onContactClick, lang = "en" }: FooterProps) {
 
         {/* Bottom bar */}
         <div className="border-t-2 border-[var(--foreground)] pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-bold text-[var(--muted-fg)]">
-          <p>© 2026 Focusnyx. All rights reserved.</p>
+          <p>{isBn ? "© 2026 Focusnyx। সর্বস্বত্ব সংরক্ষিত।" : "© 2026 Focusnyx. All rights reserved."}</p>
           <div className="flex items-center gap-4">
             <Link href="/privacy" className="hover:text-[var(--foreground)] hover:underline">
-              Privacy Policy
+              {isBn ? "প্রাইভেসি পলিসি" : "Privacy Policy"}
             </Link>
             <span>•</span>
             <Link href="/terms" className="hover:text-[var(--foreground)] hover:underline">
-              Terms of Service
+              {isBn ? "শর্তাবলী" : "Terms of Service"}
             </Link>
           </div>
         </div>
