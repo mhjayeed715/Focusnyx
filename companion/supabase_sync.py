@@ -37,10 +37,14 @@ class SupabaseSync:
     def log_event(self, event_type, details, app_name=None, url=None):
         data = {
             "type": event_type,
-            "details": str(details),
+            "details": {
+                "detail": str(details),
+                "app": app_name or "",
+                "url": url or "",
+                "source": "windows_companion"
+            },
             "timestamp": datetime.utcnow().isoformat(),
             "blocked_at": datetime.utcnow().isoformat(),
-            "source": "windows_companion",
         }
         if self.user_id:
             data["user_id"] = self.user_id

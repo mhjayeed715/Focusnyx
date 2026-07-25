@@ -41,15 +41,19 @@ export async function GET(req: NextRequest) {
     const days = parseInt(searchParams.get("days") || "7", 10);
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
-    const { data: distractions, error } = await sb
+    let { data: distractions, error } = await sb
       .from("distraction_logs")
       .select("*")
       .eq("user_id", userId)
-      .gte("blocked_at", since)
-      .order("blocked_at", { ascending: true });
+      .or(`blocked_at.gte.${since},timestamp.gte.${since}`);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      // Fallback query if OR query fails on older Supabase schemas
+      const fallbackRes = await sb
+        .from("distraction_logs")
+        .select("*")
+        .eq("user_id", userId);
+      distractions = fallbackRes.data || [];
     }
 
     const logs = distractions || [];
@@ -94,14 +98,16 @@ export async function GET(req: NextRequest) {
       tab_switch_blocked: "Tab Switch",
       new_tab_blocked: "New Tab",
       navigation_blocked: "URL Change",
-      app_killed: "App Opened",
+      app_killed: "App Terminated",
+      process_terminated: "App Terminated",
+      process_killed: "App Terminated",
       window_switch: "App Switch",
       unknown: "Other",
     };
 
     const byType: Array<{ name: string; value: number; raw: string }> =
       Object.entries(typeMap).map(([key, count]) => ({
-        name: typeLabels[key] || key,
+        name: typeLabels[key] || (key.length > 25 ? key.substring(0, 25) + "..." : key),
         value: Number(count),
         raw: key,
       }));
