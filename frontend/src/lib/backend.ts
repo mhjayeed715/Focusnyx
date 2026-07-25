@@ -118,6 +118,20 @@ export async function getDashboardBootstrap() {
       rawTasks = seeded ?? [];
     }
 
+    // ── Streak logic: increment if logged in on a new day, reset if missed ──
+    const today = localDateStr();
+    const lastActive = profile?.last_active_at ? profile.last_active_at.slice(0, 10) : null;
+    if (lastActive !== today) {
+      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      const currentStreak = profile?.streak ?? 1;
+      const newStreak = lastActive === yesterday ? currentStreak + 1 : 1;
+      await supabase
+        .from("profiles")
+        .update({ streak: newStreak, last_active_at: new Date().toISOString() })
+        .eq("id", user.id);
+      if (profile) profile.streak = newStreak;
+    }
+
     const totalXp = profile?.total_xp ?? 0;
     const levelState = getXpState(totalXp);
 
@@ -499,6 +513,14 @@ export async function completePomodoro(minutes = 25) {
       const newFocusScore = Math.min(100, (profile.focus_score ?? 80) + 2);
       const levelState = getXpState(newTotalXp);
 
+      // Streak: increment if first session today
+      const today = localDateStr();
+      const lastActive = profile.last_active_at ? profile.last_active_at.slice(0, 10) : null;
+      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      const { data: profileStreak } = await supabase.from("profiles").select("streak").eq("id", user.id).maybeSingle();
+      const currentStreak = profileStreak?.streak ?? 1;
+      const newStreak = lastActive === today ? currentStreak : (lastActive === yesterday ? currentStreak + 1 : 1);
+
       await supabase
         .from("profiles")
         .update({
@@ -508,6 +530,7 @@ export async function completePomodoro(minutes = 25) {
           total_focus_time: newTotalFocusTime,
           sessions_completed: newSessionsCompleted,
           focus_score: newFocusScore,
+          streak: newStreak,
           last_active_at: new Date().toISOString(),
         })
         .eq("id", user.id);
