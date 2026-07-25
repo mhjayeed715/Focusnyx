@@ -1,7 +1,8 @@
 import * as esbuild from "esbuild";
 
 const watch = process.argv.includes("--watch");
-const ctx = await esbuild.context({
+
+const config = {
   entryPoints: {
     "background/service-worker": "src/background/service-worker.ts",
     "content/overlay": "src/content/overlay.ts",
@@ -13,12 +14,13 @@ const ctx = await esbuild.context({
   target: "chrome120",
   sourcemap: watch ? "inline" : false,
   logLevel: "info",
-});
+};
 
 if (watch) {
+  const ctx = await esbuild.context(config);
   await ctx.watch();
   console.log("Watching for changes...");
 } else {
-  await ctx.rebuild();
-  await ctx.dispose();
+  await esbuild.build(config);
+  console.log("Build complete.");
 }
