@@ -306,10 +306,9 @@ def start_gui():
     if not HAS_TKINTER:
         return
 
-    # Register AppUserModelID so Windows Taskbar uses Focusnyx icon instead of default feather
+    # Must be called BEFORE tk.Tk() so Windows taskbar uses Focusnyx icon, not the default feather
     try:
-        myappid = 'focusnyx.companion.desktop.app'
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('focusnyx.companion.app.1.0')
     except Exception:
         pass
 
@@ -319,32 +318,24 @@ def start_gui():
     root.geometry("480x620")
     root.configure(bg="#0f172a")
 
-    # Set AppUserModelID so Windows Taskbar displays the Focusnyx icon instead of Tk feather
-    try:
-        myappid = 'focusnyx.companion.app.1.0'
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
-    except Exception:
-        pass
-
-    # Set App Window & Taskbar Icon
-    png_path = get_asset_path("icon-128.png")
+    # Set window & taskbar icon
     ico_path = get_asset_path("icon.ico")
+    png_path = get_asset_path("icon-128.png")
+
+    if os.path.exists(ico_path):
+        try:
+            root.iconbitmap(default=ico_path)
+        except Exception:
+            pass
 
     try:
         if os.path.exists(png_path) and 'ImageTk' in globals():
             img = Image.open(png_path)
             photo = ImageTk.PhotoImage(img)
             root.iconphoto(True, photo)
-            root._app_icon = photo  # Keep reference to prevent GC
+            root._app_icon = photo
     except Exception as e:
         logger.warning(f"Failed to set iconphoto: {e}")
-
-    if os.path.exists(ico_path):
-        try:
-            root.iconbitmap(ico_path)
-            root.iconbitmap(default=ico_path)
-        except Exception:
-            pass
 
     # Header
     header_frame = tk.Frame(root, bg="#1e293b")
