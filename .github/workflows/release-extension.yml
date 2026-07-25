@@ -1,4 +1,4 @@
-name: Release Chrome Extension
+name: Release Focusnyx
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - "v*"
 
 jobs:
-  build-and-release:
+  build-extension:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,8 +33,60 @@ jobs:
             src/popup/popup.html \
             src/popup/popup.css
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: focusnyx-extension
+          path: focusnyx-extension.zip
+
+  build-companion:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        working-directory: companion
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Build companion exe
+        working-directory: companion
+        run: |
+          pyinstaller --noconfirm --onefile --windowed `
+            --name "FocusnyxCompanion" `
+            --icon "assets/icon.ico" `
+            --add-data "assets;assets" `
+            focusnyx_companion.py
+
+      - name: Package companion zip
+        working-directory: companion
+        run: |
+          Compress-Archive -Path dist\FocusnyxCompanion.exe, .env.example, requirements.txt `
+            -DestinationPath ..\focusnyx-companion-windows.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: focusnyx-companion
+          path: focusnyx-companion-windows.zip
+
+  release:
+    needs: [build-extension, build-companion]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: focusnyx-extension
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: focusnyx-companion
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: focusnyx-extension.zip
+          files: |
+            focusnyx-extension.zip
+            focusnyx-companion-windows.zip
           generate_release_notes: true
