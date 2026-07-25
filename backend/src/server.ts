@@ -26,17 +26,22 @@ export function buildServer() {
   app.use(express.json());
   app.use(morgan("dev"));
 
-  app.use("/health", healthRoutes);
-  app.use("/auth", authRoutes);
-  app.use("/tasks", tasksRoutes);
-  app.use("/focus", focusRoutes);
-  app.use("/notes", notesRoutes);
-  app.use("/finance", financeRoutes);
-  app.use("/wellness", wellnessRoutes);
-  app.use("/coach", coachRoutes);
-  app.use("/analytics", analyticsRoutes);
-  app.use("/blocklist", blocklistRoutes);
-  app.use("/academic", academicRoutes);
+  const router = express.Router();
+  router.use("/health", healthRoutes);
+  router.use("/auth", authRoutes);
+  router.use("/tasks", tasksRoutes);
+  router.use("/focus", focusRoutes);
+  router.use("/notes", notesRoutes);
+  router.use("/finance", financeRoutes);
+  router.use("/wellness", wellnessRoutes);
+  router.use("/coach", coachRoutes);
+  router.use("/analytics", analyticsRoutes);
+  router.use("/blocklist", blocklistRoutes);
+  router.use("/academic", academicRoutes);
+
+  app.use("/", router);
+  app.use("/api/backend", router);
+  app.use("/api", router);
 
   app.use(errorHandler);
 
