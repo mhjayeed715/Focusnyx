@@ -55,14 +55,21 @@ export function DistractionPatterns({ userId }: DistractionPatternsProps) {
 
     try {
       let uid = userId;
+      let token = "";
+
+      const sb = createClient();
       if (!uid) {
-        const sb = createClient();
         const { data: { user } } = await sb.auth.getUser();
         uid = user?.id;
       }
+      const { data: { session } } = await sb.auth.getSession();
+      token = session?.access_token ?? "";
 
-      const queryUid = uid ? `userId=${uid}&` : "";
-      const res = await fetch(`/api/distraction-patterns?${queryUid}days=${range}`);
+      if (!uid) throw new Error("Not authenticated");
+
+      const res = await fetch(`/api/distraction-patterns?userId=${uid}&days=${range}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const json = await res.json();
 
       if (!res.ok) throw new Error(json.error || "Failed to load patterns");

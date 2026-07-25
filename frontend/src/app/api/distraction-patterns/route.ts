@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
@@ -8,33 +8,38 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey =
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
 
-    const sb = createServerClient(supabaseUrl, supabaseKey, {
-      cookies: {
-        getAll() {
-          return req.cookies.getAll();
-        },
-        setAll() {},
-      },
-    });
+    // Accept Bearer token from Authorization header (client passes it directly)
+    const authHeader = req.headers.get("authorization") ?? "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
-    const {
-      data: { user },
-    } = await sb.auth.getUser();
+    let userId = searchParams.get("userId");
 
-    let userId = searchParams.get("userId") || user?.id;
+    // If no userId in query, decode it from the JWT
+    if (!userId && token) {
+      try {
+        const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64").toString());
+        userId = payload.sub ?? null;
+      } catch { }
+    }
 
     if (!userId) {
       return NextResponse.json({ error: "Missing userId" }, { status: 400 });
     }
 
+    // Use service role key if available so RLS doesn't block server reads,
+    // otherwise fall back to anon key with the user token
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const sb = serviceKey
+      ? createClient(supabaseUrl, serviceKey)
+      : createClient(supabaseUrl, supabaseKey, {
+          global: { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+        });
+
     const days = parseInt(searchParams.get("days") || "7", 10);
-    const since = new Date(
-      Date.now() - days * 24 * 60 * 60 * 1000
-    ).toISOString();
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
     const { data: distractions, error } = await sb
       .from("distraction_logs")
