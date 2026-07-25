@@ -7,6 +7,7 @@ type FocusContextType = {
   totalSeconds: number;
   isRunning: boolean;
   isLocked: boolean;
+  hasStarted: boolean;
   activeTaskId: string;
   minutes: number;
   seconds: number;
@@ -45,7 +46,10 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     return () => window.clearInterval(timer);
   }, [isRunning, endTime]);
 
+  const [hasStarted, setHasStarted] = useState(false);
+
   const start = useCallback(() => {
+    setHasStarted(true);
     setIsRunning(true);
     setEndTime(Date.now() + totalSeconds * 1000);
   }, [totalSeconds]);
@@ -54,14 +58,18 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     setIsRunning(false);
     setEndTime(null);
   }, []);
+
   const reset = useCallback((nextMinutes?: number) => {
+    setHasStarted(false);
     setIsRunning(false);
     setEndTime(null);
-    setTotalSeconds((nextMinutes ?? defaultMinutes) * 60);
+    const secs = (nextMinutes ?? defaultMinutes) * 60;
+    setTotalSeconds(secs);
   }, [defaultMinutes]);
 
   const setDuration = useCallback((nextMinutes: number) => {
     setDefaultMinutes(nextMinutes);
+    setHasStarted(false);
     setIsRunning(false);
     setEndTime(null);
     setTotalSeconds(nextMinutes * 60);
@@ -70,7 +78,8 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
   const syncState = useCallback((nextSeconds: number, running: boolean) => {
     setTotalSeconds(nextSeconds);
     setIsRunning(running);
-    if (running) {
+    if (running && nextSeconds > 0) {
+      setHasStarted(true);
       setEndTime(Date.now() + nextSeconds * 1000);
     } else {
       setEndTime(null);
@@ -84,6 +93,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         totalSeconds,
         isRunning,
         isLocked,
+        hasStarted,
         activeTaskId,
         minutes: Math.floor(totalSeconds / 60),
         seconds: totalSeconds % 60,
