@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { getXpState } from "@/lib/xp";
 
 function localDateStr(): string {
   const d = new Date();
@@ -34,91 +35,416 @@ export async function backendRequest(path: string, init: RequestInit = {}) {
 }
 
 export async function getDashboardBootstrap() {
-  const response = await backendRequest("/auth/me");
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!response.ok) {
-    throw new Error("Unable to load the dashboard.");
+  if (user) {
+    let { data: profile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!profile) {
+      const email = user.email || "student@example.com";
+      const fullName = (user.user_metadata?.full_name as string) || email.split("@")[0] || "Student";
+      const { data: insertedProfile } = await supabase
+        .from("profiles")
+        .insert({
+          id: user.id,
+          university_email: email,
+          display_name: fullName,
+        })
+        .select("*")
+        .single();
+      profile = insertedProfile;
+    }
+
+    let { data: rawTasks } = await supabase
+      .from("academic_tasks")
+      .select("id,title,subject,estimated_minutes,xp_reward,is_completed,subtasks,created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true });
+
+    if (!rawTasks || rawTasks.length === 0) {
+      const starterRows = [
+        {
+          user_id: user.id,
+          title: "Complete Focus Session",
+          subject: "Focus",
+          estimated_minutes: 25,
+          xp_reward: 100,
+          is_completed: false,
+          subtasks: [
+            { id: "sub-1", title: "Set timer", completed: false },
+            { id: "sub-2", title: "Focus without distraction", completed: false }
+          ]
+        }
+      ];
+      await supabase.from("academic_tasks").insert(starterRows);
+      const { data: seeded } = await supabase
+        .from("academic_tasks")
+        .select("id,title,subject,estimated_minutes,xp_reward,is_completed,subtasks,created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true });
+      rawTasks = seeded ?? [];
+    }
+
+    const totalXp = profile?.total_xp ?? 0;
+    const levelState = getXpState(totalXp);
+
+    const formattedProfile = {
+      id: user.id,
+      email: profile?.university_email ?? user.email ?? "",
+      fullName: profile?.display_name ?? (user.user_metadata?.full_name as string) ?? "Student",
+      level: levelState.level,
+      totalXp,
+      todayXp: profile?.today_xp ?? 0,
+      streak: profile?.streak ?? 1,
+      focusScore: profile?.focus_score ?? 80,
+      completedTasksToday: profile?.completed_tasks_today ?? 0,
+      totalFocusTime: profile?.total_focus_time ?? 0,
+      sessionsCompleted: profile?.sessions_completed ?? 0,
+      xpIntoLevel: levelState.xpIntoLevel,
+      xpNeededForNextLevel: levelState.xpNeededForNextLevel,
+      xpProgressPercent: levelState.xpProgressPercent,
+      emergencyPin: profile?.emergency_pin ?? "123456",
+    };
+
+    const formattedTasks = (rawTasks ?? []).map((t) => ({
+      id: t.id,
+      title: t.title,
+      subject: t.subject,
+      estimate: t.estimated_minutes ?? 25,
+      xp: t.xp_reward ?? Math.max(20, (t.estimated_minutes ?? 25) * 4),
+      completed: Boolean(t.is_completed),
+      subtasks: Array.isArray(t.subtasks)
+        ? t.subtasks.map((st: any, index: number) => ({
+            id: st.id ?? `sub-${t.id}-${index}`,
+            title: typeof st === "string" ? st : (st.title || ""),
+            completed: Boolean(st.completed),
+          }))
+        : [],
+    }));
+
+    return { profile: formattedProfile, tasks: formattedTasks };
   }
 
-  return response.json() as Promise<{
-    profile: {
-      id: string;
-      email: string;
-      fullName: string;
-      level: number;
-      totalXp: number;
-      todayXp: number;
-      streak: number;
-      focusScore: number;
-      completedTasksToday: number;
-      totalFocusTime: number;
-      sessionsCompleted: number;
-      xpIntoLevel: number;
-      xpNeededForNextLevel: number;
-      xpProgressPercent: number;
-      emergencyPin?: string;
-    };
-    tasks: Array<{
-      id: string;
-      title: string;
-      subject: string;
-      estimate: number;
-      xp: number;
-      completed: boolean;
-      subtasks: Array<{ id: string; title: string; completed: boolean }>;
+  try {
+    const response = await backendRequest("/auth/me");
+    if (!response.ok) {
+      throw new Error("Unable to load the dashboard.");
+    }
+    return response.json() as Promise<{
+      profile: {
+        id: string;
+        email: string;
+        fullName: string;
+        level: number;
+        totalXp: number;
+        todayXp: number;
+        streak: number;
+        focusScore: number;
+        completedTasksToday: number;
+        totalFocusTime: number;
+        sessionsCompleted: number;
+        xpIntoLevel: number;
+        xpNeededForNextLevel: number;
+        xpProgressPercent: number;
+        emergencyPin?: string;
+      };
+      tasks: Array<{
+        id: string;
+        title: string;
+        subject: string;
+        estimate: number;
+        xp: number;
+        completed: boolean;
+        subtasks: Array<{ id: string; title: string; completed: boolean }>;
+      }>;
     }>;
-  }>;
+  } catch (err) {
+    throw err;
+  }
 }
 
 export async function syncDashboardProfile() {
-  const response = await backendRequest("/auth/sync", { method: "POST" });
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!response.ok) {
-    throw new Error("Unable to sync profile.");
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profile) {
+      return { profile: { fullName: profile.display_name } };
+    }
   }
 
-  return response.json() as Promise<{ profile: { fullName: string } }>;
+  try {
+    const response = await backendRequest("/auth/sync", { method: "POST" });
+    if (!response.ok) {
+      throw new Error("Unable to sync profile.");
+    }
+    return response.json() as Promise<{ profile: { fullName: string } }>;
+  } catch (err) {
+    throw err;
+  }
 }
 
 export async function updateTask(taskId: string, body: Record<string, unknown>) {
-  const response = await backendRequest(`/tasks/${taskId}`, {
-    method: "PATCH",
-    body: JSON.stringify(body),
-  });
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!response.ok) {
-    throw new Error("Unable to update task.");
+  if (user) {
+    const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(taskId);
+    if (!isUuid) {
+      return { task: { id: taskId, ...body } };
+    }
+
+    const updates: Record<string, unknown> = {};
+    if (typeof body.completed === "boolean") {
+      updates.is_completed = body.completed;
+    }
+    if (typeof body.title === "string" && body.title.trim()) {
+      updates.title = body.title.trim();
+    }
+    if (typeof body.subject === "string" && body.subject.trim()) {
+      updates.subject = body.subject.trim();
+    }
+    if (body.estimate !== undefined || body.estimated_minutes !== undefined) {
+      const est = Number(body.estimate ?? body.estimated_minutes);
+      if (Number.isFinite(est) && est > 0) {
+        updates.estimated_minutes = Math.round(est);
+        updates.xp_reward = Math.max(20, Math.round(est) * 4);
+      }
+    }
+    if (body.subtasks !== undefined && Array.isArray(body.subtasks)) {
+      updates.subtasks = body.subtasks;
+    }
+
+    const { data: existingTask } = await supabase
+      .from("academic_tasks")
+      .select("id,xp_reward,is_completed")
+      .eq("id", taskId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    const { data, error } = await supabase
+      .from("academic_tasks")
+      .update(updates)
+      .eq("id", taskId)
+      .eq("user_id", user.id)
+      .select("id,title,subject,estimated_minutes,xp_reward,is_completed,subtasks,created_at")
+      .single();
+
+    if (!error && data) {
+      if (body.completed === true && existingTask && !existingTask.is_completed) {
+        const { data: profileRow } = await supabase
+          .from("profiles")
+          .select("total_xp,today_xp,completed_tasks_today,focus_score")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        const xpReward = data.xp_reward ?? 25;
+        const newTotalXp = (profileRow?.total_xp ?? 0) + xpReward;
+        const newTodayXp = (profileRow?.today_xp ?? 0) + xpReward;
+        const newCompletedCount = (profileRow?.completed_tasks_today ?? 0) + 1;
+        const newFocusScore = Math.min(100, (profileRow?.focus_score ?? 80) + 1);
+        const levelState = getXpState(newTotalXp);
+
+        await supabase
+          .from("profiles")
+          .update({
+            level: levelState.level,
+            total_xp: newTotalXp,
+            today_xp: newTodayXp,
+            completed_tasks_today: newCompletedCount,
+            focus_score: newFocusScore,
+            last_active_at: new Date().toISOString(),
+          })
+          .eq("id", user.id);
+      }
+
+      return {
+        task: {
+          id: data.id,
+          title: data.title,
+          subject: data.subject,
+          estimate: data.estimated_minutes,
+          xp: data.xp_reward,
+          completed: data.is_completed,
+          subtasks: Array.isArray(data.subtasks) ? data.subtasks : [],
+        },
+      };
+    }
   }
 
-  return response.json() as Promise<{ task: unknown }>;
+  try {
+    const response = await backendRequest(`/tasks/${taskId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      throw new Error("Unable to update task.");
+    }
+
+    return response.json() as Promise<{ task: unknown }>;
+  } catch (err) {
+    throw err;
+  }
 }
 
 export async function createTask(body: Record<string, unknown>) {
-  const response = await backendRequest("/tasks", {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!response.ok) {
-    throw new Error("Unable to create task.");
+  if (user) {
+    const title = typeof body.title === "string" ? body.title.trim() : "";
+    const subject = typeof body.subject === "string" && body.subject.trim() ? body.subject.trim() : "Focus";
+    const estimate = Math.max(5, Math.round(Number(body.estimate ?? body.estimated_minutes ?? 25)));
+    const rawSubtasks = Array.isArray(body.subtasks) ? body.subtasks : [];
+    const subtasks = rawSubtasks.map((st: any, index: number) => ({
+      id: typeof st === "object" && st?.id ? st.id : `sub-${Date.now()}-${index}`,
+      title: typeof st === "string" ? st.trim() : (st?.title || "").trim(),
+      completed: typeof st === "object" && Boolean(st?.completed),
+    })).filter((s: any) => s.title !== "");
+
+    const xpReward = Math.max(20, estimate * 4);
+
+    const { data, error } = await supabase
+      .from("academic_tasks")
+      .insert({
+        user_id: user.id,
+        title: title || "Untitled task",
+        subject,
+        estimated_minutes: estimate,
+        xp_reward: xpReward,
+        is_completed: false,
+        subtasks,
+      })
+      .select("id,title,subject,estimated_minutes,xp_reward,is_completed,subtasks,created_at")
+      .single();
+
+    if (!error && data) {
+      return {
+        task: {
+          id: data.id,
+          title: data.title,
+          subject: data.subject,
+          estimate: data.estimated_minutes,
+          xp: data.xp_reward,
+          completed: data.is_completed,
+          subtasks: Array.isArray(data.subtasks) ? data.subtasks : [],
+        },
+      };
+    }
   }
 
-  return response.json() as Promise<{ task: unknown }>;
+  try {
+    const response = await backendRequest("/tasks", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      throw new Error("Unable to create task.");
+    }
+
+    return response.json() as Promise<{ task: unknown }>;
+  } catch (err) {
+    throw err;
+  }
 }
 
 export async function deleteTask(taskId: string) {
-  const response = await backendRequest(`/tasks/${taskId}`, {
-    method: "DELETE",
-  });
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!response.ok) {
-    throw new Error("Unable to delete task.");
+  if (user) {
+    const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(taskId);
+    if (!isUuid) {
+      return { task: { id: taskId } };
+    }
+
+    const { error } = await supabase
+      .from("academic_tasks")
+      .delete()
+      .eq("id", taskId)
+      .eq("user_id", user.id);
+
+    if (!error) {
+      return { task: { id: taskId } };
+    }
   }
 
-  return response.json() as Promise<{ task: unknown }>;
+  try {
+    const response = await backendRequest(`/tasks/${taskId}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      throw new Error("Unable to delete task.");
+    }
+
+    return response.json() as Promise<{ task: unknown }>;
+  } catch (err) {
+    throw err;
+  }
 }
 
 export async function completePomodoro(minutes = 25) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (user) {
+    const xpReward = Math.max(20, minutes * 4);
+    await supabase.from("focus_sessions").insert({
+      user_id: user.id,
+      started_at: new Date(Date.now() - minutes * 60 * 1000).toISOString(),
+      ended_at: new Date().toISOString(),
+      planned_minutes: minutes,
+      actual_minutes: minutes,
+    });
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("total_xp,today_xp,total_focus_time,sessions_completed,focus_score")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profile) {
+      const newTotalXp = (profile.total_xp ?? 0) + xpReward;
+      const newTodayXp = (profile.today_xp ?? 0) + xpReward;
+      const newTotalFocusTime = (profile.total_focus_time ?? 0) + minutes;
+      const newSessionsCompleted = (profile.sessions_completed ?? 0) + 1;
+      const newFocusScore = Math.min(100, (profile.focus_score ?? 80) + 2);
+      const levelState = getXpState(newTotalXp);
+
+      await supabase
+        .from("profiles")
+        .update({
+          level: levelState.level,
+          total_xp: newTotalXp,
+          today_xp: newTodayXp,
+          total_focus_time: newTotalFocusTime,
+          sessions_completed: newSessionsCompleted,
+          focus_score: newFocusScore,
+          last_active_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+    }
+
+    return {
+      profile: { focusScore: profile?.focus_score ?? 80 },
+      reward: { xpReward },
+    };
+  }
+
   try {
     const response = await backendRequest("/focus/pomodoro/complete", {
       method: "POST",
@@ -131,15 +457,6 @@ export async function completePomodoro(minutes = 25) {
 
     return response.json() as Promise<{ profile: unknown; reward: unknown }>;
   } catch (err) {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await supabase.from("focus_sessions").insert({
-        user_id: user.id,
-        duration: minutes,
-        completed: true,
-      });
-    }
     throw err;
   }
 }
