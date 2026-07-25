@@ -124,6 +124,13 @@ export function Footer({ onContactClick, lang = "en" }: FooterProps) {
             </Link>
           </div>
         </div>
+
+        {/* Dedication */}
+        <div className="mt-4 text-center text-[11px] font-medium text-[var(--muted-fg)] italic tracking-wide">
+          {isBn 
+            ? "স্টেলা-র প্রতি উৎসর্গীকৃত — যার সাথে ADHD-র অভিজ্ঞতা ফোকাসনিক্স তৈরির অনুপ্রেরণা।" 
+            : "Dedicated to Stella — whose journey with ADHD inspired the creation of Focusnyx."}
+        </div>
       </div>
     </footer>
   );
