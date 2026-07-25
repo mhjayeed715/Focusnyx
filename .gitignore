@@ -9,6 +9,9 @@ dist/
 build/
 coverage/
 
+# Keep compiled extension dist so users can load it without building
+!extension/dist/
+
 # Env
 .env
 .env.*
