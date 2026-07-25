@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
       .from("distraction_logs")
       .select("*")
       .eq("user_id", userId)
-      .or(`timestamp.gte.${since},blocked_at.gte.${since}`)
+      .gte("blocked_at", since)
       .order("blocked_at", { ascending: true });
 
     if (error) {

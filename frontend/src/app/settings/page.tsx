@@ -60,12 +60,15 @@ export default function SettingsPage() {
 
           if (profile) {
             setUserId(user.id);
-            if (profile.emergency_pin) {
+            if (profile.emergency_pin && profile.emergency_pin !== "123456") {
               pin = profile.emergency_pin;
               localStorage.setItem(STORAGE_KEY_PIN, pin);
+              localStorage.setItem(`focusnyxEmergencyPinV1_${user.id}`, pin);
             } else {
-              const savedPin = localStorage.getItem(`focusnyxEmergencyPinV1_${user.id}`);
-              if (savedPin) pin = savedPin;
+              const userPin = localStorage.getItem(`focusnyxEmergencyPinV1_${user.id}`);
+              const globalPin = localStorage.getItem(STORAGE_KEY_PIN);
+              if (userPin && userPin !== "123456") pin = userPin;
+              else if (globalPin && globalPin !== "123456") pin = globalPin;
             }
             if (profile.groq_api_key && !rKey) rKey = profile.groq_api_key;
             if (profile.gemini_api_key && !gKey) gKey = profile.gemini_api_key;
@@ -136,6 +139,7 @@ export default function SettingsPage() {
       localStorage.setItem(STORAGE_KEY_GROQ, groqVal);
       localStorage.setItem(STORAGE_AI_PROVIDER, provVal);
       localStorage.setItem(STORAGE_KEY_PIN, pinVal);
+      if (userId) localStorage.setItem(`focusnyxEmergencyPinV1_${userId}`, pinVal);
 
       // Sync to extension
       window.postMessage({ type: "FOCUSNYX_WEB_APP_ACTION", action: "syncAuth", pin: pinVal }, "*");

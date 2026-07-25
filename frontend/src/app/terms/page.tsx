@@ -106,7 +106,7 @@ export default function TermsPage() {
                   <HelpCircle size={18} /> যেকোনো প্রশ্ন?
                 </h2>
                 <p className="text-xs text-[var(--muted-fg)] leading-relaxed">
-                  আমাদের শর্তাবলী বা সেবার বিষয়ে জানতে মেইল করুন support@focusnyx.app ঠিকানায়।
+                  আমাদের শর্তাবলী বা সেবার বিষয়ে জানতে মেইল করুন mehrabjayeed715@gmail.com ঠিকানায়।
                 </p>
               </section>
             </div>
@@ -155,7 +155,7 @@ export default function TermsPage() {
                   <HelpCircle size={18} /> Have Questions?
                 </h2>
                 <p className="text-xs text-[var(--muted-fg)] leading-relaxed">
-                  For inquiries regarding our Terms of Service, please contact support@focusnyx.app.
+                  For inquiries regarding our Terms of Service, please contact mehrabjayeed715@gmail.com.
                 </p>
               </section>
             </div>

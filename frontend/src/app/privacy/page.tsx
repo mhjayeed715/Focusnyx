@@ -114,7 +114,7 @@ export default function PrivacyPage() {
                   <FileText size={18} /> প্রশ্ন বা তথ্য মুছে ফেলা?
                 </h2>
                 <p className="text-xs text-[var(--muted-fg)] leading-relaxed">
-                  আপনার অ্যাকাউন্ট তথ্য মুছে ফেলতে বা গোপনীয়তা নীতি সম্পর্কিত যেকোনো প্রশ্নের জন্য আমাদের সাথে যোগাযোগ করতে পারেন support@focusnyx.app এ।
+                  আপনার অ্যাকাউন্ট তথ্য মুছে ফেলতে বা গোপনীয়তা নীতি সম্পর্কিত যেকোনো প্রশ্নের জন্য আমাদের সাথে যোগাযোগ করতে পারেন mehrabjayeed715@gmail.com এ।
                 </p>
               </section>
             </div>
@@ -171,7 +171,7 @@ export default function PrivacyPage() {
                   <FileText size={18} /> Questions or Data Erasure?
                 </h2>
                 <p className="text-xs text-[var(--muted-fg)] leading-relaxed">
-                  If you have any questions or would like to request data deletion, feel free to reach out to our team at support@focusnyx.app.
+                  If you have any questions or would like to request data deletion, feel free to reach out to our team at mehrabjayeed715@gmail.com.
                 </p>
               </section>
             </div>

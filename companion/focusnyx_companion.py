@@ -67,7 +67,7 @@ focus_state = {
 # Subsystems
 sync = SupabaseSync()
 keyboard_blocker = KeyboardBlocker()
-process_monitor = ProcessMonitor(log_callback=lambda event_type, app: sync.log_event(event_type, app))
+process_monitor = ProcessMonitor(log_callback=lambda event_type, app: sync.log_event(event_type, app, app_name=app))
 window_manager = WindowManager()
 timer_thread = None
 tray_icon = None
@@ -260,6 +260,9 @@ def start_focus():
     data = request.get_json(silent=True) or {}
     duration = data.get("duration", 25)
     pin = data.get("pin")
+    user_id = data.get("userId") or data.get("user_id")
+    if user_id:
+        sync.set_user_id(user_id)
     success, message = start_focus_session(duration, pin)
     return jsonify({"success": success, "message": message}), (200 if success else 400)
 
