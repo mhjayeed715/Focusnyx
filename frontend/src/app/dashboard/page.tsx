@@ -445,17 +445,23 @@ export default function DashboardPage() {
 
     const toastId = toast.loading("Saving task...");
     try {
-      await createTask({
+      const res = await createTask({
         title: optimisticTask.title,
         subject: optimisticTask.subject,
         estimate: optimisticTask.estimate,
         subtasks: optimisticTask.subtasks.map((s) => s.title),
       });
+
+      const realTask = (res as any)?.task as { id?: string } | undefined;
+      if (realTask?.id) {
+        setTasks((current) =>
+          current.map((t) => (t.id === optimisticTask.id ? { ...t, id: realTask.id! } : t))
+        );
+      }
       toast.success("Task saved!", { id: toastId });
-      await loadDashboard();
-    } catch {
-      toast.error("Could not save task to server.", { id: toastId });
-      // keep optimistic task in local state
+    } catch (err: any) {
+      console.error("Task add error:", err);
+      toast.error(err?.message || "Could not save task to server.", { id: toastId });
     }
   };
 
