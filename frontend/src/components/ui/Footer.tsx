@@ -35,12 +35,12 @@ export function Footer({ onContactClick, lang = "en" }: FooterProps) {
                 </div>
               </div>
               <p className="max-w-md text-xs leading-5 text-[var(--muted-fg)]">
-                {isBn 
-                  ? "আপনার পড়াশোনা এবং একাগ্রতা বজায় রাখার জন্য একটি আধুনিক প্ল্যাটফর্ম।" 
+                {isBn
+                  ? "আপনার পড়াশোনা এবং একাগ্রতা বজায় রাখার জন্য একটি আধুনিক প্ল্যাটফর্ম।"
                   : "Supercharge your productivity, lock out distractions, and master your study sessions with our ADHD-friendly workspace."}
               </p>
             </div>
-            
+
             {/* Social Buttons */}
             <div className="flex items-center gap-3 mt-4">
               <a
@@ -97,10 +97,10 @@ export function Footer({ onContactClick, lang = "en" }: FooterProps) {
                 <span>+8801533652232</span>
               </li>
               <li>
-                <a 
-                  href="https://linkedin.com/in/mhjayeed715" 
-                  target="_blank" 
-                  rel="noreferrer" 
+                <a
+                  href="https://linkedin.com/in/mhjayeed715"
+                  target="_blank"
+                  rel="noreferrer"
                   className="inline-flex items-center gap-2.5 transition-colors hover:text-[var(--foreground)]"
                 >
                   <Linkedin size={14} strokeWidth={2.5} className="text-[var(--foreground)]" />
@@ -127,9 +127,7 @@ export function Footer({ onContactClick, lang = "en" }: FooterProps) {
 
         {/* Dedication */}
         <div className="mt-4 text-center text-[11px] font-medium text-[var(--muted-fg)] italic tracking-wide">
-          {isBn 
-            ? "স্টেলা-র প্রতি উৎসর্গীকৃত — যার সাথে ADHD-র অভিজ্ঞতা ফোকাসনিক্স তৈরির অনুপ্রেরণা।" 
-            : "Dedicated to Stella — whose journey with ADHD inspired the creation of Focusnyx."}
+          Dedicated to Stella
         </div>
       </div>
     </footer>
