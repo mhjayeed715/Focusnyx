@@ -105,7 +105,11 @@ export async function getDashboardBootstrap() {
           ]
         }
       ];
-      await supabase.from("academic_tasks").insert(starterRows);
+      const { error: seedErr } = await supabase.from("academic_tasks").insert(starterRows);
+      if (seedErr && seedErr.code === "PGRST204" && seedErr.message?.includes("subtasks")) {
+        const starterRowsNoSubtasks = starterRows.map(({ subtasks: _, ...rest }) => rest);
+        await supabase.from("academic_tasks").insert(starterRowsNoSubtasks);
+      }
       const { data: seeded } = await supabase
         .from("academic_tasks")
         .select("*")
@@ -236,13 +240,27 @@ export async function updateTask(taskId: string, body: Record<string, unknown>) 
       .eq("user_id", user.id)
       .maybeSingle();
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("academic_tasks")
       .update(updates)
       .eq("id", taskId)
       .eq("user_id", user.id)
       .select("*")
       .maybeSingle();
+
+    if (error && error.code === "PGRST204" && error.message?.includes("subtasks")) {
+      delete updates.subtasks;
+      const retryRes = await supabase
+        .from("academic_tasks")
+        .update(updates)
+        .eq("id", taskId)
+        .eq("user_id", user.id)
+        .select("*")
+        .maybeSingle();
+
+      data = retryRes.data;
+      error = retryRes.error;
+    }
 
     if (!error && data) {
       if (body.completed === true && existingTask && !existingTask.is_completed) {
@@ -328,21 +346,34 @@ export async function createTask(body: Record<string, unknown>) {
 
     const xpReward = Math.max(20, estimate * 4);
 
-    const { data, error } = await supabase
+    const fullPayload: Record<string, unknown> = {
+      user_id: user.id,
+      title: title || "Untitled task",
+      subject,
+      estimated_minutes: estimate,
+      xp_reward: xpReward,
+      is_completed: false,
+      subtasks,
+    };
+
+    let { data, error } = await supabase
       .from("academic_tasks")
-      .insert([
-        {
-          user_id: user.id,
-          title: title || "Untitled task",
-          subject,
-          estimated_minutes: estimate,
-          xp_reward: xpReward,
-          is_completed: false,
-          subtasks,
-        },
-      ])
+      .insert([fullPayload])
       .select("*")
       .maybeSingle();
+
+    if (error && error.code === "PGRST204" && error.message?.includes("subtasks")) {
+      console.warn("Supabase academic_tasks table missing 'subtasks' column. Retrying insert without subtasks...");
+      const { subtasks: _, ...payloadWithoutSubtasks } = fullPayload;
+      const retryRes = await supabase
+        .from("academic_tasks")
+        .insert([payloadWithoutSubtasks])
+        .select("*")
+        .maybeSingle();
+
+      data = retryRes.data;
+      error = retryRes.error;
+    }
 
     if (!error && data) {
       return {
