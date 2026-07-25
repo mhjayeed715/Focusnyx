@@ -385,6 +385,32 @@ chrome.webNavigation?.onErrorOccurred.addListener(async (details) => {
   logDistraction({ type: "navigation_blocked", url: details.url });
 });
 
+async function flushPendingEvents() {
+  const state = await getState();
+  if (!state.token) return;
+
+  const pending: BlockEvent[] = await new Promise((res) =>
+    chrome.storage.local.get("pendingEvents", (d) => res(d.pendingEvents ?? []))
+  );
+
+  if (pending.length === 0) return;
+
+  await chrome.storage.local.set({ pendingEvents: [] });
+
+  for (const event of pending) {
+    let domain = "";
+    try {
+      domain = new URL(event.url).hostname;
+    } catch {
+      domain = event.url || "unknown";
+    }
+    await syncBlockEvent(state.token, event.sessionId, event.url, event.type, domain, {
+      url: event.url,
+      timestamp: new Date(event.timestamp).toISOString(),
+    });
+  }
+}
+
 // Handle runtime messages (Internal & External from web app)
 function handleMessage(request: any, sender: any, sendResponse: (response?: any) => void) {
   if (request.action === "syncAuth") {
@@ -402,6 +428,7 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
       if (request.pin) {
         await chrome.storage.local.set({ pin: request.pin });
       }
+      await flushPendingEvents();
       sendResponse({ ok: true, success: true });
     })();
     return true;

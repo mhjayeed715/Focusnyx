@@ -41,22 +41,16 @@ export async function GET(req: NextRequest) {
     const days = parseInt(searchParams.get("days") || "7", 10);
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
-    let { data: distractions, error } = await sb
+    const { data: rawDistractions } = await sb
       .from("distraction_logs")
       .select("*")
-      .eq("user_id", userId)
-      .or(`blocked_at.gte.${since},timestamp.gte.${since}`);
+      .eq("user_id", userId);
 
-    if (error) {
-      // Fallback query if OR query fails on older Supabase schemas
-      const fallbackRes = await sb
-        .from("distraction_logs")
-        .select("*")
-        .eq("user_id", userId);
-      distractions = fallbackRes.data || [];
-    }
-
-    const logs = distractions || [];
+    const logs = (rawDistractions || []).filter((d: any) => {
+      const t = d.timestamp || d.blocked_at || d.created_at;
+      if (!t) return true;
+      return new Date(t).getTime() >= new Date(since).getTime();
+    });
 
     // Helper to extract log timestamp string
     const getTimestamp = (d: any): string =>

@@ -33,17 +33,19 @@
     function syncAuthFromLocalStorage() {
       try {
         let token = "";
-        let userId = "";
+        let userId = localStorage.getItem("focusnyxUserId") || "";
 
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
-          if (key && (key.includes("supabase.auth.token") || key.includes("sb-") || key.includes("auth"))) {
+          if (key && (key.includes("supabase") || key.includes("sb-") || key.includes("auth"))) {
             const raw = localStorage.getItem(key);
             if (raw) {
               try {
                 const parsed = JSON.parse(raw);
-                token = parsed.access_token || parsed.currentSession?.access_token || parsed.token || "";
-                userId = parsed.user?.id || parsed.user?.email || "";
+                token = parsed.access_token || parsed.currentSession?.access_token || parsed.token || parsed.session?.access_token || "";
+                if (!userId) {
+                  userId = parsed.user?.id || parsed.currentSession?.user?.id || parsed.session?.user?.id || parsed.user?.email || "";
+                }
                 if (token) break;
               } catch {}
             }
@@ -57,7 +59,7 @@
     }
 
     syncAuthFromLocalStorage();
-    setTimeout(syncAuthFromLocalStorage, 2000);
+    setInterval(syncAuthFromLocalStorage, 3000);
 
     let lastActionTimestamp = Date.now();
     function checkLocalStorageAction() {

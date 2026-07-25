@@ -119,8 +119,7 @@ export async function collectWeeklyData(
     supabase
       .from("distraction_logs")
       .select("*")
-      .eq("user_id", userId)
-      .or(`timestamp.gte.${weekStart},blocked_at.gte.${weekStart}`),
+      .eq("user_id", userId),
 
     supabase
       .from("notes")
@@ -147,7 +146,12 @@ export async function collectWeeklyData(
   ]);
 
   const sessions: FocusSessionRow[] = focusRes.data || [];
-  const distractions: DistractionLogRow[] = distractionRes.data || [];
+  const rawDistractions: DistractionLogRow[] = distractionRes.data || [];
+  const distractions: DistractionLogRow[] = rawDistractions.filter((d) => {
+    const t = d.timestamp || d.blocked_at || (d as any).created_at;
+    if (!t) return true;
+    return new Date(t).getTime() >= new Date(weekStart).getTime();
+  });
   const notes: NoteRow[] = notesRes.data || [];
   const wellness: WellnessLogRow[] = wellnessRes.data || [];
   const finances: FinanceRow[] = financeRes.data || [];

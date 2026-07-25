@@ -40,12 +40,26 @@ export async function syncBlockEvent(
 ): Promise<void> {
   if (!token) return;
 
-  // Decode user_id from JWT
+  // Decode user_id from JWT safely (handles base64url in Supabase JWTs)
   let userId: string | null = null;
   try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    userId = payload.sub || null;
-  } catch { }
+    const base64Url = token.split(".")[1];
+    if (base64Url) {
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const pad = base64.length % 4;
+      const padded = pad ? base64 + "=".repeat(4 - pad) : base64;
+      const jsonPayload = decodeURIComponent(
+        atob(padded)
+          .split("")
+          .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+          .join("")
+      );
+      const parsed = JSON.parse(jsonPayload);
+      userId = parsed.sub || parsed.user_id || null;
+    }
+  } catch (e) {
+    console.warn("[Focusnyx Extension] JWT decode warning:", e);
+  }
 
   if (!userId) return;
 
