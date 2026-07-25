@@ -86,6 +86,49 @@ function syncCompanionApp(isStart: boolean, durationMins = 25, pin = "123456") {
   });
 }
 
+const ALLOWED_SYSTEM_DOMAINS = ["localhost", "127.0.0.1", "focusnyx", "vercel.app"];
+
+function isDomainBlocked(url: string, state: FocusState): boolean {
+  if (!state.active || !url) return false;
+
+  if (
+    url.startsWith("chrome-extension://") ||
+    url.startsWith("chrome://") ||
+    url.startsWith("edge://") ||
+    url.startsWith("about:") ||
+    url.startsWith("file://")
+  ) {
+    return false;
+  }
+
+  let hostname = "";
+  try {
+    hostname = new URL(url).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+
+  const isSystemApp = ALLOWED_SYSTEM_DOMAINS.some((allowed) =>
+    hostname.includes(allowed)
+  );
+  if (isSystemApp) return false;
+
+  const blocklist = state.blocklist ?? [];
+  if (blocklist.length === 0) return false;
+
+  return blocklist.some((blockedSite) => {
+    const cleanBlocked = blockedSite
+      .toLowerCase()
+      .replace(/^https?:\/\//, "")
+      .replace(/^www\./, "")
+      .replace(/\/.*$/, "")
+      .trim();
+    const cleanHost = hostname.replace(/^www\./, "").trim();
+    if (!cleanBlocked) return false;
+    return cleanHost === cleanBlocked || cleanHost.endsWith("." + cleanBlocked) || cleanBlocked.includes(cleanHost);
+  });
+}
+
 function domainPattern(domain: string): string {
   const d = domain.replace(/^https?:\/\//, "").replace(/\/$/, "");
   return `||${d}`;
@@ -100,21 +143,9 @@ async function applyRules(state: FocusState): Promise<void> {
   
   const addRules = state.active
     ? [
-        {
-          id: 1,
-          priority: 1,
-          action: { type: chrome.declarativeNetRequest.RuleActionType.BLOCK },
-          condition: {
-            urlFilter: "|http",
-            resourceTypes: [
-              chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
-              chrome.declarativeNetRequest.ResourceType.SUB_FRAME,
-            ],
-          },
-        },
-        ...["localhost", "127.0.0.1", "focusnyx", "vercel.app"].map((domain, i) => ({
-          id: 2 + i,
-          priority: 2,
+        ...ALLOWED_SYSTEM_DOMAINS.map((domain, i) => ({
+          id: 1 + i,
+          priority: 10,
           action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
           condition: {
             urlFilter: `*${domain}*`,
@@ -125,9 +156,9 @@ async function applyRules(state: FocusState): Promise<void> {
           },
         })),
         ...uniqueDomains.map((domain, i) => ({
-          id: 10 + i,
-          priority: 2,
-          action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
+          id: 20 + i,
+          priority: 5,
+          action: { type: chrome.declarativeNetRequest.RuleActionType.BLOCK },
           condition: {
             urlFilter: `*${domain.replace(/^https?:\/\//, "").replace(/\/$/, "")}*`,
             resourceTypes: [
@@ -248,34 +279,7 @@ chrome.webNavigation?.onBeforeNavigate.addListener(async (details) => {
   const state = await getState();
   if (!state.active) return;
 
-  const url = details.url;
-  if (
-    !url || 
-    url.startsWith("chrome-extension://") ||
-    url.startsWith("chrome://") ||
-    url.startsWith("edge://") ||
-    url.startsWith("about:")
-  ) {
-    return;
-  }
-
-  let hostname = "";
-  try {
-    hostname = new URL(url).hostname;
-  } catch {
-    return;
-  }
-
-  const activeDomains = state.blocklist ?? FALLBACK_BLOCKLIST;
-  const isAllowed = ["localhost", "127.0.0.1", "focusnyx", "vercel.app", ...activeDomains].some((allowed) => {
-    const cleanAllowed = allowed.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim();
-    const cleanHost = hostname.toLowerCase().replace(/^www\./, "").trim();
-    if (!cleanAllowed) return false;
-    return cleanHost.includes(cleanAllowed) || cleanAllowed.includes(cleanHost);
-  });
-  const isBlocked = !isAllowed;
-
-  if (isBlocked) {
+  if (isDomainBlocked(details.url, state)) {
     chrome.tabs.update(details.tabId, { url: chrome.runtime.getURL("blocked.html") });
 
     const tabs = await chrome.tabs.query({});
@@ -286,11 +290,11 @@ chrome.webNavigation?.onBeforeNavigate.addListener(async (details) => {
       chrome.tabs.update(focusTab.id, { active: true });
     }
 
-    logDistraction({ type: "navigation_blocked", url });
+    logDistraction({ type: "navigation_blocked", url: details.url });
   }
 });
 
-// Intercept tab creation during focus mode SAFELY & AUTO-CLOSE UNALLOWED
+// Intercept tab creation during focus mode SAFELY
 chrome.tabs.onCreated.addListener(async (tab) => {
   const state = await getState();
   if (!state.active) return;
@@ -301,30 +305,7 @@ chrome.tabs.onCreated.addListener(async (tab) => {
       const currentTab = await chrome.tabs.get(tab.id);
       const url = currentTab.url || currentTab.pendingUrl || "";
 
-      if (
-        !url || 
-        url.startsWith("chrome-extension://") ||
-        url.startsWith("chrome://") ||
-        url.startsWith("edge://") ||
-        url.startsWith("about:")
-      ) {
-        return;
-      }
-
-      let hostname = "";
-      try {
-        hostname = new URL(url).hostname;
-      } catch (e) {
-        return;
-      }
-
-      const activeDomains = state.blocklist ?? FALLBACK_BLOCKLIST;
-      const isAllowed = ["localhost", "127.0.0.1", "focusnyx", "vercel.app", ...activeDomains].some(
-        (allowed) => hostname.includes(allowed) || allowed.includes(hostname)
-      );
-      const isBlocked = !isAllowed;
-
-      if (isBlocked) {
+      if (isDomainBlocked(url, state)) {
         chrome.tabs.update(tab.id, { url: chrome.runtime.getURL("blocked.html") });
 
         // Bring PWA tab back to focus
@@ -349,34 +330,9 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   const state = await getState();
   if (!state.active) return;
 
-  if (changeInfo.url) {
-    const url = changeInfo.url;
-    if (
-      url.startsWith("chrome://") ||
-      url.startsWith("chrome-extension://") ||
-      url.startsWith("edge://") ||
-      url.startsWith("about:")
-    ) {
-      return;
-    }
-
-    let hostname = "";
-    try {
-      hostname = new URL(url).hostname;
-    } catch (e) {
-      return;
-    }
-
-    const activeDomains = state.blocklist ?? FALLBACK_BLOCKLIST;
-    const isAllowed = ["localhost", "127.0.0.1", "focusnyx", "vercel.app", ...activeDomains].some(
-      (allowed) => hostname.includes(allowed) || allowed.includes(hostname)
-    );
-    const isBlocked = !isAllowed;
-
-    if (isBlocked) {
-      chrome.tabs.update(tabId, { url: chrome.runtime.getURL("blocked.html") });
-      logDistraction({ type: "navigation_blocked", url });
-    }
+  if (changeInfo.url && isDomainBlocked(changeInfo.url, state)) {
+    chrome.tabs.update(tabId, { url: chrome.runtime.getURL("blocked.html") });
+    logDistraction({ type: "navigation_blocked", url: changeInfo.url });
   }
 });
 
@@ -389,32 +345,9 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     const tab = await chrome.tabs.get(activeInfo.tabId);
     if (!tab || !tab.url) return;
 
-    if (
-      tab.url.startsWith("chrome://") ||
-      tab.url.startsWith("chrome-extension://") ||
-      tab.url.startsWith("edge://") ||
-      tab.url.startsWith("about:")
-    ) {
-      return;
-    }
+    if (isDomainBlocked(tab.url, state)) {
+      chrome.tabs.update(tab.id, { url: chrome.runtime.getURL("blocked.html") });
 
-    let hostname = "";
-    try {
-      hostname = new URL(tab.url).hostname;
-    } catch (e) {
-      return;
-    }
-
-    const activeDomains = state.blocklist ?? FALLBACK_BLOCKLIST;
-    const isAllowed = ["localhost", "127.0.0.1", "focusnyx", "vercel.app", ...activeDomains].some((allowed) => {
-      const cleanAllowed = allowed.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim();
-      const cleanHost = hostname.toLowerCase().replace(/^www\./, "").trim();
-      if (!cleanAllowed) return false;
-      return cleanHost.includes(cleanAllowed) || cleanAllowed.includes(cleanHost);
-    });
-    const isBlocked = !isAllowed;
-
-    if (isBlocked) {
       const tabs = await chrome.tabs.query({});
       const focusTab = tabs.find(
         (t) => t.url && (t.url.includes("localhost") || t.url.includes("focusnyx") || t.url.includes("vercel.app"))
@@ -442,9 +375,14 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
   if (request.action === "syncAuth") {
     (async () => {
       const currentState = await getState();
+      const nextToken = request.token || currentState.token;
+      const nextUserId = request.userId || currentState.userId;
       await setState({
-        token: request.token || currentState.token,
-        userId: request.userId || currentState.userId,
+        token: nextToken,
+        userId: nextUserId,
+      });
+      await chrome.storage.local.set({
+        userAuth: { token: nextToken, userId: nextUserId }
       });
       if (request.pin) {
         await chrome.storage.local.set({ pin: request.pin });
@@ -510,19 +448,31 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
     return true;
   }
 
-  if (request.action === "closeBlockedTab") {
+  if (request.action === "closeBlockedTab" || request.action === "redirectOrCloseBlockedTab") {
     (async () => {
-      if (sender.tab && sender.tab.id) {
-        chrome.tabs.remove(sender.tab.id, () => {
-          if (chrome.runtime.lastError) {}
-        });
-      }
       const tabs = await chrome.tabs.query({});
       const focusTab = tabs.find(
         (t) => t.url && (t.url.includes("localhost") || t.url.includes("focusnyx") || t.url.includes("vercel.app"))
       );
+      const defaultAppUrl = "http://localhost:3000/focus";
+
       if (focusTab && focusTab.id) {
-        chrome.tabs.update(focusTab.id, { active: true });
+        chrome.tabs.update(focusTab.id, { active: true }, () => {
+          if (chrome.runtime.lastError) {}
+        });
+        if (sender.tab && sender.tab.id) {
+          if (tabs.length > 1) {
+            chrome.tabs.remove(sender.tab.id, () => {
+              if (chrome.runtime.lastError) {}
+            });
+          } else {
+            chrome.tabs.update(sender.tab.id, { url: defaultAppUrl });
+          }
+        }
+      } else {
+        if (sender.tab && sender.tab.id) {
+          chrome.tabs.update(sender.tab.id, { url: defaultAppUrl });
+        }
       }
       sendResponse({ ok: true });
     })();

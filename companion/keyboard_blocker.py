@@ -13,8 +13,15 @@ except ImportError:
 
 try:
     import win32gui
+    import win32process
 except ImportError:
     win32gui = None
+    win32process = None
+
+try:
+    import psutil
+except ImportError:
+    psutil = None
 
 logger = logging.getLogger("focusnyx.keyboard_blocker")
 
@@ -33,19 +40,58 @@ class KeyboardBlocker:
         "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
     }
 
+    # IDEs, Code Editors, Terminals, and System tools to strictly exclude (never treat as Focusnyx window)
+    EXCLUDED_PROCESSES = {
+        "code.exe", "devenv.exe", "idea64.exe", "pycharm64.exe",
+        "webstorm64.exe", "sublime_text.exe", "notepad.exe",
+        "notepad++.exe", "cmd.exe", "powershell.exe",
+        "windows-terminal.exe", "openconsole.exe", "discord.exe",
+        "slack.exe", "telegram.exe", "whatsapp.exe", "explorer.exe"
+    }
+
+    # Supported Web Browsers
+    BROWSER_PROCESSES = {
+        "chrome.exe", "msedge.exe", "firefox.exe", "brave.exe",
+        "opera.exe", "vivaldi.exe", "arc.exe"
+    }
+
     def _is_focusnyx_window(self):
         if not win32gui:
             return False
         try:
             hwnd = win32gui.GetForegroundWindow()
-            if hwnd:
-                title = win32gui.GetWindowText(hwnd).lower()
+            if not hwnd:
+                return False
+
+            proc_name = ""
+            if win32process and psutil:
+                try:
+                    _, pid = win32process.GetWindowThreadProcessId(hwnd)
+                    if pid:
+                        proc_name = psutil.Process(pid).name().lower()
+                except Exception:
+                    pass
+
+            # Explicitly reject IDEs, terminals, and non-browser apps even if "focusnyx" is in the folder name / title
+            if proc_name in self.EXCLUDED_PROCESSES:
+                return False
+
+            title = win32gui.GetWindowText(hwnd).lower()
+
+            # Companion App GUI window itself
+            if ("python" in proc_name or "focusnyxcompanion" in proc_name) and "focusnyx" in title:
+                return True
+
+            # If it's a browser, check that the tab title actually belongs to Focusnyx web app
+            if proc_name in self.BROWSER_PROCESSES or not proc_name:
                 return (
                     "focusnyx" in title
                     or "localhost:3000" in title
                     or "127.0.0.1:3000" in title
                     or "localhost:3001" in title
+                    or "focusnyx.vercel.app" in title
                 )
+
         except Exception:
             pass
         return False

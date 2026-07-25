@@ -83,6 +83,8 @@ export function DistractionPatterns({ userId }: DistractionPatternsProps) {
 
   useEffect(() => {
     fetchData();
+    const interval = setInterval(fetchData, 10000);
+    return () => clearInterval(interval);
   }, [fetchData]);
 
   const CustomTooltip = ({ active, payload, label }: any) => {

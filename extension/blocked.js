@@ -1,8 +1,7 @@
 setTimeout(() => {
-  // Try to redirect to the Focusnyx focus page instead of closing the tab
-  chrome.storage.local.get(["focusState"], (data) => {
-    const state = data.focusState;
-    // Find the Focusnyx PWA tab and switch to it
-    chrome.runtime.sendMessage({ action: "closeBlockedTab" });
-  });
+  try {
+    chrome.runtime.sendMessage({ action: "redirectOrCloseBlockedTab" });
+  } catch (e) {
+    window.location.href = "http://localhost:3000/focus";
+  }
 }, 2000);
