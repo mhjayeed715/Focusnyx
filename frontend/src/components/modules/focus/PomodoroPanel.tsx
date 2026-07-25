@@ -641,16 +641,34 @@ export function PomodoroPanel() {
     if (!isLocked) return;
 
     const blockNonNumeric = (e: KeyboardEvent) => {
-      // Allow: numbers, backspace, delete, tab, escape (for PIN modal), enter
-      const allowed = /^[0-9]$/.test(e.key) || ["Backspace", "Delete", "Tab", "Enter", "Escape"].includes(e.key);
+      const allowed = /^[0-9]$/.test(e.key) || ["Backspace", "Delete", "Tab", "Enter"].includes(e.key);
       if (!allowed) {
         e.preventDefault();
         e.stopPropagation();
       }
+      // Intercept Escape to prevent fullscreen exit — show PIN modal instead
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        setPinError("");
+        setEmergencyPinInput("");
+        setShowPinModal(true);
+      }
+    };
+
+    // Re-enter fullscreen if user somehow exits it while locked
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && isLocked) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
     };
 
     document.addEventListener("keydown", blockNonNumeric, true);
-    return () => document.removeEventListener("keydown", blockNonNumeric, true);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("keydown", blockNonNumeric, true);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
   }, [isLocked]);
 
   // Prevent closing the web app if locked
@@ -777,7 +795,13 @@ export function PomodoroPanel() {
             setIsLocked(true);
             if (typeof data.remaining_seconds === "number" && data.remaining_seconds > 0) {
               syncState(data.remaining_seconds, true);
+              // Push remaining time back to extension so popup stays in sync
+              notifyExtension("startFocus", Math.ceil(data.remaining_seconds / 60), undefined, data.remaining_seconds);
             }
+          } else if (!data.is_active && isSubscribed) {
+            // Companion ended session — unlock PWA too
+            setIsLocked(false);
+            syncState(0, false);
           }
         } else {
           nextInterval = 15000;
