@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://opensource.org/license/apache-2-0"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"/></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"/></a>
   <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Framework-Next.js%2014-black.svg" alt="Next.js"/></a>
   <a href="https://expressjs.com/"><img src="https://img.shields.io/badge/Backend-Express.js-lightgrey.svg" alt="Express"/></a>
   <a href="https://supabase.com/"><img src="https://img.shields.io/badge/Database-Supabase%20%2F%20Postgres-blueviolet.svg" alt="Supabase"/></a>
@@ -38,7 +38,9 @@
 - [Code Structure & Modular Design](#-code-structure--modular-design)
 - [Compatibility & Hardware Hooks](#-compatibility--hardware-hooks)
 - [Installation & Local Setup](#%EF%B8%8F-installation--local-setup)
-- [Manual Screenshot Contribution Guidelines](#%EF%B8%8F-manual-screenshot-contribution-guidelines)
+- [Contributing & Feedback](#-contributing--feedback)
+- [License](#-license)
+- [Author & Maintainer](#-author--maintainer)
 
 ---
 
@@ -427,17 +429,41 @@ Focusnyx achieves high system reliability without requiring kernel-level drivers
 
 ---
 
-## 📸 Manual Screenshot Contribution Guidelines
+---
 
-To ensure the documentation is visual and engaging, please capture screenshots of your local instance and place them inside the repository according to the table below:
+## 🤝 Contributing & Feedback
 
-| Target Component | Page Route / Action | Recommended Asset Path | Description |
-| :--- | :--- | :--- | :--- |
-| **Main Dashboard** | `/dashboard` | `docs/assets/screenshots/dashboard.png` | Overview of daily task lists, XP indicators, and wellness widgets. |
-| **Academic Tracker** | `/academic` | `docs/assets/screenshots/academic_forge.png` | Course entries, SGPA momentum calculator, and grades inputs. |
-| **Notes & Quiz View** | `/notes` | `docs/assets/screenshots/smart_notes_quiz.png` | The notes list showing voice note transcribing and active MCQ quiz cards. |
-| **Detox active lock** | Active Pomodoro session | `docs/assets/screenshots/dopamine_detox_lock.png` | Screen showing blocked website redirect pages or extension overlay indicators. |
-| **AI Chatbot widget** | Open floating drawer | `docs/assets/screenshots/ai_chatbot.png` | Chat screen demonstrating domain validation (e.g. asking for study help vs movies). |
-| **Finance Tracker** | `/finance` | `docs/assets/screenshots/finance_tracker.png` | Monthly budget charts, lending ledger cards, and goals progress circles. |
+Contributions, issues, and feature requests are welcome!  
+Feel free to check the [Issues Page](https://github.com/mhjayeed715/Focusnyx/issues) or submit a Pull Request.
 
-> **Formatting Tip**: When adding screenshots, use clean PNG files, standard browser sizes (1280x720 is ideal), and cropped frames containing only the browser window to maintain design uniformity.
+1. **Fork** the Repository
+2. **Create** your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. **Commit** your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. **Push** to the Branch (`git push origin feature/AmazingFeature`)
+5. **Open** a Pull Request
+
+---
+
+## 📜 License
+
+Distributed under the **MIT License**. See [`LICENSE`](file:///e:/Users/Desktop/AI%20PROJECT/Focusnyx/LICENSE) for details.
+
+```text
+MIT License
+Copyright (c) 2026 S. M. Mehrab Hossain Jayeed
+```
+
+---
+
+## 👨‍💻 Author & Maintainer
+
+**S. M. Mehrab Hossain Jayeed**  
+🎓 *Developed as part of an academic initiative for student productivity & cognitive wellness.*
+
+- 🔗 **GitHub Profile**: [@mhjayeed715](https://github.com/mhjayeed715)
+- 📌 **Repository**: [https://github.com/mhjayeed715/Focusnyx](https://github.com/mhjayeed715/Focusnyx)
+
+---
+
+> 🚧 *Note: Focusnyx is actively maintained and built as part of an academic initiative. Contributions, feedback, and star ⭐ ratings are warmly welcomed!*
+
