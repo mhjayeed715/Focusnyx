@@ -287,6 +287,7 @@ export async function updateTask(taskId: string, body: Record<string, unknown>) 
 
     if (error) {
       console.error("Supabase updateTask error:", error);
+      throw new Error(error.message || "Failed to update task in database.");
     }
   }
 
@@ -301,8 +302,9 @@ export async function updateTask(taskId: string, body: Record<string, unknown>) 
       if (response.ok) {
         return response.json() as Promise<{ task: unknown }>;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Backend updateTask fetch error:", err);
+      throw err;
     }
   }
 
@@ -328,15 +330,17 @@ export async function createTask(body: Record<string, unknown>) {
 
     const { data, error } = await supabase
       .from("academic_tasks")
-      .insert({
-        user_id: user.id,
-        title: title || "Untitled task",
-        subject,
-        estimated_minutes: estimate,
-        xp_reward: xpReward,
-        is_completed: false,
-        subtasks,
-      })
+      .insert([
+        {
+          user_id: user.id,
+          title: title || "Untitled task",
+          subject,
+          estimated_minutes: estimate,
+          xp_reward: xpReward,
+          is_completed: false,
+          subtasks,
+        },
+      ])
       .select("*")
       .maybeSingle();
 
@@ -356,6 +360,7 @@ export async function createTask(body: Record<string, unknown>) {
 
     if (error) {
       console.error("Supabase createTask error:", error);
+      throw new Error(error.message || "Failed to save task to database.");
     }
   }
 
@@ -370,8 +375,9 @@ export async function createTask(body: Record<string, unknown>) {
       if (response.ok) {
         return response.json() as Promise<{ task: unknown }>;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Backend createTask fetch error:", err);
+      throw err;
     }
   }
 
