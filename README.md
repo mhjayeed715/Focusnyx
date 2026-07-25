@@ -467,3 +467,8 @@ Copyright (c) 2026 S. M. Mehrab Hossain Jayeed
 
 > 🚧 *Note: Focusnyx is actively maintained and built as part of an academic initiative. Contributions, feedback, and star ⭐ ratings are warmly welcomed!*
 
+---
+
+<p align="center">
+  <sub style="color: #666;">Dedicated to Stella — whose journey with ADHD inspired the creation of Focusnyx.</sub>
+</p>
