@@ -46,6 +46,10 @@
 
 **Focusnyx** is a modern, enterprise-ready **Student Life OS** and digital cognitive shield designed specifically for university students. Operating as a hybrid system, it merges a Next.js Progressive Web App (PWA) with a Chrome Web Extension (Manifest V3) and a native Windows Python Companion. Focusnyx helps students manage their GPA, tracks wellness indicators, maintains budgets, and enforces a strict, distraction-free **Dopamine Detox** by locking down web browsers and OS environments during focus intervals.
 
+![Homepage](docs/assets/screenshots/homepage.png)
+
+![Main Dashboard](docs/assets/screenshots/dashboard.png)
+
 ---
 
 ## 🛠️ Key Features & Core Modules
@@ -56,10 +60,8 @@ An academic powerhouse that tracks your semester progression and studies:
 - **Academic Tasks**: Manage study items, exams, and projects with integrated subtasks and completion weights.
 - **Gamified Rewards**: Complete tasks to earn Experience Points (XP) and build streaks, leveling up your profile.
 
----
-> [!NOTE]
-> **[UI Screenshot Guide]** Place a screenshot of the *Academic Forge Page* here.
-> File path: `/docs/assets/screenshots/academic_forge.png`
+![Academic Forge Page](docs/assets/screenshots/academic_forge.png)
+
 ---
 
 ### 2. Dopamine Detox Engine
@@ -69,10 +71,8 @@ A strict, dual-layer concentration lock designed to interrupt feedback loops fro
 - **Locked Browser Enforcement**: Forces Chrome/Edge to stay "Always-on-Top" using active Win32 window handles.
 - **Emergency Rescue PIN**: Prevents impulsive exits. The only way to stop a focus lock session prematurely is to enter a pre-configured 6-digit emergency PIN, logging it as an escape event.
 
----
-> [!NOTE]
-> **[UI Screenshot Guide]** Place a screenshot of the *Detox Engine Active Lock State* here.
-> File path: `/docs/assets/screenshots/dopamine_detox_lock.png`
+![Detox Engine Active Lock State](docs/assets/screenshots/dopamine_detox_lock.png)
+
 ---
 
 ### 3. Smart Notes Vault with AI Quiz Generator
@@ -83,10 +83,9 @@ A study-focused notes assistant that transforms typing and speech into active re
   - **Short Q&A practice**: Flashcard style cards for quick conceptual checks.
   - **Broad essay-style questions**: Prepare for university examinations with full structural model answers.
 
----
-> [!NOTE]
-> **[UI Screenshot Guide]** Place a screenshot of the *Smart Notes Dashboard & Quiz Panel* here.
-> File path: `/docs/assets/screenshots/smart_notes_quiz.png`
+![Smart Notes Dashboard & Quiz Panel](docs/assets/screenshots/smart_notes_quiz.png)
+![Smart Notes Dashboard & Quiz Panel](docs/assets/screenshots/smart_notes_quiz2.png)
+
 ---
 
 ### 4. AI Behavioral Coach & Focusnyx AI Chatbot
@@ -97,10 +96,8 @@ An intelligent coaching layer providing structural cognitive behavioral therapy 
 - **Custom API Key Fallback**: Users can paste their personal Groq or Gemini keys in Settings to enjoy unlimited AI chat services.
 - **Weekly Progress Coach**: Correlates notes, finance categories, completed tasks, wellness sleep patterns, and logs of distraction incidents to construct comprehensive weekly reports and behavioral feedback.
 
----
-> [!NOTE]
-> **[UI Screenshot Guide]** Place a screenshot of the *Focusnyx AI Floating Chatbot UI* here.
-> File path: `/docs/assets/screenshots/ai_chatbot.png`
+![Focusnyx AI Floating Chatbot UI](docs/assets/screenshots/ai_chatbot.png)
+
 ---
 
 ### 5. Student Finance Tracker
@@ -110,16 +107,28 @@ A lightweight micro-budget ledger designed to alleviate student financial stress
 - **Lent/Borrowed Debts**: Keep track of pending loans with peers, tracking settled/unsettled statuses.
 - **Savings Goals**: Plan for devices or tuition, adding deposits and tracking target timelines.
 
+![Student Finance Tracker](docs/assets/screenshots/finance_tracker.png)
+
+---
+
 ### 6. Wellness Shield
 Maintains awareness of physiological wellness alongside study logs:
 - **Sleep & Mood Tracker**: Log sleep hours and subjective moods.
 - **Work-Rest Balance**: Graphically visualizes ratios of study hours against rest intervals, identifying burnout thresholds.
+
+![Wellness Shield](docs/assets/screenshots/wellness_shield.png)
+
+---
 
 ### 7. 3-Tier Productivity Analytics
 Transforms passive logs into behavioral insights:
 1. **Tier 1 (Daily Dashboard)**: Displays today's XP gains, task completions, and active focus time.
 2. **Tier 2 (Weekly Analysis)**: Displays distraction log categories, frequency of blocked websites, and sleep duration ratios.
 3. **Tier 3 (Macro Patterns)**: Reveals correlation tables showing how hours slept affect student focus scores and SGPA.
+
+![3-Tier Productivity Analytics](docs/assets/screenshots/analytics1.png)
+![3-Tier Productivity Analytics](docs/assets/screenshots/analytics2.png)
+![3-Tier Productivity Analytics](docs/assets/screenshots/analytics3.png)
 
 ---
 
