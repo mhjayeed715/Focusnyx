@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Focusnyx Focus Lock</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1>Focusnyx</h1>
+      <p>Browser & Desktop Focus Lock</p>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tabFocusBtn">Focus Lock</button>
+      <button class="tab-btn" id="tabSettingsBtn">Auth & Settings</button>
+    </div>
+
+    <!-- TAB 1: FOCUS CONTROLS -->
+    <div id="tabFocus" class="tab-content active">
+      <!-- Status Display -->
+      <div id="statusDisplay" class="status">
+        <span class="status-dot idle" id="statusDot"></span>
+        <span>Status: <strong id="statusText">Inactive</strong></span>
+      </div>
+
+      <!-- Timer Display (only when active) -->
+      <div id="timerDisplay" class="timer-display" style="display: none;">
+        <div class="timer-circle">
+          <span id="timerText">25:00</span>
+        </div>
+        <p id="timerLabel">Focus time remaining</p>
+      </div>
+
+
+
+      <!-- Focus Duration Selection -->
+      <div class="section" id="durationSection">
+        <label>Focus Duration:</label>
+        <div class="duration-buttons">
+          <button class="duration-btn" data-minutes="15">15 min</button>
+          <button class="duration-btn active" data-minutes="25">25 min</button>
+          <button class="duration-btn" data-minutes="45">45 min</button>
+          <button class="duration-btn" data-minutes="60">60 min</button>
+        </div>
+        <div style="margin-top: 10px; display: flex; items-center; gap: 8px;">
+          <input
+            type="number"
+            id="manualDurationInput"
+            placeholder="Custom min"
+            min="1"
+            max="180"
+            class="input-field"
+            style="width: 110px; flex-shrink: 0;"
+          />
+          <span style="font-size: 11px; color: #94a3b8; align-self: center;">Custom minutes (1–180)</span>
+        </div>
+      </div>
+
+
+      <!-- Main Action Buttons -->
+      <button id="focusBtn" class="focus-btn">Start Focus Lock</button>
+
+
+      <!-- Stats -->
+      <div id="statsDisplay" class="stats" style="display: none; margin-top: 10px;">
+        <div class="stat-item">
+          <span class="stat-label">Blocked Attempts</span>
+          <span id="blockCount" class="stat-value">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: AUTH & SETTINGS -->
+    <div id="tabSettings" class="tab-content">
+
+
+      <!-- Authenticated Profile Card -->
+      <div id="authProfileCard" class="section" style="display: none;">
+        <label>Account Profile & Sync</label>
+        <div style="background: rgba(255,255,255,0.06); padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.1);">
+          <div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Status: <strong style="color: #22c55e;">Authenticated</strong></div>
+          <div id="profileEmail" style="font-size: 13px; font-weight: 600; color: #ffffff; word-break: break-all;">user@example.com</div>
+          <div style="font-size: 10px; color: #64748b; margin-top: 4px;">Live Synchronization Active</div>
+        </div>
+        <button id="authLogoutBtn" class="end-focus-btn" style="padding: 8px 12px; font-size: 12px;">Sign Out</button>
+      </div>
+
+      <!-- Unauthenticated Login Form -->
+      <div id="authLoginForm" class="section">
+        <label>PWA Account Authentication</label>
+        <p style="font-size: 11px; color: #94a3b8; margin-bottom: 12px; line-height: 1.4;">
+          Authenticate with your Focusnyx account credentials to synchronize distraction logs and study sessions with your web application dashboard.
+        </p>
+        
+        <input
+          type="email"
+          id="authEmail"
+          placeholder="Email Address"
+          class="input-field"
+          style="margin-bottom: 8px;"
+        />
+        <input
+          type="password"
+          id="authPassword"
+          placeholder="Password"
+          class="input-field"
+          style="margin-bottom: 12px;"
+        />
+        <button id="authLoginBtn" class="primary-btn">Authenticate Account</button>
+        <div id="authStatus" style="font-size: 11px; text-align: center; margin-top: 8px; font-weight: 500;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../dist/popup/popup.js"></script>
+</body>
+</html>

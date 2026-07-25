@@ -40,10 +40,18 @@ export async function syncBlockEvent(
 ): Promise<void> {
   if (!token) return;
 
+  // Decode user_id from JWT
+  let userId: string | null = null;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    userId = payload.sub || null;
+  } catch { }
+
+  if (!userId) return;
+
   const resolvedDomain = domain || (url ? (() => { try { return new URL(url).hostname; } catch { return url; } })() : "unknown");
   const now = new Date().toISOString();
 
-  // Write directly to Supabase distraction_logs table
   await fetch(`${SUPABASE_URL}/rest/v1/distraction_logs`, {
     method: "POST",
     headers: {
@@ -53,10 +61,10 @@ export async function syncBlockEvent(
       "Prefer": "return=minimal",
     },
     body: JSON.stringify({
+      user_id: userId,
       type,
       domain: resolvedDomain,
       blocked_at: now,
-      timestamp: now,
       details: details || { url, timestamp: now },
       source: "chrome_extension",
     }),

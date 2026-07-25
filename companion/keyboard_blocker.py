@@ -27,37 +27,55 @@ class KeyboardBlocker:
         self._thread = None
         self._listener = None
 
+    SYSTEM_SHORTCUTS = {"win", "left windows", "right windows", "ctrl+esc", "alt+esc"}
+
+    def _is_focusnyx_window(self):
+        if not win32gui:
+            return False
+        try:
+            hwnd = win32gui.GetForegroundWindow()
+            if hwnd:
+                title = win32gui.GetWindowText(hwnd).lower()
+                return (
+                    "focusnyx" in title
+                    or "localhost:3000" in title
+                    or "127.0.0.1:3000" in title
+                    or "localhost:3001" in title
+                )
+        except Exception:
+            pass
+        return False
+
     def _filter_keys(self, event):
         if not self.is_blocking:
             return True
 
-        # Check if the active window is Focusnyx (local or web/vercel app)
-        if win32gui:
-            try:
-                hwnd = win32gui.GetForegroundWindow()
-                if hwnd:
-                    title = win32gui.GetWindowText(hwnd).lower()
-                    # If focused on Focusnyx, allow all input except system keys
-                    if "focusnyx" in title or "localhost:3000" in title or "127.0.0.1:3000" in title:
-                        if event.name in ["win", "left windows", "right windows", "alt+tab", "alt+esc", "ctrl+esc"]:
-                            return False
-                        return True
-            except Exception:
-                pass
-
-        # Outside Focusnyx: allow ONLY numbers and basic navigation/editing keys for PIN input correction
         name = event.name.lower() if event.name else ""
 
-        # Allow digits 0-9
-        is_num = (len(name) == 1 and name.isdigit()) or (name.startswith("numpad ") and name.split(" ")[-1].isdigit())
-        if is_num:
+        # Always block OS-level system shortcuts regardless of window
+        if name in self.SYSTEM_SHORTCUTS:
+            return False
+
+        # Block Alt+Tab combination
+        try:
+            import keyboard as kb
+            if name == "tab" and kb.is_pressed("alt"):
+                return False
+        except Exception:
+            pass
+
+        # Inside Focusnyx: allow all normal keyboard input
+        if self._is_focusnyx_window():
             return True
 
-        # Allow navigation / basic entry correction keys for PIN input
-        if name in ["backspace", "delete", "enter", "escape"]:
+        # Outside Focusnyx: block all typing to prevent using other apps
+        # but allow digits and basic keys for any PIN dialogs
+        is_digit = (len(name) == 1 and name.isdigit()) or (
+            name.startswith("numpad ") and name.split(" ")[-1].isdigit()
+        )
+        if is_digit or name in ["backspace", "delete", "enter", "escape"]:
             return True
 
-        # Suppress everything else
         return False
 
     def start_blocking(self):
