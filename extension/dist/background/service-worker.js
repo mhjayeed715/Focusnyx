@@ -31,6 +31,7 @@ async function syncBlockEvent(token, sessionId, url, type = "navigation_blocked"
       type,
       domain: resolvedDomain,
       blocked_at: now,
+      timestamp: now,
       details: details || { url, timestamp: now }
     })
   }).catch((err) => console.warn("[Focusnyx Extension] Failed to sync block event:", err));
@@ -121,7 +122,14 @@ function syncCompanionApp(isStart, durationMins = 25, pin = "123456") {
   }).catch(() => {
   });
 }
-var ALLOWED_SYSTEM_DOMAINS = ["localhost", "127.0.0.1", "focusnyx", "vercel.app"];
+var ALLOWED_SYSTEM_DOMAINS = [
+  "localhost",
+  "127.0.0.1",
+  "focusnyx",
+  "vercel.app",
+  "focusnyx.vercel.app",
+  "focusnyx.com"
+];
 function isDomainBlocked(url, state) {
   if (!state.active || !url) return false;
   if (url.startsWith("chrome-extension://") || url.startsWith("chrome://") || url.startsWith("edge://") || url.startsWith("about:") || url.startsWith("file://")) {
@@ -133,40 +141,44 @@ function isDomainBlocked(url, state) {
   } catch {
     return false;
   }
-  const isSystemApp = ALLOWED_SYSTEM_DOMAINS.some(
-    (allowed) => hostname.includes(allowed)
-  );
-  if (isSystemApp) return false;
-  const blocklist = state.blocklist ?? [];
-  if (blocklist.length === 0) return false;
-  return blocklist.some((blockedSite) => {
-    const cleanBlocked = blockedSite.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim();
+  const allowedList = [
+    ...ALLOWED_SYSTEM_DOMAINS,
+    ...state.allowedUrls || []
+  ];
+  const isAllowed = allowedList.some((allowed) => {
+    const cleanAllowed = allowed.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim();
+    if (!cleanAllowed) return false;
     const cleanHost = hostname.replace(/^www\./, "").trim();
-    if (!cleanBlocked) return false;
-    return cleanHost === cleanBlocked || cleanHost.endsWith("." + cleanBlocked) || cleanBlocked.includes(cleanHost);
+    return cleanHost === cleanAllowed || cleanHost.endsWith("." + cleanAllowed) || cleanHost.includes(cleanAllowed) || cleanAllowed.includes(cleanHost);
   });
+  if (isAllowed) return false;
+  return true;
 }
 async function applyRules(state) {
-  const activeDomains = state.blocklist ?? FALLBACK_BLOCKLIST;
-  const uniqueDomains = Array.from(new Set(activeDomains));
+  const allowedList = [
+    ...ALLOWED_SYSTEM_DOMAINS,
+    ...state.allowedUrls || []
+  ];
   const removeIds = Array.from({ length: 500 }, (_, i) => i + 1);
   const addRules = state.active ? [
-    ...ALLOWED_SYSTEM_DOMAINS.map((domain, i) => ({
-      id: 1 + i,
-      priority: 10,
-      action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
+    // Priority 1: Block all http/https main frames and sub frames by default in Focus Mode
+    {
+      id: 1,
+      priority: 1,
+      action: { type: chrome.declarativeNetRequest.RuleActionType.BLOCK },
       condition: {
-        urlFilter: `*${domain}*`,
+        urlFilter: "|http",
         resourceTypes: [
           chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
           chrome.declarativeNetRequest.ResourceType.SUB_FRAME
         ]
       }
-    })),
-    ...uniqueDomains.map((domain, i) => ({
-      id: 20 + i,
-      priority: 5,
-      action: { type: chrome.declarativeNetRequest.RuleActionType.BLOCK },
+    },
+    // Priority 10: Allow system app domains and user-whitelisted allowed URLs
+    ...allowedList.map((domain, i) => ({
+      id: 10 + i,
+      priority: 10,
+      action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
       condition: {
         urlFilter: `*${domain.replace(/^https?:\/\//, "").replace(/\/$/, "")}*`,
         resourceTypes: [
@@ -207,18 +219,19 @@ async function logDistraction(data) {
   } catch {
     domain = rawUrl || "unknown";
   }
+  const sessionId = state.sessionId || `session-${Date.now()}`;
   const event = {
     type: data.type || "navigation_blocked",
     url: rawUrl,
     timestamp: Date.now(),
-    sessionId: state.sessionId || `session-${Date.now()}`
+    sessionId
   };
   const pending = await new Promise(
     (res) => chrome.storage.local.get("pendingEvents", (d) => res(d.pendingEvents ?? []))
   );
   await chrome.storage.local.set({ pendingEvents: [...pending, event] });
-  if (state.token && state.sessionId) {
-    await syncBlockEvent(state.token, state.sessionId, rawUrl, event.type, domain, {
+  if (state.token) {
+    await syncBlockEvent(state.token, sessionId, rawUrl, event.type, domain, {
       url: rawUrl,
       timestamp: new Date(event.timestamp).toISOString()
     });

@@ -65,6 +65,7 @@ export async function syncBlockEvent(
       type,
       domain: resolvedDomain,
       blocked_at: now,
+      timestamp: now,
       details: details || { url, timestamp: now },
     }),
   }).catch((err) => console.warn("[Focusnyx Extension] Failed to sync block event:", err));
