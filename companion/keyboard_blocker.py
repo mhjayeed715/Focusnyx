@@ -1,12 +1,10 @@
 """
 Focusnyx Windows Companion - Low-Level Keyboard Blocker
 Blocks system shortcut keys (Alt+Tab, Win, Ctrl+Esc, Alt+Esc) during Focus Lock.
-Uses keyboard / pynput hooks on Windows.
+Allows all normal typing inside Focusnyx window.
+Outside Focusnyx: blocks typing but allows scroll/navigation keys.
 """
-import sys
 import logging
-import threading
-import time
 
 try:
     import keyboard
@@ -23,11 +21,17 @@ logger = logging.getLogger("focusnyx.keyboard_blocker")
 class KeyboardBlocker:
     def __init__(self):
         self.is_blocking = False
-        self.hooked_keys = ["alt+tab", "win", "ctrl+esc", "alt+esc"]
-        self._thread = None
-        self._listener = None
 
+    # Keys that switch away from the current app — always blocked
     SYSTEM_SHORTCUTS = {"win", "left windows", "right windows", "ctrl+esc", "alt+esc"}
+
+    # Keys allowed outside Focusnyx: scroll, navigation, digits for PIN dialogs
+    ALLOWED_OUTSIDE = {
+        "up", "down", "left", "right",
+        "page up", "page down", "home", "end",
+        "space", "backspace", "delete", "enter", "escape", "tab",
+        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+    }
 
     def _is_focusnyx_window(self):
         if not win32gui:
@@ -52,11 +56,11 @@ class KeyboardBlocker:
 
         name = event.name.lower() if event.name else ""
 
-        # Always block OS-level system shortcuts regardless of window
+        # Always block OS-level system shortcuts
         if name in self.SYSTEM_SHORTCUTS:
             return False
 
-        # Block Alt+Tab combination
+        # Block Alt+Tab
         try:
             import keyboard as kb
             if name == "tab" and kb.is_pressed("alt"):
@@ -64,16 +68,15 @@ class KeyboardBlocker:
         except Exception:
             pass
 
-        # Inside Focusnyx: allow all normal keyboard input
+        # Inside Focusnyx: allow everything
         if self._is_focusnyx_window():
             return True
 
-        # Outside Focusnyx: block all typing to prevent using other apps
-        # but allow digits and basic keys for any PIN dialogs
-        is_digit = (len(name) == 1 and name.isdigit()) or (
-            name.startswith("numpad ") and name.split(" ")[-1].isdigit()
-        )
-        if is_digit or name in ["backspace", "delete", "enter", "escape"]:
+        # Outside Focusnyx: allow scroll/navigation/digits, block all typing
+        if name in self.ALLOWED_OUTSIDE:
+            return True
+        # Allow numpad digits
+        if name.startswith("numpad ") and name.split(" ")[-1].isdigit():
             return True
 
         return False
@@ -83,10 +86,8 @@ class KeyboardBlocker:
             return
         self.is_blocking = True
         logger.info("[Focusnyx Companion] Keyboard hooks ENGAGED")
-
         if keyboard:
             try:
-                # Install a global blocking hook
                 keyboard.hook(self._filter_keys, suppress=True)
             except Exception as e:
                 logger.error(f"Error starting keyboard hook: {e}")
@@ -96,7 +97,6 @@ class KeyboardBlocker:
             return
         self.is_blocking = False
         logger.info("[Focusnyx Companion] Keyboard hooks RELEASED")
-
         if keyboard:
             try:
                 keyboard.unhook_all()

@@ -184,20 +184,29 @@ function updateUIForInactive() {
   focusBtn.disabled = false;
   focusBtn.style.opacity = "1";
   if (timerInterval) clearInterval(timerInterval);
+  timerInterval = null;
+  timerEndAt = null;
 }
-function startTimerDisplay(durationMs) {
+var timerEndAt = null;
+function startTimerDisplay(remainingMs) {
+  const newEndAt = Date.now() + remainingMs;
+  if (timerInterval && timerEndAt !== null && Math.abs(timerEndAt - newEndAt) < 5e3) {
+    return;
+  }
   if (timerInterval) clearInterval(timerInterval);
-  let remaining = durationMs;
+  timerEndAt = newEndAt;
   function update() {
+    const remaining = Math.max(0, timerEndAt - Date.now());
     if (remaining <= 0) {
       if (timerInterval) clearInterval(timerInterval);
+      timerInterval = null;
+      timerEndAt = null;
       updateUIForInactive();
       return;
     }
     const mins = Math.floor(remaining / 6e4);
     const secs = Math.floor(remaining % 6e4 / 1e3);
     timerText.textContent = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-    remaining -= 1e3;
   }
   update();
   timerInterval = setInterval(update, 1e3);

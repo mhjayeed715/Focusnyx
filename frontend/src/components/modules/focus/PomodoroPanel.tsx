@@ -581,7 +581,10 @@ export function PomodoroPanel() {
     });
   };
 
-  const { minutes, seconds, isRunning, isLocked, setIsLocked, activeTaskId, setActiveTaskId, start, pause, reset, setDuration, syncState } = usePomodoro(durationMinutes, async () => {
+  const isRunningRef = React.useRef(false);
+  const totalSecondsRef = React.useRef(0);
+
+  const { minutes, seconds, isRunning, isLocked, setIsLocked, activeTaskId, setActiveTaskId, start, pause, reset, setDuration, syncState, totalSeconds } = usePomodoro(durationMinutes, async () => {
     const fallbackXp = Math.max(25, durationMinutes * 4);
     
     // Compute activeTask inside the callback or rely on the latest state
@@ -632,21 +635,20 @@ export function PomodoroPanel() {
 
   const activeTask = tasks.find((task) => task.id === activeTaskId) ?? tasks[0] ?? null;
 
+  // Keep refs in sync so async companion poll reads latest values without stale closures
+  useEffect(() => { isRunningRef.current = isRunning; }, [isRunning]);
+  useEffect(() => { totalSecondsRef.current = totalSeconds; }, [totalSeconds]);
+
   useEffect(() => {
     setDuration(durationMinutes);
   }, [durationMinutes, setDuration]);
 
-  // Fullscreen focus lock overlay — blocks all clicks except number inputs
+  // Focus lock keyboard guard — only intercept Escape (show PIN) when locked
+  // All other keys (typing, scrolling, arrows, numbers) remain fully functional inside the app
   useEffect(() => {
     if (!isLocked) return;
 
-    const blockNonNumeric = (e: KeyboardEvent) => {
-      const allowed = /^[0-9]$/.test(e.key) || ["Backspace", "Delete", "Tab", "Enter"].includes(e.key);
-      if (!allowed) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-      // Intercept Escape to prevent fullscreen exit — show PIN modal instead
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
@@ -663,10 +665,10 @@ export function PomodoroPanel() {
       }
     };
 
-    document.addEventListener("keydown", blockNonNumeric, true);
+    document.addEventListener("keydown", handleKeyDown, true);
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => {
-      document.removeEventListener("keydown", blockNonNumeric, true);
+      document.removeEventListener("keydown", handleKeyDown, true);
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, [isLocked]);
@@ -794,12 +796,15 @@ export function PomodoroPanel() {
           if (data.is_active && isSubscribed) {
             setIsLocked(true);
             if (typeof data.remaining_seconds === "number" && data.remaining_seconds > 0) {
-              syncState(data.remaining_seconds, true);
-              // Push remaining time back to extension so popup stays in sync
-              notifyExtension("startFocus", Math.ceil(data.remaining_seconds / 60), undefined, data.remaining_seconds);
+              const companionSecs = data.remaining_seconds;
+              const drift = Math.abs(totalSecondsRef.current - companionSecs);
+              // Only resync if PWA timer is not running, or drift exceeds 10s
+              // Prevents companion poll from constantly resetting endTime and breaking countdown
+              if (!isRunningRef.current || drift > 10) {
+                syncState(companionSecs, true);
+              }
             }
           } else if (!data.is_active && isSubscribed) {
-            // Companion ended session — unlock PWA too
             setIsLocked(false);
             syncState(0, false);
           }
@@ -1097,23 +1102,6 @@ export function PomodoroPanel() {
 
   return (
     <section className="space-y-6">
-      {/* Focus lock overlay — blocks all clicks except PIN modal when locked */}
-      {isLocked && !showPinModal && typeof document !== "undefined" && createPortal(
-        <div
-          className="fixed inset-0 z-[9999] cursor-not-allowed"
-          style={{ pointerEvents: "all" }}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            // Show PIN modal on any click attempt
-            setPinError("");
-            setEmergencyPinInput("");
-            setShowPinModal(true);
-          }}
-          onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
-        />,
-        document.body
-      )}
       <div className="rounded-[32px] border-2 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B]">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
