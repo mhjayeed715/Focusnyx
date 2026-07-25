@@ -325,9 +325,9 @@ Focusnyx achieves high system reliability without requiring kernel-level drivers
 | :--- | :--- | :--- | :--- |
 | **PWA Web App** | Web Browsers / Mobile | Service Workers, Web Speech API | Mic, Push Notifications |
 | **Chrome Extension** | Chrome / Edge / Chromium | `chrome.webRequest`, `chrome.tabs` | `webRequest`, `storage`, `<all_urls>` |
-| **Companion App** | Windows 10 & 11 | `win32gui`, `win32process`, `keyboard` | Windows User-level (no Admin needed) |
+| **Companion App** | Windows 10 & 11 | `win32gui`, `win32process`, `keyboard` | Windows Administrator (UAC Elevated) |
 
-- **Registry Editor Locking**: Instead of global machine paths, the Companion writes to the user profile path `HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System` to disable Task Manager. This prevents authorization prompts.
+- **Administrator Privileges & Keyboard Hooks**: Required for low-level OS keyboard interception (`Alt+Tab`, `Win Key`, `Ctrl+Esc`), taskbar lockdown, and system-wide process enforcement via UAC elevation (`uac_admin=True`).
 - **Always-On-Top Browser**: Keeps browser focus by calling `SetWindowPos` from the Win32 API repeatedly inside a window check thread.
 
 ---
