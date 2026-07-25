@@ -470,5 +470,5 @@ Copyright (c) 2026 S. M. Mehrab Hossain Jayeed
 ---
 
 <p align="center">
-  <sub style="color: #666;">Dedicated to Stella — whose journey with ADHD inspired the creation of Focusnyx.</sub>
+  <sub style="color: #666;">Dedicated to Stella.</sub>
 </p>
