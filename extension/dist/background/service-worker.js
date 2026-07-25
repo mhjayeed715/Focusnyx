@@ -5,9 +5,19 @@ async function syncBlockEvent(token, sessionId, url, type = "navigation_blocked"
   if (!token) return;
   let userId = null;
   try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    userId = payload.sub || null;
-  } catch {
+    const base64Url = token.split(".")[1];
+    if (base64Url) {
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const pad = base64.length % 4;
+      const padded = pad ? base64 + "=".repeat(4 - pad) : base64;
+      const jsonPayload = decodeURIComponent(
+        atob(padded).split("").map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)).join("")
+      );
+      const parsed = JSON.parse(jsonPayload);
+      userId = parsed.sub || parsed.user_id || null;
+    }
+  } catch (e) {
+    console.warn("[Focusnyx Extension] JWT decode warning:", e);
   }
   if (!userId) return;
   const resolvedDomain = domain || (url ? (() => {
@@ -347,6 +357,27 @@ chrome.webNavigation?.onErrorOccurred.addListener(async (details) => {
   if (!state.active) return;
   logDistraction({ type: "navigation_blocked", url: details.url });
 });
+async function flushPendingEvents() {
+  const state = await getState();
+  if (!state.token) return;
+  const pending = await new Promise(
+    (res) => chrome.storage.local.get("pendingEvents", (d) => res(d.pendingEvents ?? []))
+  );
+  if (pending.length === 0) return;
+  await chrome.storage.local.set({ pendingEvents: [] });
+  for (const event of pending) {
+    let domain = "";
+    try {
+      domain = new URL(event.url).hostname;
+    } catch {
+      domain = event.url || "unknown";
+    }
+    await syncBlockEvent(state.token, event.sessionId, event.url, event.type, domain, {
+      url: event.url,
+      timestamp: new Date(event.timestamp).toISOString()
+    });
+  }
+}
 function handleMessage(request, sender, sendResponse) {
   if (request.action === "syncAuth") {
     (async () => {
@@ -363,6 +394,7 @@ function handleMessage(request, sender, sendResponse) {
       if (request.pin) {
         await chrome.storage.local.set({ pin: request.pin });
       }
+      await flushPendingEvents();
       sendResponse({ ok: true, success: true });
     })();
     return true;
