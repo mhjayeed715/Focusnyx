@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, FileText, Image as ImageIcon, LibraryBig, Link2, Lock, Maximize2, Minimize2, Music2, Pause, PenTool, Play, Plus, Radio, RotateCcw, ShieldAlert, Sparkles, Target, TimerReset, Trash2, Volume2, X, Youtube } from "lucide-react";
@@ -581,8 +581,8 @@ export function PomodoroPanel() {
     });
   };
 
-  const isRunningRef = React.useRef(false);
-  const totalSecondsRef = React.useRef(0);
+  const isRunningRef = useRef(false);
+  const totalSecondsRef = useRef(0);
 
   const { minutes, seconds, isRunning, isLocked, setIsLocked, activeTaskId, setActiveTaskId, start, pause, reset, setDuration, syncState, totalSeconds } = usePomodoro(durationMinutes, async () => {
     const fallbackXp = Math.max(25, durationMinutes * 4);
@@ -980,7 +980,7 @@ export function PomodoroPanel() {
     }
   };
 
-  const toggleSite = (site: string, e?: React.MouseEvent) => {
+  const toggleSite = (site: string, e?: MouseEvent) => {
     if (e) e.stopPropagation();
     setBlockedSites((current) => {
       const next = current.map((entry) => (entry.site === site ? { ...entry, enabled: !entry.enabled } : entry));
