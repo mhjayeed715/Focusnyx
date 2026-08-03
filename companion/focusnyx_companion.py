@@ -300,6 +300,116 @@ def distraction_logs():
         "blocks_count": process_monitor.block_count
     })
 
+def get_installed_desktop_apps():
+    installed = {}
+    # System processes to ignore
+    EXCLUDE = {"system", "svchost.exe", "csrss.exe", "lsass.exe", "services.exe", "smss.exe", "wininit.exe", "explorer.exe", "cmd.exe", "powershell.exe", "conhost.exe"}
+
+    # 1. Scan currently running user apps
+    try:
+        import psutil
+        for proc in psutil.process_iter(['name', 'exe']):
+            try:
+                pname = proc.info['name']
+                if pname and pname.lower().endswith('.exe') and pname.lower() not in EXCLUDE:
+                    exe_name = pname.lower()
+                    display_name = os.path.splitext(pname)[0].capitalize()
+                    installed[exe_name] = { "name": display_name, "exe": exe_name, "running": True }
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # 2. Registry scan for Windows Installed Software
+    try:
+        import winreg
+        reg_keys = [
+            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"),
+            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"),
+            (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"),
+        ]
+        for hkey, subkey in reg_keys:
+            try:
+                key = winreg.OpenKey(hkey, subkey)
+                for i in range(winreg.QueryInfoKey(key)[0]):
+                    try:
+                        sub = winreg.EnumKey(key, i)
+                        app_k = winreg.OpenKey(key, sub)
+                        try:
+                            d_name, _ = winreg.QueryValueEx(app_k, "DisplayName")
+                            d_icon, _ = winreg.QueryValueEx(app_k, "DisplayIcon")
+                            if d_name and isinstance(d_name, str) and d_name.strip():
+                                clean_name = d_name.strip()
+                                exe = ""
+                                if d_icon and isinstance(d_icon, str):
+                                    icon_path = d_icon.split(",")[0].strip('"').strip()
+                                    if icon_path.lower().endswith(".exe"):
+                                        exe = os.path.basename(icon_path).lower()
+                                if not exe:
+                                    # Fallback exe key guess from name
+                                    exe = clean_name.lower().replace(" ", "") + ".exe"
+                                if exe and exe not in EXCLUDE and exe not in installed:
+                                    installed[exe] = { "name": clean_name, "exe": exe, "running": False }
+                        except FileNotFoundError:
+                            pass
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # 3. Start Menu Shortcuts Scan
+    try:
+        start_dirs = [
+            os.path.expandvars(r"%APPDATA%\Microsoft\Windows\Start Menu\Programs"),
+            os.path.expandvars(r"%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs"),
+        ]
+        for sdir in start_dirs:
+            if not os.path.exists(sdir):
+                continue
+            for r, _, files in os.walk(sdir):
+                for f in files:
+                    if f.lower().endswith(".lnk"):
+                        name = os.path.splitext(f)[0]
+                        if any(kw in name.lower() for kw in ["uninstall", "help", "readme", "documentation", "settings"]):
+                            continue
+                        exe = f.lower().replace(".lnk", "").replace(" ", "") + ".exe"
+                        if exe not in installed and exe not in EXCLUDE:
+                            installed[exe] = { "name": name, "exe": exe, "running": False }
+    except Exception:
+        pass
+
+    return list(installed.values())
+
+@app.route("/running-apps", methods=["GET", "OPTIONS"])
+def running_apps():
+    if request.method == "OPTIONS":
+        return jsonify({"ok": True})
+    apps = set()
+    try:
+        import psutil
+        for proc in psutil.process_iter(['name']):
+            try:
+                name = proc.info['name']
+                if name and name.lower().endswith('.exe'):
+                    apps.add(name.lower())
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+    except Exception as e:
+        logger.warning(f"Error querying processes: {e}")
+
+    SYSTEM_PROCS = {"system", "svchost.exe", "csrss.exe", "lsass.exe", "services.exe", "smss.exe", "wininit.exe", "explorer.exe"}
+    visible = sorted([a for a in apps if a not in SYSTEM_PROCS])
+    return jsonify({"success": True, "apps": visible})
+
+@app.route("/installed-apps", methods=["GET", "OPTIONS"])
+def installed_apps():
+    if request.method == "OPTIONS":
+        return jsonify({"ok": True})
+    apps = get_installed_desktop_apps()
+    return jsonify({"success": True, "apps": apps, "total": len(apps)})
+
 # ── Tkinter Desktop GUI Interface ─────────────────────────────────
 
 def start_gui():

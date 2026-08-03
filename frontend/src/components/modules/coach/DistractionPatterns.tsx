@@ -16,6 +16,7 @@ import {
   Line,
 } from "recharts";
 import { createClient } from "@/lib/supabase/client";
+import { Globe, Monitor, ShieldAlert } from "lucide-react";
 
 const CHART_COLORS = [
   "#8B5CF6", // Purple
@@ -32,6 +33,9 @@ interface DistractionData {
   byDay: Array<{ day: string; count: number }>;
   byType: Array<{ name: string; value: number; raw: string }>;
   dailyTrend: Array<{ date: string; distractions: number }>;
+  bySource?: { browser: number; desktop: number };
+  topDomains?: Array<{ domain: string; count: number; source: "browser" | "desktop" }>;
+  recentLogs?: Array<{ type: string; domain: string; timestamp: string; source: string }>;
   insights: {
     peakHour: string | null;
     topType: string | null;
@@ -161,7 +165,7 @@ export function DistractionPatterns({ userId }: DistractionPatternsProps) {
         </div>
         <h3 className="font-display text-xl font-black text-[var(--foreground)]">No distractions logged yet!</h3>
         <p className="mt-1 text-sm font-semibold text-[var(--muted-fg)]">
-          Start a focus session to begin tracking your distraction patterns.
+          Start a focus session to begin tracking your browser & desktop distraction patterns.
         </p>
       </div>
     );
@@ -211,6 +215,33 @@ export function DistractionPatterns({ userId }: DistractionPatternsProps) {
         </div>
       </div>
 
+      {/* Source Breakdown Cards: Web vs Desktop */}
+      {data.bySource && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="flex items-center gap-4 rounded-[22px] border-2 border-[var(--foreground)] bg-[#F0F9FF] p-4 shadow-[4px_4px_0_0_#1E293B]">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border-2 border-[var(--foreground)] bg-[#0EA5E9] text-white shadow-[2px_2px_0_0_#1E293B]">
+              <Globe size={22} />
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider text-[var(--muted-fg)]">Web Sites Blocked</p>
+              <h4 className="font-display text-2xl font-black text-[#0369A1]">{data.bySource.browser}</h4>
+              <p className="text-[11px] font-bold text-[var(--muted-fg)]">Via Focusnyx Browser Extension</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 rounded-[22px] border-2 border-[var(--foreground)] bg-[#FDF2F8] p-4 shadow-[4px_4px_0_0_#1E293B]">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border-2 border-[var(--foreground)] bg-[#EC4899] text-white shadow-[2px_2px_0_0_#1E293B]">
+              <Monitor size={22} />
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider text-[var(--muted-fg)]">Desktop Apps Killed</p>
+              <h4 className="font-display text-2xl font-black text-[#BE185D]">{data.bySource.desktop}</h4>
+              <p className="text-[11px] font-bold text-[var(--muted-fg)]">Via Windows Companion App</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Insight Pills */}
       {data.insights.peakHour && (
         <div className="flex flex-wrap gap-3">
@@ -224,6 +255,37 @@ export function DistractionPatterns({ userId }: DistractionPatternsProps) {
           )}
           <div className="rounded-full border-2 border-[var(--foreground)] bg-[#E0F2FE] px-4 py-2 text-xs font-bold text-[#075985] shadow-[3px_3px_0_0_#1E293B]">
             📅 Most distracted: <strong>{data.insights.mostDistractedDay}</strong>
+          </div>
+        </div>
+      )}
+
+      {/* Top Blocked Sites & Apps Leaderboard */}
+      {data.topDomains && data.topDomains.length > 0 && (
+        <div className="rounded-[28px] border-2 border-[var(--foreground)] bg-white p-6 shadow-[6px_6px_0_0_#1E293B]">
+          <h3 className="font-display text-lg font-black text-[var(--foreground)] flex items-center gap-2">
+            <ShieldAlert size={20} className="text-[#8B5CF6]" /> Top Blocked Sites & Apps
+          </h3>
+          <p className="mb-4 mt-0.5 text-xs font-semibold text-[var(--muted-fg)]">
+            Most frequent targets intercepted during your focus sessions
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {data.topDomains.map((item, idx) => (
+              <div key={idx} className="flex items-center justify-between rounded-[16px] border-2 border-[var(--foreground)] bg-[#FAF5FF] p-3 shadow-[3px_3px_0_0_#1E293B]">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[var(--foreground)] bg-white text-xs font-black text-[#8B5CF6]">
+                    #{idx + 1}
+                  </span>
+                  <span className="truncate text-sm font-bold text-[var(--foreground)]">{item.domain}</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={`flex items-center gap-1 rounded-full border border-[var(--foreground)] px-2 py-0.5 text-[10px] font-black ${item.source === "desktop" ? "bg-[#FCE7F3] text-[#BE185D]" : "bg-[#E0F2FE] text-[#0369A1]"}`}>
+                    {item.source === "desktop" ? <Monitor size={10} /> : <Globe size={10} />}
+                    {item.source === "desktop" ? "Desktop" : "Browser"}
+                  </span>
+                  <span className="font-black text-sm text-[#8B5CF6]">{item.count}</span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

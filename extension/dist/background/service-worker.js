@@ -171,11 +171,14 @@ async function applyRules(state) {
   ];
   const removeIds = Array.from({ length: 500 }, (_, i) => i + 1);
   const addRules = state.active ? [
-    // Priority 1: Block all http/https main frames and sub frames by default in Focus Mode
+    // Priority 1: Redirect all non-whitelisted http/https navigations to blocked.html
     {
       id: 1,
       priority: 1,
-      action: { type: chrome.declarativeNetRequest.RuleActionType.BLOCK },
+      action: {
+        type: chrome.declarativeNetRequest.RuleActionType.REDIRECT,
+        redirect: { extensionPath: "/blocked.html" }
+      },
       condition: {
         urlFilter: "|http",
         resourceTypes: [
@@ -393,6 +396,9 @@ function handleMessage(request, sender, sendResponse) {
       });
       if (request.pin) {
         await chrome.storage.local.set({ pin: request.pin });
+        const latestState = await getState();
+        latestState.focusPIN = request.pin;
+        await chrome.storage.local.set({ focusState: latestState });
       }
       await flushPendingEvents();
       sendResponse({ ok: true, success: true });
@@ -504,6 +510,28 @@ function handleMessage(request, sender, sendResponse) {
   if (request.action === "blockAttempt") {
     logDistraction({ type: request.type || "blockAttempt", url: request.url });
     sendResponse({ logged: true });
+    return true;
+  }
+  if (request.action === "updateWhitelist") {
+    (async () => {
+      const state = await getState();
+      const newAllowed = Array.isArray(request.allowedUrls) ? request.allowedUrls : state.allowedUrls;
+      await setState({ allowedUrls: newAllowed });
+      applyRules({ ...state, allowedUrls: newAllowed });
+      sendResponse({ ok: true, success: true, message: "Whitelist updated" });
+    })();
+    return true;
+  }
+  if (request.action === "syncPin") {
+    (async () => {
+      if (request.pin) {
+        await chrome.storage.local.set({ pin: request.pin });
+        const latestState = await getState();
+        latestState.focusPIN = request.pin;
+        await chrome.storage.local.set({ focusState: latestState });
+      }
+      sendResponse({ ok: true });
+    })();
     return true;
   }
 }

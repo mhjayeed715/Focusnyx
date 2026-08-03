@@ -3,6 +3,23 @@ import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
+// Event types that come from the desktop companion app
+const DESKTOP_EVENT_TYPES = new Set([
+  "process_terminated",
+  "process_killed",
+  "app_killed",
+  "window_switch",
+]);
+
+function isDesktopEvent(log: any): boolean {
+  if (DESKTOP_EVENT_TYPES.has(log.type)) return true;
+  // Companion logs include source: "windows_companion" in details
+  if (log.details?.source === "windows_companion") return true;
+  // If the domain ends with .exe, it's likely a desktop app
+  if (typeof log.domain === "string" && log.domain.toLowerCase().endsWith(".exe")) return true;
+  return false;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -121,6 +138,44 @@ export async function GET(req: NextRequest) {
       dailyTrend.push({ date: dateStr, distractions: count });
     }
 
+    // ── Source Breakdown (Browser vs Desktop) ─────────────────────────
+    let browserCount = 0;
+    let desktopCount = 0;
+    logs.forEach((d) => {
+      if (isDesktopEvent(d)) {
+        desktopCount++;
+      } else {
+        browserCount++;
+      }
+    });
+
+    // ── Top Blocked Domains / Apps ─────────────────────────────────────
+    const domainMap: Record<string, { count: number; source: "browser" | "desktop" }> = {};
+    logs.forEach((d) => {
+      const domain = d.domain || "unknown";
+      const source: "browser" | "desktop" = isDesktopEvent(d) ? "desktop" : "browser";
+      if (!domainMap[domain]) {
+        domainMap[domain] = { count: 0, source };
+      }
+      domainMap[domain].count++;
+    });
+
+    const topDomains = Object.entries(domainMap)
+      .map(([domain, info]) => ({ domain, count: info.count, source: info.source }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    // ── Recent Logs (latest 20) ───────────────────────────────────────
+    const recentLogs = logs
+      .map((d) => ({
+        type: d.type || "unknown",
+        domain: d.domain || "unknown",
+        timestamp: getTimestamp(d),
+        source: isDesktopEvent(d) ? "desktop" : "browser",
+      }))
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 20);
+
     // ── Peak Insights ─────────────────────────────────────────────────
     const peakHour = byHour.reduce(
       (max, h) => (h.count > max.count ? h : max),
@@ -140,6 +195,9 @@ export async function GET(req: NextRequest) {
       byDay,
       byType,
       dailyTrend,
+      bySource: { browser: browserCount, desktop: desktopCount },
+      topDomains,
+      recentLogs,
       insights: {
         peakHour: peakHour && peakHour.count > 0 ? peakHour.label : null,
         topType: topType ? topType.name : null,

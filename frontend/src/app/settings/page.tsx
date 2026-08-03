@@ -91,7 +91,7 @@ export default function SettingsPage() {
         localStorage.setItem(STORAGE_AI_PROVIDER, prov);
         
         // Sync PIN to extension on load
-        window.postMessage({ type: "FOCUSNYX_WEB_APP_ACTION", action: "syncAuth", pin }, "*");
+        window.postMessage({ type: "FOCUSNYX_WEB_APP_ACTION", action: "syncPin", pin }, "*");
       } catch {}
 
       setReady(true);
@@ -142,7 +142,7 @@ export default function SettingsPage() {
       if (userId) localStorage.setItem(`focusnyxEmergencyPinV1_${userId}`, pinVal);
 
       // Sync to extension
-      window.postMessage({ type: "FOCUSNYX_WEB_APP_ACTION", action: "syncAuth", pin: pinVal }, "*");
+      window.postMessage({ type: "FOCUSNYX_WEB_APP_ACTION", action: "syncPin", pin: pinVal }, "*");
 
       // Persist directly to Supabase DB profiles table
       const sb = createClient();
