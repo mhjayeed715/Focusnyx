@@ -364,7 +364,7 @@ export function PomodoroPanel() {
   const [customMinutesInput, setCustomMinutesInput] = useState("25");
   const [statusMessage, setStatusMessage] = useState("");
   const [tasks, setTasks] = useState<FocusTask[]>([]);
-  const [blockedSites, setBlockedSites] = useState<DistractionSite[]>(INITIAL_DISTRACTION_SITES);
+  const [blockedSites, setBlockedSites] = useState<DistractionSite[]>(INITIAL_WHITELISTED_SITES);
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskSubject, setNewTaskSubject] = useState("Focus");
