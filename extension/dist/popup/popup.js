@@ -248,7 +248,7 @@ async function handleAuthLogin() {
     return;
   }
   const userAuth = { email: res.email, token: res.token, userId: res.userId };
-  chrome.storage.local.set({ userAuth, focusState: { token: res.token, userId: res.userId } }, () => {
+  chrome.storage.local.set({ userAuth }, () => {
     chrome.runtime.sendMessage({ action: "syncAuth", token: res.token, userId: res.userId });
     authProfileCard.style.display = "block";
     authLoginForm.style.display = "none";

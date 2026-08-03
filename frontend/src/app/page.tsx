@@ -322,11 +322,11 @@ export default function HomePage() {
                     <ArrowRight size={16} strokeWidth={2.5} />
                   </span>
                 </Link>
-                <a href="https://github.com/mhjayeed715/Focusnyx/raw/main/frontend/public/downloads/Focusnyx-Chrome-Extension.zip" download target="_blank" rel="noreferrer" className="secondary-button flex h-12 items-center justify-center gap-2 px-5 text-sm sm:h-14 sm:px-6 sm:text-base bg-[#ECFDF5]">
+                <a href="/downloads/Focusnyx-Chrome-Extension.zip" download target="_blank" rel="noreferrer" className="secondary-button flex h-12 items-center justify-center gap-2 px-5 text-sm sm:h-14 sm:px-6 sm:text-base bg-[#ECFDF5]">
                   <Puzzle size={18} strokeWidth={2.5} className="text-[#059669]" />
                   {lang === "bn" ? "এক্সটেনশন (ZIP)" : "Extension (ZIP)"}
                 </a>
-                <a href="https://github.com/mhjayeed715/Focusnyx/raw/main/frontend/public/downloads/FocusnyxCompanionApp-Windows.zip" download target="_blank" rel="noreferrer" className="secondary-button flex h-12 items-center justify-center gap-2 px-5 text-sm sm:h-14 sm:px-6 sm:text-base bg-[#F3E8FF]">
+                <a href="/downloads/FocusnyxCompanionApp-Windows.zip" download target="_blank" rel="noreferrer" className="secondary-button flex h-12 items-center justify-center gap-2 px-5 text-sm sm:h-14 sm:px-6 sm:text-base bg-[#F3E8FF]">
                   <Laptop size={18} strokeWidth={2.5} className="text-[#7C3AED]" />
                   {lang === "bn" ? "কম্প্যানিয়ন (Windows EXE)" : "Companion (Windows)"}
                 </a>
@@ -518,12 +518,12 @@ export default function HomePage() {
               </div>
 
               <div className="mt-8 flex flex-wrap gap-4">
-                <a href="https://github.com/mhjayeed715/Focusnyx/raw/main/frontend/public/downloads/Focusnyx-Chrome-Extension.zip" download target="_blank" rel="noreferrer" className="candy-button flex h-13 items-center justify-center gap-3 px-6 text-sm">
+                <a href="/downloads/Focusnyx-Chrome-Extension.zip" download target="_blank" rel="noreferrer" className="candy-button flex h-13 items-center justify-center gap-3 px-6 text-sm">
                   <Puzzle size={20} strokeWidth={2.5} />
                   {lang === "bn" ? "Chrome এক্সটেনশন ডাউনলোড" : "Download Chrome Extension"}
                   <Download size={18} strokeWidth={2.5} />
                 </a>
-                <a href="https://github.com/mhjayeed715/Focusnyx/raw/main/frontend/public/downloads/FocusnyxCompanionApp-Windows.zip" download target="_blank" rel="noreferrer" className="secondary-button flex h-13 items-center justify-center gap-3 px-6 text-sm bg-white">
+                <a href="/downloads/FocusnyxCompanionApp-Windows.zip" download target="_blank" rel="noreferrer" className="secondary-button flex h-13 items-center justify-center gap-3 px-6 text-sm bg-white">
                   <Laptop size={20} strokeWidth={2.5} />
                   {lang === "bn" ? "Windows অ্যাপ ডাউনলোড" : "Download Companion App"}
                   <Download size={18} strokeWidth={2.5} />

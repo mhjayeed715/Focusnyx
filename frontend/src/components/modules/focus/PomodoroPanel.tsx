@@ -100,22 +100,59 @@ function createAmbientAudio(sound: "none" | "rain" | "white" | "lofi", volume: n
   };
 }
 
-const INITIAL_DISTRACTION_SITES: DistractionSite[] = [
-  { site: "youtube.com", blocked: 14, enabled: true },
-  { site: "facebook.com", blocked: 9, enabled: true },
-  { site: "instagram.com", blocked: 6, enabled: false },
+const INITIAL_WHITELISTED_SITES: DistractionSite[] = [
+  { site: "github.com", blocked: 0, enabled: true },
+  { site: "stackoverflow.com", blocked: 0, enabled: true },
+  { site: "wikipedia.org", blocked: 0, enabled: true },
+  { site: "kaggle.com", blocked: 0, enabled: true },
+  { site: "scholar.google.com", blocked: 0, enabled: true },
 ];
 
-const LOCAL_BLOCKLIST_KEY = "focusnyx_blocked_domains";
+const WHITELIST_SUGGESTIONS = [
+  "github.com",
+  "stackoverflow.com",
+  "wikipedia.org",
+  "kaggle.com",
+  "scholar.google.com",
+  "developer.mozilla.org",
+  "w3schools.com",
+  "coursera.org",
+  "khanacademy.org",
+  "arxiv.org",
+  "docs.google.com",
+  "notion.so",
+  "chatgpt.com",
+];
+
+const COMMON_APPS = [
+  { exe: "discord.exe", name: "Discord", icon: "💬" },
+  { exe: "spotify.exe", name: "Spotify", icon: "🎵" },
+  { exe: "steam.exe", name: "Steam", icon: "🎮" },
+  { exe: "telegram.exe", name: "Telegram", icon: "📨" },
+  { exe: "whatsapp.exe", name: "WhatsApp", icon: "📱" },
+  { exe: "slack.exe", name: "Slack", icon: "💼" },
+  { exe: "epicgameslauncher.exe", name: "Epic Games", icon: "🕹️" },
+  { exe: "battle.net.exe", name: "Battle.net", icon: "⚔️" },
+  { exe: "origin.exe", name: "Origin", icon: "🎯" },
+  { exe: "vlc.exe", name: "VLC", icon: "🎬" },
+  { exe: "obs64.exe", name: "OBS Studio", icon: "📹" },
+  { exe: "firefox.exe", name: "Firefox", icon: "🦊" },
+  { exe: "brave.exe", name: "Brave", icon: "🦁" },
+  { exe: "thunderbird.exe", name: "Thunderbird", icon: "📧" },
+  { exe: "tiktok.exe", name: "TikTok", icon: "🎵" },
+  { exe: "netflix.exe", name: "Netflix", icon: "🍿" },
+];
+
+const LOCAL_BLOCKLIST_KEY = "focusnyx_whitelisted_domains_v2";
 
 function readLocalBlocklist(): DistractionSite[] {
   try {
     const raw = localStorage.getItem(LOCAL_BLOCKLIST_KEY);
-    if (!raw) return INITIAL_DISTRACTION_SITES;
+    if (!raw) return INITIAL_WHITELISTED_SITES;
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_DISTRACTION_SITES;
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_WHITELISTED_SITES;
   } catch {
-    return INITIAL_DISTRACTION_SITES;
+    return INITIAL_WHITELISTED_SITES;
   }
 }
 
@@ -370,10 +407,12 @@ export function PomodoroPanel() {
   ]);
   const [newAppInput, setNewAppInput] = useState("");
 
-  // Live Distraction Log State
+  // Live Distraction Log State & Detected Desktop Apps
   const [distractionLogs, setDistractionLogs] = useState<Array<{ id: string; type: string; app?: string; url?: string; timestamp: string }>>([]);
+  const [detectedDesktopApps, setDetectedDesktopApps] = useState<Array<{ name: string; exe: string; running: boolean }>>([]);
+  const [isCompanionActive, setIsCompanionActive] = useState<boolean>(false);
 
-  // Poll distraction logs from Companion App (with failure backoff)
+  // Poll distraction logs and installed desktop apps from Companion App
   useEffect(() => {
     let isSubscribed = true;
     let timerId: NodeJS.Timeout;
@@ -381,17 +420,29 @@ export function PomodoroPanel() {
     const poll = async () => {
       let nextInterval = 4000;
       try {
-        const res = await fetch("http://localhost:5000/distraction-logs");
-        if (res.ok) {
-          const data = await res.json();
+        const [logsRes, appsRes] = await Promise.all([
+          fetch("http://localhost:5000/distraction-logs").catch(() => null),
+          fetch("http://localhost:5000/installed-apps").catch(() => null),
+        ]);
+
+        if (logsRes?.ok) {
+          const data = await logsRes.json();
           if (data.logs && Array.isArray(data.logs) && isSubscribed) {
             setDistractionLogs(data.logs);
           }
-        } else {
-          nextInterval = 15000;
+          setIsCompanionActive(true);
+        }
+
+        if (appsRes?.ok) {
+          const appData = await appsRes.json();
+          if (appData.apps && Array.isArray(appData.apps) && isSubscribed) {
+            setDetectedDesktopApps(appData.apps);
+          }
+          setIsCompanionActive(true);
         }
       } catch {
         nextInterval = 15000;
+        if (isSubscribed) setIsCompanionActive(false);
       }
       if (isSubscribed) {
         timerId = setTimeout(poll, nextInterval);
@@ -428,7 +479,8 @@ export function PomodoroPanel() {
     window.postMessage(
       {
         type: "FOCUSNYX_WEB_APP_ACTION",
-        action: "updateBlocklist",
+        action: "updateWhitelist",
+        allowedUrls: enabledDomains,
         blocklist: enabledDomains,
       },
       "*"
@@ -705,6 +757,7 @@ export function PomodoroPanel() {
       action,
       durationMinutes: durationMins || durationMinutes,
       duration: durationMs,
+      allowedUrls: enabledDomains,
       blocklist: enabledDomains,
       pin: pinToUse,
       timestamp: Date.now(),
@@ -1507,40 +1560,77 @@ export function PomodoroPanel() {
         <div className="rounded-[28px] border-2 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B]">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">Distraction guard</p>
-              <h3 className="mt-2 font-display text-2xl font-black">Blocked websites & apps</h3>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">Focus Guard Controls</p>
+              <h3 className="mt-2 font-display text-2xl font-black">Whitelisted Sites & App Blocker</h3>
             </div>
-            <ShieldAlert size={20} className="text-[#F472B6]" />
+            <ShieldAlert size={20} className="text-[#8B5CF6]" />
           </div>
 
-          {/* Web Domains Section */}
-          <div className="mt-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-[var(--muted-fg)]">Website Domain Whitelist</p>
-            <div className="mt-2 flex gap-2">
+          {/* Web Domains Whitelist Section */}
+          <div className="mt-5 border-t-2 border-[var(--foreground)] pt-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wider text-[var(--muted-fg)]">Allowed Websites Whitelist</p>
+              <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300">
+                🔒 All other sites blocked during Focus Mode
+              </span>
+            </div>
+
+            {/* Quick Add Suggestions */}
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <span className="text-[11px] font-bold text-[var(--muted-fg)] self-center mr-1">Suggestions:</span>
+              {WHITELIST_SUGGESTIONS.map((site) => {
+                const isAdded = blockedSites.some((s) => s.site === site);
+                return (
+                  <button
+                    key={site}
+                    type="button"
+                    disabled={isAdded}
+                    onClick={() => {
+                      if (!isAdded) {
+                        const nextSites = [...blockedSites, { site, enabled: true, blocked: 0 }];
+                        setBlockedSites(nextSites);
+                        syncBlocklistToAll(nextSites, blockedApps);
+                      }
+                    }}
+                    className={`rounded-full border border-[var(--foreground)] px-2.5 py-0.5 text-[11px] font-bold transition ${
+                      isAdded
+                        ? "bg-slate-100 text-slate-400 cursor-not-allowed border-slate-300"
+                        : "bg-[#FFF7D6] text-[var(--foreground)] hover:bg-[#8B5CF6] hover:text-white shadow-[1px_1px_0_0_#1E293B]"
+                    }`}
+                  >
+                    {isAdded ? `✓ ${site}` : `+ ${site}`}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-3 flex gap-2">
               <input
                 value={newSiteInput}
                 onChange={(e) => setNewSiteInput(e.target.value)}
-                placeholder="e.g. twitter.com"
+                placeholder="Custom domain (e.g. github.com)"
                 className="w-full rounded-[14px] border-2 border-[var(--foreground)] bg-white px-3 py-2 text-sm outline-none"
               />
               <button onClick={handleAddCustomSite} className="candy-button shrink-0 rounded-[14px] border-2 border-[var(--foreground)] px-4 py-2 text-xs font-bold">
-                Add Domain
+                Add Whitelist
               </button>
             </div>
+
             <div className="mt-3 space-y-2 max-h-48 overflow-y-auto pr-1">
               {blockedSites.map((item) => (
                 <div
                   key={item.site}
-                  className="flex w-full items-center justify-between rounded-[14px] border-2 border-[var(--foreground)] bg-[#FFF7D6] px-3 py-2 text-sm shadow-[3px_3px_0_0_#1E293B]"
+                  className="flex w-full items-center justify-between rounded-[14px] border-2 border-[var(--foreground)] bg-[#ECFDF5] px-3 py-2 text-sm shadow-[3px_3px_0_0_#1E293B]"
                 >
-                  <div className="flex-1">
+                  <div className="flex-1 flex items-center gap-2">
+                    <span className="text-base">🌐</span>
                     <span className="font-bold">{item.site}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="rounded-full border border-[var(--foreground)] bg-[#34D399] px-2 py-0.5 text-[10px] font-black text-black">
-                      ✓ ALLOWED
+                      ✓ ACCESSIBLE
                     </span>
-                    <button type="button" onClick={() => handleRemoveSite(item.site)} className="text-red-500 hover:text-red-700 p-1" title="Remove from Whitelist (Block)">
+                    <button type="button" onClick={() => handleRemoveSite(item.site)} className="text-red-500 hover:text-red-700 p-1" title="Remove from Whitelist">
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -1549,28 +1639,129 @@ export function PomodoroPanel() {
             </div>
           </div>
 
-          {/* Windows Apps Section */}
+          {/* Windows App Selection Grid Section */}
           <div className="mt-6 border-t-2 border-[var(--foreground)] pt-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-[var(--muted-fg)]">Windows Executables (.exe)</p>
-            <div className="mt-2 flex gap-2">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-[var(--muted-fg)]">Windows Apps to Block</p>
+                {isCompanionActive && (
+                  <p className="text-[11px] font-bold text-emerald-600 flex items-center gap-1 mt-0.5">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    Live Companion connected ({detectedDesktopApps.length} desktop apps detected)
+                  </p>
+                )}
+              </div>
+              <span className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full border border-red-300">
+                🚫 Terminated automatically during Focus Mode
+              </span>
+            </div>
+
+            {/* Live Detected User Desktop Apps Grid (if Companion is running) */}
+            {detectedDesktopApps.length > 0 && (
+              <div className="mt-3 space-y-2">
+                <p className="text-[11px] font-black uppercase text-[var(--muted-fg)]">🖥️ Installed & Running Apps on Your PC:</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-52 overflow-y-auto pr-1">
+                  {detectedDesktopApps.map((app) => {
+                    const isBlocked = blockedApps.includes(app.exe);
+                    return (
+                      <button
+                        key={app.exe}
+                        type="button"
+                        onClick={() => {
+                          if (isBlocked) {
+                            handleRemoveApp(app.exe);
+                          } else {
+                            const nextApps = [...blockedApps, app.exe];
+                            setBlockedApps(nextApps);
+                            syncBlocklistToAll(blockedSites, nextApps);
+                          }
+                        }}
+                        className={`flex items-center gap-2 rounded-[14px] border-2 border-[var(--foreground)] p-2 text-left text-xs font-bold transition-all ${
+                          isBlocked
+                            ? "bg-[#FEE2E2] border-red-500 text-red-900 shadow-[2px_2px_0_0_#991B1B]"
+                            : "bg-white text-[var(--foreground)] hover:bg-slate-50 shadow-[2px_2px_0_0_#1E293B]"
+                        }`}
+                      >
+                        <span className="text-base shrink-0">{app.running ? "🟢" : "💻"}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-black text-xs" title={app.name}>{app.name}</p>
+                          <p className={`text-[10px] font-bold ${isBlocked ? "text-red-700" : app.running ? "text-emerald-700" : "text-slate-500"}`}>
+                            {isBlocked ? "🚫 Blocked" : app.running ? "Running Now" : "✓ Allowed"}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Visual Common App Presets Grid */}
+            <div className="mt-4">
+              <p className="text-[11px] font-black uppercase text-[var(--muted-fg)] mb-2">Popular Distraction App Presets:</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {COMMON_APPS.map((app) => {
+                  const isBlocked = blockedApps.includes(app.exe);
+                  return (
+                    <button
+                      key={app.exe}
+                      type="button"
+                      onClick={() => {
+                        if (isBlocked) {
+                          handleRemoveApp(app.exe);
+                        } else {
+                          const nextApps = [...blockedApps, app.exe];
+                          setBlockedApps(nextApps);
+                          syncBlocklistToAll(blockedSites, nextApps);
+                        }
+                      }}
+                      className={`flex items-center gap-2 rounded-[14px] border-2 border-[var(--foreground)] p-2.5 text-left text-xs font-bold transition-all ${
+                        isBlocked
+                          ? "bg-[#FEE2E2] border-red-500 text-red-900 shadow-[3px_3px_0_0_#991B1B]"
+                          : "bg-white text-[var(--foreground)] hover:bg-slate-50 shadow-[2px_2px_0_0_#1E293B]"
+                      }`}
+                    >
+                      <span className="text-xl shrink-0">{app.icon}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-black text-xs">{app.name}</p>
+                        <p className={`text-[10px] font-bold ${isBlocked ? "text-red-700" : "text-slate-500"}`}>
+                          {isBlocked ? "🚫 Blocked" : "✓ Allowed"}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Custom App Name Input */}
+            <div className="mt-4 flex gap-2">
               <input
                 value={newAppInput}
                 onChange={(e) => setNewAppInput(e.target.value)}
-                placeholder="e.g. discord.exe"
+                placeholder="Custom app (e.g. discord or photoshop)"
                 className="w-full rounded-[14px] border-2 border-[var(--foreground)] bg-white px-3 py-2 text-sm outline-none"
               />
               <button onClick={handleAddCustomApp} className="candy-button shrink-0 rounded-[14px] border-2 border-[var(--foreground)] px-4 py-2 text-xs font-bold">
                 Add App
               </button>
             </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {blockedApps.map((app) => (
-                <span key={app} className="flex items-center gap-1 rounded-full border-2 border-[var(--foreground)] bg-[#ECFDF5] px-3 py-1 text-xs font-bold shadow-[2px_2px_0_0_#1E293B]">
-                  {app}
-                  <button onClick={() => handleRemoveApp(app)} className="ml-1 font-black text-red-500 hover:text-red-700">×</button>
-                </span>
-              ))}
-            </div>
+
+            {/* Active Blocked Apps Tags */}
+            {blockedApps.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                <span className="text-[11px] font-bold text-[var(--muted-fg)] self-center mr-1">Blocked list:</span>
+                {blockedApps.map((app) => (
+                  <span key={app} className="flex items-center gap-1 rounded-full border-2 border-[var(--foreground)] bg-[#FEE2E2] px-2.5 py-0.5 text-xs font-bold text-red-800 shadow-[2px_2px_0_0_#1E293B]">
+                    🚫 {app}
+                    <button onClick={() => handleRemoveApp(app)} className="ml-1 font-black text-red-600 hover:text-red-900">×</button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

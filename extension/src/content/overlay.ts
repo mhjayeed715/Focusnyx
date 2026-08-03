@@ -130,6 +130,12 @@
         safeSendMessage({ action: "updateBlocklist", blocklist: event.data.blocklist }, (res) => {
           if (res) postStateToWebApp(res);
         });
+      } else if (action === "updateWhitelist") {
+        safeSendMessage({ action: "updateWhitelist", allowedUrls: event.data.allowedUrls }, (res) => {
+          if (res) postStateToWebApp(res);
+        });
+      } else if (action === "syncPin") {
+        safeSendMessage({ action: "syncPin", pin: event.data.pin });
       }
     });
 

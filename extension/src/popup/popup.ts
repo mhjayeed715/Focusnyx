@@ -271,7 +271,9 @@ async function handleAuthLogin() {
   }
 
   const userAuth = { email: res.email, token: res.token, userId: res.userId };
-  chrome.storage.local.set({ userAuth, focusState: { token: res.token, userId: res.userId } }, () => {
+  // Only write userAuth — do NOT overwrite focusState here, as it wipes active session data.
+  // The syncAuth handler in service-worker.ts will properly merge token/userId into existing focusState.
+  chrome.storage.local.set({ userAuth }, () => {
     chrome.runtime.sendMessage({ action: "syncAuth", token: res.token, userId: res.userId });
     authProfileCard.style.display = "block";
     authLoginForm.style.display = "none";

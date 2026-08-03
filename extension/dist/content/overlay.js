@@ -122,6 +122,12 @@
         safeSendMessage({ action: "updateBlocklist", blocklist: event.data.blocklist }, (res) => {
           if (res) postStateToWebApp2(res);
         });
+      } else if (action === "updateWhitelist") {
+        safeSendMessage({ action: "updateWhitelist", allowedUrls: event.data.allowedUrls }, (res) => {
+          if (res) postStateToWebApp2(res);
+        });
+      } else if (action === "syncPin") {
+        safeSendMessage({ action: "syncPin", pin: event.data.pin });
       }
     });
     document.addEventListener("FOCUSNYX_DOM_ACTION", (event) => {
