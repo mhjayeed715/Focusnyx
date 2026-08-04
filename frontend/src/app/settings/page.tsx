@@ -227,7 +227,7 @@ export default function SettingsPage() {
                       setEmergencyPin(val);
                     }}
                     onBlur={() => void saveToDatabase()}
-                    placeholder="Enter 6 digit PIN (e.g., 12345656)"
+                    placeholder="Enter 6 digit PIN (e.g., 123456)"
                     maxLength={6}
                     className="w-full rounded-[10px] border-2 border-[var(--foreground)] bg-white px-3 py-2 pr-10 text-sm font-mono outline-none"
                   />

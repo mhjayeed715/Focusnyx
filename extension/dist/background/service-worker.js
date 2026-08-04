@@ -195,8 +195,28 @@ async function applyRules(state) {
     ...ALLOWED_SYSTEM_DOMAINS,
     ...state.allowedUrls || []
   ];
+  const cleanAllowedDomains = Array.from(
+    new Set(
+      allowedList.map(
+        (d) => d.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim()
+      ).filter(Boolean)
+    )
+  );
   const removeIds = Array.from({ length: 500 }, (_, i) => i + 1);
   const addRules = state.active ? [
+    // Priority 100: Allow system app domains and user-whitelisted allowed URLs
+    ...cleanAllowedDomains.map((domain, i) => ({
+      id: 10 + i,
+      priority: 100,
+      action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
+      condition: {
+        requestDomains: [domain],
+        resourceTypes: [
+          chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
+          chrome.declarativeNetRequest.ResourceType.SUB_FRAME
+        ]
+      }
+    })),
     // Priority 1: Redirect all non-whitelisted http/https navigations to blocked.html
     {
       id: 1,
@@ -212,20 +232,7 @@ async function applyRules(state) {
           chrome.declarativeNetRequest.ResourceType.SUB_FRAME
         ]
       }
-    },
-    // Priority 10: Allow system app domains and user-whitelisted allowed URLs
-    ...allowedList.map((domain, i) => ({
-      id: 10 + i,
-      priority: 10,
-      action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
-      condition: {
-        urlFilter: `*${domain.replace(/^https?:\/\//, "").replace(/\/$/, "")}*`,
-        resourceTypes: [
-          chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
-          chrome.declarativeNetRequest.ResourceType.SUB_FRAME
-        ]
-      }
-    }))
+    }
   ] : [];
   try {
     await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: removeIds, addRules });
