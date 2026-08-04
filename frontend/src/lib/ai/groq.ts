@@ -75,49 +75,65 @@ function setCached(prompt: string, text: string) {
 // ─── Main call ────────────────────────────────────────────────
 
 export async function callGroq(apiKey: string, prompt: string, systemPrompt?: string): Promise<string> {
-  if (!apiKey.trim()) throw new Error("Groq API key not set. Go to Settings → AI Provider to add your key.");
-
   // Return cached result if available (avoids burning quota on repeated calls)
   const cached = getCached(prompt);
   if (cached) return cached;
-
-  const { nearLimit, callsToday, limit } = getGroqUsage();
-  if (nearLimit) {
-    console.warn(`[Groq] ${callsToday}/${limit} calls today — approaching soft limit.`);
-  }
 
   const messages = [
     ...(systemPrompt ? [{ role: "system", content: systemPrompt }] : []),
     { role: "user", content: prompt },
   ];
 
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages,
-      max_tokens: MAX_TOKENS,
-      temperature: 0.7,
-    }),
-  });
+  let res: Response;
+  const hasCustomKey = Boolean(apiKey && apiKey.trim().length > 10);
+
+  if (hasCustomKey) {
+    res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey.trim()}`,
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages,
+        max_tokens: MAX_TOKENS,
+        temperature: 0.7,
+      }),
+    });
+  } else {
+    // Route through backend server proxy with 5 free daily usage quota resetting at 12:00 AM BDT
+    res = await fetch("/api/ai/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages,
+        max_tokens: MAX_TOKENS,
+        temperature: 0.7,
+      }),
+    });
+  }
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as Record<string, unknown>;
-    const msg = (err?.error as Record<string, unknown>)?.message ?? res.statusText;
-    if (res.status === 429) throw new Error("Groq rate limit hit. Wait a minute and try again.");
+    const err = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    const msg = (err?.error as Record<string, unknown>)?.message ?? (err?.error as string) ?? res.statusText;
+    if (res.status === 429 || res.status === 403) {
+      throw new Error(String(msg || "Daily free AI usage limit reached (5/5). Resets at 12:00 AM BDT. Add your own Groq API key in Settings for unlimited AI usage!"));
+    }
     if (res.status === 401) throw new Error("Invalid Groq API key. Check Settings → AI Provider.");
     throw new Error(`Groq error: ${String(msg)}`);
   }
 
-  const data = await res.json() as { choices: Array<{ message: { content: string } }> };
-  const text = data.choices[0]?.message?.content?.trim() ?? "";
+  const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  const text = data.choices?.[0]?.message?.content?.trim() ?? "";
 
-  setCached(prompt, text);
-  incrementCounter();
+  if (text) {
+    setCached(prompt, text);
+    incrementCounter();
+  }
 
   return text;
 }
