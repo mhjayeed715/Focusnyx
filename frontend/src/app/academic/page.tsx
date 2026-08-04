@@ -627,26 +627,30 @@ export default function AcademicPage() {
                   <button
                     onClick={async () => {
                       const { provider, apiKey } = await getAiConfig();
-                      if (!apiKey) { setPlanError(t.addApiKeyFirst); return; }
                       if (!studyPlan.trim()) { setPlanError(t.writePlanFirst); return; }
                       setPlanError(""); setStudyPlanLoading(true); setPlanOriginal(studyPlan);
                       try {
                         const prompt = `Improve and enhance this student study plan. Make it ADHD-friendly with clear time blocks and micro-tasks. Keep the original intent but make it more actionable:\n\n${studyPlan}`;
                         let text = "";
-                        if (provider === "gemini") {
+                        if (provider === "gemini" && apiKey) {
                           const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
                           if (!res.ok) throw new Error();
                           const data = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
                           text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
-                        } else {
+                        } else if (apiKey && apiKey.trim().length > 10) {
                           const res = await fetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` }, body: JSON.stringify({ model: "llama-3.1-8b-instant", messages: [{ role: "user", content: prompt }], temperature: 0.4 }) });
                           if (!res.ok) throw new Error();
                           const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
                           text = data.choices?.[0]?.message?.content?.trim() || "";
                           if (text) trackGroqCall();
+                        } else {
+                          const res = await fetch("/api/ai/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "llama-3.1-8b-instant", messages: [{ role: "user", content: prompt }], temperature: 0.4 }) });
+                          const data = await res.json();
+                          if (!res.ok) throw new Error(data.error || t.aiEnhanceFailed);
+                          text = data.choices?.[0]?.message?.content?.trim() || "";
                         }
                         if (text) { setStudyPlan(text); setPlanViewMode("preview"); }
-                      } catch { setPlanError(t.aiEnhanceFailed); }
+                      } catch (err: any) { setPlanError(err.message || t.aiEnhanceFailed); }
                       finally { setStudyPlanLoading(false); }
                     }}
                     disabled={studyPlanLoading}
