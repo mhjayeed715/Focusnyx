@@ -418,24 +418,62 @@ async function flushPendingEvents() {
 function handleMessage(request: any, sender: any, sendResponse: (response?: any) => void) {
   if (request.action === "syncAuth") {
     (async () => {
+      console.log("[Focusnyx Extension] syncAuth received. Token present:", Boolean(request.token), "UserId:", request.userId, "Email:", request.email);
       const currentState = await getState();
       const nextToken = request.token || currentState.token;
       const nextUserId = request.userId || currentState.userId;
+
+      // Extract email: prefer explicit, then try JWT decode, then fallback
+      let email = request.email || "";
+      if (!email && nextToken) {
+        try {
+          const base64Url = nextToken.split(".")[1];
+          if (base64Url) {
+            const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+            const pad = base64.length % 4;
+            const padded = pad ? base64 + "=".repeat(4 - pad) : base64;
+            const jsonPayload = decodeURIComponent(
+              atob(padded)
+                .split("")
+                .map((c: string) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+                .join("")
+            );
+            const parsed = JSON.parse(jsonPayload);
+            email = parsed.email || "";
+          }
+        } catch {}
+      }
+      // If still no email, try fetching from Supabase /auth/v1/user
+      if (!email && nextToken) {
+        try {
+          const res = await fetch("https://vavppeevglpvyfoorfje.supabase.co/auth/v1/user", {
+            headers: {
+              "Authorization": `Bearer ${nextToken}`,
+              "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhdnBwZWV2Z2xwdnlmb29yZmplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4ODEwNTksImV4cCI6MjA5MjQ1NzA1OX0.3PI_2nJsIHaJUzvEc_cNggcwbv147Q2aGlRhVdBncuA",
+            },
+          });
+          if (res.ok) {
+            const userData = await res.json();
+            email = userData.email || "";
+          }
+        } catch {}
+      }
+
       await setState({
         token: nextToken,
         userId: nextUserId,
       });
       await chrome.storage.local.set({
-        userAuth: { token: nextToken, userId: nextUserId }
+        userAuth: { token: nextToken, userId: nextUserId, email: email || nextUserId }
       });
       if (request.pin) {
         await chrome.storage.local.set({ pin: request.pin });
-        // Also persist PIN into focusState so it's used for unlock verification
         const latestState = await getState();
         latestState.focusPIN = request.pin;
         await chrome.storage.local.set({ focusState: latestState });
       }
       await flushPendingEvents();
+      console.log("[Focusnyx Extension] syncAuth complete. Email:", email, "Token stored.");
       sendResponse({ ok: true, success: true });
     })();
     return true;
@@ -557,6 +595,24 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
   if (request.action === "blockAttempt") {
     logDistraction({ type: request.type || "blockAttempt", url: request.url });
     sendResponse({ logged: true });
+    return true;
+  }
+
+  if (request.action === "closeBlockedTab") {
+    (async () => {
+      try {
+        // Try to navigate back, or close tab if it was newly opened
+        if (sender.tab?.id) {
+          try {
+            await chrome.tabs.goBack(sender.tab.id);
+          } catch {
+            // If can't go back, navigate to the Focusnyx dashboard
+            await chrome.tabs.update(sender.tab.id, { url: "http://localhost:3000/dashboard" });
+          }
+        }
+      } catch {}
+      sendResponse({ ok: true });
+    })();
     return true;
   }
 

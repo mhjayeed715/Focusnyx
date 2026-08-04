@@ -1,8 +1,9 @@
 // src/shared/api.ts
 var SUPABASE_URL = "https://vavppeevglpvyfoorfje.supabase.co";
-var SUPABASE_ANON_KEY = "sb_publishable_daFD2p7ydAis9gUmaMtVxQ_OD7ccyze";
+var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhdnBwZWV2Z2xwdnlmb29yZmplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4ODEwNTksImV4cCI6MjA5MjQ1NzA1OX0.3PI_2nJsIHaJUzvEc_cNggcwbv147Q2aGlRhVdBncuA";
 async function authenticateUser(email, password) {
   try {
+    console.log("[Focusnyx Extension] Authenticating user:", email);
     const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
       method: "POST",
       headers: {
@@ -14,8 +15,10 @@ async function authenticateUser(email, password) {
     const data = await response.json();
     if (!response.ok) {
       const errorMsg = data.error_description || data.message || data.msg || "Invalid email or password";
+      console.error("[Focusnyx Extension] Auth failed:", errorMsg);
       return { success: false, error: errorMsg };
     }
+    console.log("[Focusnyx Extension] Auth successful. User ID:", data.user?.id);
     return {
       success: true,
       token: data.access_token,
@@ -23,6 +26,7 @@ async function authenticateUser(email, password) {
       email: data.user?.email || email
     };
   } catch (err) {
+    console.error("[Focusnyx Extension] Auth network error:", err);
     return { success: false, error: "Network error connecting to authentication server." };
   }
 }
@@ -111,10 +115,48 @@ function loadSavedSettings() {
     if (result.allowedUrls && Array.isArray(result.allowedUrls)) {
       allowedUrls = result.allowedUrls;
     }
-    if (result.userAuth?.email) {
+    if (result.userAuth?.token) {
       authProfileCard.style.display = "block";
       authLoginForm.style.display = "none";
-      profileEmail.textContent = result.userAuth.email;
+      let displayEmail = result.userAuth.email || "";
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(displayEmail);
+      if (!displayEmail || isUuid) {
+        try {
+          const token = result.userAuth.token;
+          const base64Url = token.split(".")[1];
+          if (base64Url) {
+            const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+            const pad = base64.length % 4;
+            const padded = pad ? base64 + "=".repeat(4 - pad) : base64;
+            const payload = JSON.parse(atob(padded));
+            if (payload.email) {
+              displayEmail = payload.email;
+            }
+          }
+        } catch {
+        }
+        if (!displayEmail || isUuid) {
+          fetch("https://vavppeevglpvyfoorfje.supabase.co/auth/v1/user", {
+            headers: {
+              "Authorization": `Bearer ${result.userAuth.token}`,
+              "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhdnBwZWV2Z2xwdnlmb29yZmplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4ODEwNTksImV4cCI6MjA5MjQ1NzA1OX0.3PI_2nJsIHaJUzvEc_cNggcwbv147Q2aGlRhVdBncuA"
+            }
+          }).then((res) => res.ok ? res.json() : null).then((data) => {
+            if (data?.email) {
+              profileEmail.textContent = data.email;
+              chrome.storage.local.set({
+                userAuth: { ...result.userAuth, email: data.email }
+              });
+            } else {
+              profileEmail.textContent = displayEmail || "Authenticated";
+            }
+          }).catch(() => {
+            profileEmail.textContent = displayEmail || "Authenticated";
+          });
+          return;
+        }
+      }
+      profileEmail.textContent = displayEmail;
     } else {
       authProfileCard.style.display = "none";
       authLoginForm.style.display = "block";
@@ -249,10 +291,12 @@ async function handleAuthLogin() {
   }
   const userAuth = { email: res.email, token: res.token, userId: res.userId };
   chrome.storage.local.set({ userAuth }, () => {
-    chrome.runtime.sendMessage({ action: "syncAuth", token: res.token, userId: res.userId });
+    chrome.runtime.sendMessage({ action: "syncAuth", token: res.token, userId: res.userId, email: res.email });
     authProfileCard.style.display = "block";
     authLoginForm.style.display = "none";
     profileEmail.textContent = res.email || email;
+    authStatus.style.color = "#22c55e";
+    authStatus.textContent = "Authentication successful! Distraction logging active.";
   });
 }
 init();

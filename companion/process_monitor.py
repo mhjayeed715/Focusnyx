@@ -16,9 +16,6 @@ DEFAULT_BLACKLIST = [
     "epicgameslauncher.exe",
     "telegram.exe",
     "whatsapp.exe",
-    "slack.exe",
-    "battle.net.exe",
-    "origin.exe",
 ]
 
 class ProcessMonitor:

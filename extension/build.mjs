@@ -26,7 +26,11 @@ if (watch) {
   await esbuild.build(config);
   // Copy popup.html and popup.css into dist/popup/
   fs.mkdirSync(path.join("dist", "popup"), { recursive: true });
-  fs.copyFileSync(path.join("src", "popup", "popup.html"), path.join("dist", "popup", "popup.html"));
+  // Fix script src path: source uses ../../dist/popup/popup.js (relative to src/popup/),
+  // but the dist copy needs ./popup.js (relative to dist/popup/)
+  let popupHtml = fs.readFileSync(path.join("src", "popup", "popup.html"), "utf-8");
+  popupHtml = popupHtml.replace('src="../../dist/popup/popup.js"', 'src="./popup.js"');
+  fs.writeFileSync(path.join("dist", "popup", "popup.html"), popupHtml);
   fs.copyFileSync(path.join("src", "popup", "popup.css"), path.join("dist", "popup", "popup.css"));
   console.log("Build complete.");
 }

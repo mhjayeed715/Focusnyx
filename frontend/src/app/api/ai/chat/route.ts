@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { checkAndIncrementAiUsage } from "@/lib/aiUsageLimiter";
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,35 +11,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Determine current date in Bangladesh Timezone
-    const now = new Date();
-    const bdtTimeStr = now.toLocaleString("en-US", { timeZone: "Asia/Dhaka" });
-    const bdtTime = new Date(bdtTimeStr);
-    const bdtDateString = `${bdtTime.getFullYear()}-${bdtTime.getMonth() + 1}-${bdtTime.getDate()}`;
+    const body = await req.json().catch(() => ({}));
+    const customApiKey = req.headers.get("x-custom-ai-key") || body?.apiKey || "";
 
-    // Get current usage from user metadata
-    let ai_usage_date = user.user_metadata?.ai_usage_date;
-    let ai_usage_count = user.user_metadata?.ai_usage_count || 0;
+    // Check Global Daily AI Usage Limiter (5 requests/day reset at 12:00 AM BDT / 6:00 PM UTC)
+    const usageCheck = await checkAndIncrementAiUsage(user.id, supabase, customApiKey);
 
-    // Reset usage if it's a new day in Bangladesh
-    if (ai_usage_date !== bdtDateString) {
-      ai_usage_count = 0;
-      ai_usage_date = bdtDateString;
-    }
-
-    if (ai_usage_count >= 5) {
+    if (!usageCheck.allowed) {
       return NextResponse.json(
-        { error: "Free tier exhausted. Please add your own Groq API key in Settings to continue." },
+        {
+          error: usageCheck.error,
+          currentUsage: usageCheck.currentUsage,
+          limit: usageCheck.limit,
+          resetTime: "12:00 AM BDT (6:00 PM UTC)",
+        },
         { status: 403 }
       );
     }
 
-    const body = await req.json();
+    // Determine key to use: custom key or server fallback key
+    const groqKey = (customApiKey && customApiKey.trim().length > 10) ? customApiKey : process.env.GROQ_API_KEY;
 
-    // Use built-in Groq key
-    const groqKey = process.env.GROQ_API_KEY;
     if (!groqKey) {
-      return NextResponse.json({ error: "Server AI key is missing." }, { status: 500 });
+      return NextResponse.json({ error: "Server AI key is missing. Add your own Groq key in Settings." }, { status: 500 });
     }
 
     const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -47,25 +42,27 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${groqKey}`
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        model: body.model || "llama-3.3-70b-versatile",
+        messages: body.messages || [],
+        temperature: body.temperature ?? 0.7,
+        max_tokens: body.max_tokens ?? 800,
+      }),
     });
 
     if (!groqRes.ok) {
-      const errorData = await groqRes.json();
+      const errorData = await groqRes.json().catch(() => ({}));
       return NextResponse.json({ error: "Groq API error", details: errorData }, { status: groqRes.status });
     }
 
     const data = await groqRes.json();
 
-    // Increment usage
-    await supabase.auth.updateUser({
-      data: {
-        ai_usage_date: bdtDateString,
-        ai_usage_count: ai_usage_count + 1
-      }
+    return NextResponse.json({
+      ...data,
+      currentUsage: usageCheck.currentUsage,
+      limit: usageCheck.limit,
+      isCustomKey: usageCheck.isCustomKey,
     });
-
-    return NextResponse.json({ ...data, currentUsage: ai_usage_count + 1, limit: 5 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
   }

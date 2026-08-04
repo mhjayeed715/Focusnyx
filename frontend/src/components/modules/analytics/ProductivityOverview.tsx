@@ -51,6 +51,7 @@ export function ProductivityOverview() {
   const [dailyTasks, setDailyTasks] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
   const [dailyMood, setDailyMood] = useState<{ mood: string; energyPct: number }>({ mood: "Good", energyPct: 80 });
   const [todayDistractionsCount, setTodayDistractionsCount] = useState(0);
+  const [distractionEntries, setDistractionEntries] = useState<Array<{ domain: string; type: string; timestamp: string; url?: string; isApp?: boolean; source?: string }>>([]);
 
   const [weeklyTrend, setWeeklyTrend] = useState<Array<{ day: string; planned: number; done: number; sleep: number }>>([]);
   const [streakDays, setStreakDays] = useState(0);
@@ -142,6 +143,27 @@ export function ProductivityOverview() {
           return dateStr.startsWith(todayStr);
         });
         setTodayDistractionsCount(todayDistractionRows.length);
+
+        // Store individual distraction entries for the activity log display (web sites & desktop apps)
+        const allEntries = distractionLogs.map((d: Record<string, unknown>) => {
+          const details = (d.details as any) || {};
+          let domain = String(d.domain || details.app || details.url || "unknown");
+          if (domain.startsWith("http://") || domain.startsWith("https://")) {
+            try { domain = new URL(domain).hostname; } catch {}
+          }
+          const isApp = domain.endsWith(".exe") || String(d.type).includes("process") || details.source === "windows_companion";
+          return {
+            domain,
+            type: String(d.type || (isApp ? "process_terminated" : "navigation_blocked")),
+            timestamp: String(d.timestamp || d.blocked_at || d.created_at || ""),
+            url: details.url || "",
+            isApp,
+            source: details.source || (isApp ? "windows_companion" : "browser_extension"),
+          };
+        });
+        // Sort by most recent first
+        allEntries.sort((a: { timestamp: string }, b: { timestamp: string }) => b.timestamp.localeCompare(a.timestamp));
+        setDistractionEntries(allEntries);
 
         const computedFocusBlocks = timeBlocks.map(tb => {
           let mins = 0;
@@ -306,15 +328,8 @@ export function ProductivityOverview() {
         const calculatedBurnout = Math.max(10, Math.min(95, Math.round(100 - avgSleep * 10)));
         setBurnoutScore(calculatedBurnout);
 
-        setWeeklyTrend([
-          { day: "Sat", planned: 8, done: 7, sleep: 7.5 },
-          { day: "Sun", planned: 6, done: 5, sleep: 8.0 },
-          { day: "Mon", planned: 9, done: 9, sleep: 7.0 },
-          { day: "Tue", planned: 7, done: 6, sleep: 6.5 },
-          { day: "Wed", planned: 8, done: 8, sleep: 7.5 },
-          { day: "Thu", planned: 6, done: 5, sleep: 7.0 },
-          { day: "Fri", planned: 5, done: 4, sleep: 8.5 },
-        ]);
+        // Weekly trend uses real computed data from past7Days (set on line 274)
+        // Hardcoded fake data removed — analytics now shows real user activity
 
       } catch (err) {
         // Fallback gracefully
@@ -481,6 +496,147 @@ export function ProductivityOverview() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* ── Distraction Activity Log ── */}
+          <div className="sticker-card p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-display text-lg font-black flex items-center gap-2">
+                  <ShieldAlert className="h-5 w-5 text-red-500" />
+                  {lang === "bn" ? "ডিস্ট্র্যাকশন অ্যাক্টিভিটি লগ" : "Distraction Activity Log"}
+                </h4>
+                <p className="text-xs text-[var(--muted-fg)] font-semibold">
+                  {lang === "bn" ? "ব্লক হওয়া সাইট ও অ্যাপের বিস্তারিত লগ" : "Detailed log of blocked site visits and app attempts"}
+                </p>
+              </div>
+              <span className="hard-chip px-3 py-1 text-xs font-black bg-[#FEE2E2] text-red-700">
+                {todayDistractionsCount} today / {distractionEntries.length} total
+              </span>
+            </div>
+
+            {/* Top Blocked Domains & Desktop Apps Summary */}
+            {distractionEntries.length > 0 && (() => {
+              const domainCounts: Record<string, number> = {};
+              distractionEntries.forEach(e => { domainCounts[e.domain] = (domainCounts[e.domain] || 0) + 1; });
+              const sorted = Object.entries(domainCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+              const maxCount = sorted[0]?.[1] || 1;
+              return (
+                <div className="space-y-2">
+                  <p className="text-xs font-black uppercase text-[var(--muted-fg)] tracking-[0.16em]">
+                    {lang === "bn" ? "সর্বোচ্চ ব্লক হওয়া সাইট ও অ্যাপস" : "Top Blocked Sites & Apps"}
+                  </p>
+                  {sorted.map(([domain, count]) => {
+                    const isApp = domain.endsWith(".exe");
+                    return (
+                      <div key={domain} className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 min-w-[160px] max-w-[160px] truncate">
+                          {isApp ? (
+                            <span className="text-sm shrink-0">💻</span>
+                          ) : (
+                            <img
+                              src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
+                              alt=""
+                              className="h-4 w-4 shrink-0 rounded-sm object-contain"
+                              onError={(e) => { (e.target as HTMLElement).style.display = "none"; }}
+                            />
+                          )}
+                          <span className="truncate text-xs font-bold">{domain}</span>
+                        </div>
+                        <div className="flex-1 h-4 rounded-full border-2 border-[#1E293B] bg-slate-100 p-0.5 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              isApp ? "bg-gradient-to-r from-purple-500 to-indigo-600" : "bg-gradient-to-r from-red-400 to-red-600"
+                            }`}
+                            style={{ width: `${Math.max(8, (count / maxCount) * 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-black text-red-600 min-w-[45px] text-right">{count}×</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
+            {/* Individual Log Entries Table */}
+            {distractionEntries.length > 0 ? (
+              <div className="max-h-72 overflow-y-auto rounded-xl border-2 border-[#1E293B]">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b-2 border-[#1E293B] bg-[#F1F5F9]">
+                      <th className="px-3 py-2 text-left font-black uppercase tracking-wider">Item / App</th>
+                      <th className="px-3 py-2 text-left font-black uppercase tracking-wider">Source</th>
+                      <th className="px-3 py-2 text-left font-black uppercase tracking-wider">Action / Type</th>
+                      <th className="px-3 py-2 text-left font-black uppercase tracking-wider">Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {distractionEntries.slice(0, 50).map((entry, idx) => {
+                      const date = new Date(entry.timestamp);
+                      const timeStr = isNaN(date.getTime()) ? entry.timestamp : date.toLocaleString();
+                      const isApp = entry.isApp || entry.domain.endsWith(".exe") || entry.type.includes("process");
+                      
+                      let typeLabel = "Site Blocked";
+                      if (isApp || entry.type === "process_terminated") {
+                        typeLabel = "💻 App Terminated";
+                      } else if (entry.type.includes("tab")) {
+                        typeLabel = "📑 Tab Blocked";
+                      } else if (entry.type.includes("navigation") || entry.type.includes("site")) {
+                        typeLabel = "🌐 Site Blocked";
+                      }
+
+                      return (
+                        <tr key={idx} className={`border-b border-slate-200 ${idx % 2 === 0 ? "bg-white" : "bg-[#FAFAFA]"}`}>
+                          <td className="px-3 py-2 font-bold text-[var(--foreground)]">
+                            <div className="flex items-center gap-2 max-w-[180px] truncate">
+                              {isApp ? (
+                                <span className="text-sm shrink-0">💻</span>
+                              ) : (
+                                <img
+                                  src={`https://www.google.com/s2/favicons?domain=${entry.domain}&sz=32`}
+                                  alt=""
+                                  className="h-4 w-4 shrink-0 rounded-sm object-contain"
+                                  onError={(e) => { (e.target as HTMLElement).style.display = "none"; }}
+                                />
+                              )}
+                              <span className="truncate" title={entry.domain}>{entry.domain}</span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 font-semibold">
+                            <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-black border border-[#1E293B] ${
+                              isApp ? "bg-[#F3E8FF] text-purple-900" : "bg-[#E0F2FE] text-sky-900"
+                            }`}>
+                              {isApp ? "💻 Windows companion" : "🧩 Browser extension"}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2">
+                            <span className={`inline-flex items-center rounded-md border border-[#1E293B] px-1.5 py-0.5 text-[10px] font-black ${
+                              isApp ? "bg-[#FEE2E2] text-red-900" :
+                              entry.type.includes("tab") ? "bg-[#FEF3C7] text-amber-900" :
+                              "bg-[#FEE2E2] text-red-800"
+                            }`}>
+                              {typeLabel}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-[var(--muted-fg)] font-semibold whitespace-nowrap">{timeStr}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="rounded-xl border-2 border-dashed border-[#CBD5E1] bg-[#F8FAFC] p-8 text-center">
+                <ShieldAlert className="mx-auto h-8 w-8 text-slate-300" />
+                <p className="mt-2 text-sm font-bold text-[var(--muted-fg)]">
+                  {lang === "bn" ? "কোনো ডিস্ট্র্যাকশন লগ পাওয়া যায়নি" : "No distraction logs recorded yet"}
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  {lang === "bn" ? "ফোকাস সেশনে ব্লক হওয়া সাইট ভিজিটগুলো এখানে দেখা যাবে" : "Blocked site visits during focus sessions will appear here"}
+                </p>
+              </div>
+            )}
           </div>
         </section>
       )}
