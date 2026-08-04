@@ -145,12 +145,23 @@ export async function collectWeeklyData(
       .eq("user_id", userId),
   ]);
 
-  const sessions: FocusSessionRow[] = focusRes.data || [];
+  const rawSessions: FocusSessionRow[] = focusRes.data || [];
+  const startMs = new Date(weekStart).getTime();
+  const endMs = new Date(weekEnd).getTime();
+
+  const sessions: FocusSessionRow[] = rawSessions.filter((s) => {
+    const t = s.started_at || s.created_at || s.timestamp;
+    if (!t) return true;
+    const timeMs = new Date(t).getTime();
+    return timeMs >= startMs && timeMs <= endMs;
+  });
+
   const rawDistractions: DistractionLogRow[] = distractionRes.data || [];
   const distractions: DistractionLogRow[] = rawDistractions.filter((d) => {
     const t = d.timestamp || d.blocked_at || (d as any).created_at;
     if (!t) return true;
-    return new Date(t).getTime() >= new Date(weekStart).getTime();
+    const timeMs = new Date(t).getTime();
+    return timeMs >= startMs && timeMs <= endMs;
   });
   const notes: NoteRow[] = notesRes.data || [];
   const wellness: WellnessLogRow[] = wellnessRes.data || [];
@@ -159,10 +170,17 @@ export async function collectWeeklyData(
 
   // Focus calculations
   const getSessionMinutes = (s: FocusSessionRow): number => {
-    if (typeof s.actual_minutes === "number") return s.actual_minutes;
-    if (typeof s.duration_seconds === "number") return s.duration_seconds / 60;
-    if (typeof s.planned_minutes === "number") return s.planned_minutes;
-    return 0;
+    let val = 0;
+    if (typeof s.actual_minutes === "number" && s.actual_minutes > 0) {
+      val = s.actual_minutes;
+    } else if (typeof s.duration_seconds === "number" && s.duration_seconds > 0) {
+      val = s.duration_seconds > 86400 ? s.duration_seconds / 60000 : s.duration_seconds / 60;
+    } else if (typeof s.planned_minutes === "number" && s.planned_minutes > 0) {
+      val = s.planned_minutes;
+    }
+    // Cap single session at 1440 mins (24 hours) to prevent corrupted test rows from polluting stats
+    if (val > 1440) val = Math.round(val / 60000);
+    return Math.min(1440, Math.max(0, Math.round(val)));
   };
 
   const totalFocusMinutes = sessions.reduce(

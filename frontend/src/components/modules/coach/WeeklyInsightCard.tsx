@@ -122,7 +122,19 @@ export function WeeklyInsightCard({ userId }: WeeklyInsightCardProps) {
           Nyx will analyze your focus sessions, wellness logs, and distraction metrics from this past week to deliver personalized study advice.
         </p>
 
-        {error && <p className="mb-4 text-xs font-bold text-red-500">{error}</p>}
+        {error && (
+          <div className="mx-auto mb-5 max-w-md rounded-2xl border-2 border-red-500 bg-[#FEE2E2] p-4 text-xs font-bold text-red-900 shadow-[3px_3px_0_0_#991B1B]">
+            <p className="font-black">{error}</p>
+            {error.includes("Settings") && (
+              <a
+                href="/settings"
+                className="mt-2 inline-block rounded-xl border border-red-800 bg-white px-3 py-1 text-[11px] font-black text-red-900 shadow-[2px_2px_0_0_#991B1B] hover:bg-slate-50"
+              >
+                ⚙️ Add API Key in Settings
+              </a>
+            )}
+          </div>
+        )}
 
         <button
           className="candy-button inline-flex items-center gap-2.5 rounded-[18px] px-6 py-3.5 text-sm font-black shadow-[4px_4px_0_0_#1E293B] hover:translate-y-[-2px] hover:shadow-[6px_6px_0_0_#1E293B] transition-all disabled:opacity-50"

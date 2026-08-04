@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { collectWeeklyData, WeeklySummary } from "@/lib/weeklyDataCollector";
+import { checkAndIncrementAiUsage } from "@/lib/aiUsageLimiter";
 
 export async function POST(req: NextRequest) {
   try {
@@ -44,6 +45,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const customApiKey = parsedBody?.apiKey || req.headers.get("x-custom-ai-key") || "";
+    const usageCheck = await checkAndIncrementAiUsage(userId, sb, customApiKey);
+
+    if (!usageCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: usageCheck.error,
+          currentUsage: usageCheck.currentUsage,
+          limit: usageCheck.limit,
+          resetTime: "12:00 AM BDT (6:00 PM UTC)",
+        },
+        { status: 403 }
+      );
+    }
+
     const weekChunk = getCurrentWeekChunk();
     const weekStartStr = weekChunk.start.split("T")[0];
     const weekEndStr = weekChunk.end.split("T")[0];
@@ -74,7 +90,7 @@ export async function POST(req: NextRequest) {
     const { summary } = weeklyData;
 
     // Call Groq API
-    const groqApiKey = process.env.GROQ_API_KEY;
+    const groqApiKey = (customApiKey && customApiKey.trim().length > 10) ? customApiKey : process.env.GROQ_API_KEY;
     let aiReport = "";
 
     if (groqApiKey) {
@@ -93,11 +109,11 @@ export async function POST(req: NextRequest) {
               messages: [
                 {
                   role: "system",
-                  content: `You are an empathetic AI study coach named Nyx, built into Focusnyx — a productivity app for Bangladeshi university students. 
+                  content: `You are an empathetic AI study coach named Nyx, built into Focusnyx — a productivity app for university students. 
 You write weekly behavioral insights in a warm, motivating, and honest tone.
 Never use bullet points — write in natural flowing paragraphs.
 Keep it under 300 words. Always end with one specific, actionable advice for next week.
-If data is missing or zero for some areas, acknowledge it kindly and encourage tracking.
+If data is zero or missing for some areas, acknowledge it kindly and encourage starting focus sessions.
 Write like a friend who knows their habits well, not like a corporate report.`,
                 },
                 {
@@ -146,7 +162,6 @@ Write like a friend who knows their habits well, not like a corporate report.`,
 
     if (insertErr) {
       console.error("Failed to insert report into Supabase:", insertErr);
-      // Return fallback payload
       return NextResponse.json({
         report: {
           id: "temp-" + Date.now(),
@@ -221,7 +236,14 @@ function generateFallbackReport(summary: WeeklySummary): string {
   const best = summary.focus.bestDay;
   const dist = summary.distractions.total;
 
-  return `Hey there! Looking at your focus logs for this past week, you logged ${mins} minutes across ${sessions} study sessions. Your highest concentration happened on ${best}, which was a strong day for your learning consistency. On the flip side, we detected ${dist} distraction attempts, with peak friction around ${summary.distractions.peakHour}. 
+  if (mins === 0 && sessions === 0 && dist === 0) {
+    return `Hey there! Nyx here. I analyzed your focus activity for this past week, but didn't find any recorded study sessions yet. Start a focus session today to build your deep-work momentum!`;
+  }
+
+  const bestDayText = (best && best !== "N/A") ? ` Your highest concentration happened on ${best}, which was a strong day for your learning consistency.` : "";
+  const distText = dist > 0 ? ` On the flip side, we detected ${dist} distraction attempts, with peak friction around ${summary.distractions.peakHour}.` : " You kept distractions completely at zero this week!";
+
+  return `Hey there! Looking at your focus logs for this past week, you logged ${mins} minutes across ${sessions} study sessions.${bestDayText}${distText}
 
 Remember that building deep focus is a journey of small daily wins. For next week, try scheduling your toughest core study block right before your usual peak distraction hours to stay ahead of tiredness!`;
 }

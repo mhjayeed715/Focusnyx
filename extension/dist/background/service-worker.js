@@ -1,8 +1,11 @@
 // src/shared/api.ts
 var SUPABASE_URL = "https://vavppeevglpvyfoorfje.supabase.co";
-var SUPABASE_ANON_KEY = "sb_publishable_daFD2p7ydAis9gUmaMtVxQ_OD7ccyze";
+var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhdnBwZWV2Z2xwdnlmb29yZmplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4ODEwNTksImV4cCI6MjA5MjQ1NzA1OX0.3PI_2nJsIHaJUzvEc_cNggcwbv147Q2aGlRhVdBncuA";
 async function syncBlockEvent(token, sessionId, url, type = "navigation_blocked", domain, details) {
-  if (!token) return;
+  if (!token) {
+    console.warn("[Focusnyx Extension] syncBlockEvent skipped: no auth token available");
+    return;
+  }
   let userId = null;
   try {
     const base64Url = token.split(".")[1];
@@ -19,7 +22,10 @@ async function syncBlockEvent(token, sessionId, url, type = "navigation_blocked"
   } catch (e) {
     console.warn("[Focusnyx Extension] JWT decode warning:", e);
   }
-  if (!userId) return;
+  if (!userId) {
+    console.warn("[Focusnyx Extension] syncBlockEvent skipped: could not extract user_id from JWT");
+    return;
+  }
   const resolvedDomain = domain || (url ? (() => {
     try {
       return new URL(url).hostname;
@@ -28,35 +34,54 @@ async function syncBlockEvent(token, sessionId, url, type = "navigation_blocked"
     }
   })() : "unknown");
   const now = (/* @__PURE__ */ new Date()).toISOString();
-  await fetch(`${SUPABASE_URL}/rest/v1/distraction_logs`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "apikey": SUPABASE_ANON_KEY,
-      "Authorization": `Bearer ${token}`,
-      "Prefer": "return=minimal"
-    },
-    body: JSON.stringify({
-      user_id: userId,
-      type,
-      domain: resolvedDomain,
-      blocked_at: now,
-      timestamp: now,
-      details: details || { url, timestamp: now }
-    })
-  }).catch((err) => console.warn("[Focusnyx Extension] Failed to sync block event:", err));
+  console.log("[Focusnyx Extension] Logging distraction:", { type, domain: resolvedDomain, url });
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/distraction_logs`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${token}`,
+        "Prefer": "return=minimal"
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        type,
+        domain: resolvedDomain,
+        blocked_at: now,
+        timestamp: now,
+        details: details || { url, timestamp: now }
+      })
+    });
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      console.error("[Focusnyx Extension] Failed to insert distraction_log:", res.status, errBody);
+    } else {
+      console.log("[Focusnyx Extension] Distraction log saved successfully for:", resolvedDomain);
+    }
+  } catch (err) {
+    console.warn("[Focusnyx Extension] Failed to sync block event:", err);
+  }
 }
 async function fetchBlocklist(token) {
   if (!token) return [];
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=blocklist`, {
-    headers: {
-      "apikey": SUPABASE_ANON_KEY,
-      "Authorization": `Bearer ${token}`
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/blocklist_sites?select=domain&is_active=eq.true`, {
+      headers: {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${token}`
+      }
+    });
+    if (!res.ok) {
+      console.warn("[Focusnyx Extension] Failed to fetch blocklist:", res.status);
+      return [];
     }
-  }).catch(() => null);
-  if (!res?.ok) return [];
-  const data = await res.json();
-  return data?.[0]?.blocklist ?? [];
+    const data = await res.json();
+    return (data || []).map((row) => row.domain).filter(Boolean);
+  } catch (err) {
+    console.warn("[Focusnyx Extension] Error fetching blocklist:", err);
+    return [];
+  }
 }
 
 // src/background/service-worker.ts
@@ -384,15 +409,48 @@ async function flushPendingEvents() {
 function handleMessage(request, sender, sendResponse) {
   if (request.action === "syncAuth") {
     (async () => {
+      console.log("[Focusnyx Extension] syncAuth received. Token present:", Boolean(request.token), "UserId:", request.userId, "Email:", request.email);
       const currentState = await getState();
       const nextToken = request.token || currentState.token;
       const nextUserId = request.userId || currentState.userId;
+      let email = request.email || "";
+      if (!email && nextToken) {
+        try {
+          const base64Url = nextToken.split(".")[1];
+          if (base64Url) {
+            const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+            const pad = base64.length % 4;
+            const padded = pad ? base64 + "=".repeat(4 - pad) : base64;
+            const jsonPayload = decodeURIComponent(
+              atob(padded).split("").map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)).join("")
+            );
+            const parsed = JSON.parse(jsonPayload);
+            email = parsed.email || "";
+          }
+        } catch {
+        }
+      }
+      if (!email && nextToken) {
+        try {
+          const res = await fetch("https://vavppeevglpvyfoorfje.supabase.co/auth/v1/user", {
+            headers: {
+              "Authorization": `Bearer ${nextToken}`,
+              "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhdnBwZWV2Z2xwdnlmb29yZmplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4ODEwNTksImV4cCI6MjA5MjQ1NzA1OX0.3PI_2nJsIHaJUzvEc_cNggcwbv147Q2aGlRhVdBncuA"
+            }
+          });
+          if (res.ok) {
+            const userData = await res.json();
+            email = userData.email || "";
+          }
+        } catch {
+        }
+      }
       await setState({
         token: nextToken,
         userId: nextUserId
       });
       await chrome.storage.local.set({
-        userAuth: { token: nextToken, userId: nextUserId }
+        userAuth: { token: nextToken, userId: nextUserId, email: email || nextUserId }
       });
       if (request.pin) {
         await chrome.storage.local.set({ pin: request.pin });
@@ -401,6 +459,7 @@ function handleMessage(request, sender, sendResponse) {
         await chrome.storage.local.set({ focusState: latestState });
       }
       await flushPendingEvents();
+      console.log("[Focusnyx Extension] syncAuth complete. Email:", email, "Token stored.");
       sendResponse({ ok: true, success: true });
     })();
     return true;
@@ -510,6 +569,22 @@ function handleMessage(request, sender, sendResponse) {
   if (request.action === "blockAttempt") {
     logDistraction({ type: request.type || "blockAttempt", url: request.url });
     sendResponse({ logged: true });
+    return true;
+  }
+  if (request.action === "closeBlockedTab") {
+    (async () => {
+      try {
+        if (sender.tab?.id) {
+          try {
+            await chrome.tabs.goBack(sender.tab.id);
+          } catch {
+            await chrome.tabs.update(sender.tab.id, { url: "http://localhost:3000/dashboard" });
+          }
+        }
+      } catch {
+      }
+      sendResponse({ ok: true });
+    })();
     return true;
   }
   if (request.action === "updateWhitelist") {
