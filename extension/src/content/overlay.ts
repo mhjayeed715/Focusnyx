@@ -123,7 +123,13 @@
             if (action === "startFocus") {
               const durationMs = (durationMinutes || 25) * 60 * 1000;
               safeSendMessage(
-                { action: "startFocus", duration: durationMs, pin: pin || "123456" },
+                {
+                  action: "startFocus",
+                  duration: durationMs,
+                  allowedUrls: parsed.allowedUrls,
+                  blocklist: parsed.blocklist || parsed.allowedUrls,
+                  pin: pin || "123456",
+                },
                 (res) => {
                   if (res) {
                     safeSendMessage({ action: "getStatus" }, (status) => postStateToWebApp(status));
@@ -156,7 +162,13 @@
       if (action === "startFocus") {
         const durationMs = durationMins * 60 * 1000;
         safeSendMessage(
-          { action: "startFocus", duration: durationMs, blocklist: event.data.blocklist || event.data.blockedSites, pin: pin || "123456" },
+          {
+            action: "startFocus",
+            duration: durationMs,
+            allowedUrls: event.data.allowedUrls,
+            blocklist: event.data.blocklist || event.data.blockedSites || event.data.allowedUrls,
+            pin: pin || "123456",
+          },
           (res) => {
             if (res) {
               safeSendMessage({ action: "getStatus" }, (status) => postStateToWebApp(status));
@@ -194,7 +206,13 @@
       const { action, durationMinutes, pin } = event.detail;
       const durationMins = durationMinutes || 25;
       if (action === "startFocus") {
-        safeSendMessage({ action: "startFocus", duration: durationMins * 60 * 1000, pin: pin || "123456" }, (res) => {
+        safeSendMessage({
+          action: "startFocus",
+          duration: durationMins * 60 * 1000,
+          allowedUrls: event.detail.allowedUrls,
+          blocklist: event.detail.blocklist || event.detail.allowedUrls,
+          pin: pin || "123456",
+        }, (res) => {
           if (res) {
             safeSendMessage({ action: "getStatus" }, (status) => postStateToWebApp(status));
           }
@@ -219,7 +237,13 @@
         const { action, durationMinutes, pin } = event.data;
         if (action === "startFocus") {
           const durationMs = (durationMinutes || 25) * 60 * 1000;
-          safeSendMessage({ action: "startFocus", duration: durationMs, pin: pin || "123456" }, (res) => {
+          safeSendMessage({
+            action: "startFocus",
+            duration: durationMs,
+            allowedUrls: event.data.allowedUrls,
+            blocklist: event.data.blocklist || event.data.allowedUrls,
+            pin: pin || "123456",
+          }, (res) => {
             if (res) {
               safeSendMessage({ action: "getStatus" }, (status) => postStateToWebApp(status));
             }

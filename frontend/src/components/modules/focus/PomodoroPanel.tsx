@@ -689,8 +689,10 @@ export function PomodoroPanel() {
   useEffect(() => { totalSecondsRef.current = totalSeconds; }, [totalSeconds]);
 
   useEffect(() => {
+    // Avoid resetting a running global timer when this page remounts after navigation.
+    if (isRunning) return;
     setDuration(durationMinutes);
-  }, [durationMinutes, setDuration]);
+  }, [durationMinutes, isRunning, setDuration]);
 
   // Focus lock keyboard guard — only intercept Escape (show PIN) when locked
   // All other keys (typing, scrolling, arrows, numbers) remain fully functional inside the app
@@ -721,22 +723,6 @@ export function PomodoroPanel() {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, [isLocked]);
-
-  // Prevent closing the web app if locked
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isLocked) {
-        e.preventDefault();
-        e.returnValue = "Focus Lock is active. Are you sure you want to exit?";
-        return e.returnValue;
-      }
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isLocked]);
-
-
 
   // ── Extension & Companion App Bidirectional Synchronization ──
   const notifyExtension = (action: "startFocus" | "endFocus" | "getStatus", durationMins?: number, customPin?: string, remainingSecs?: number) => {

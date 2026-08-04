@@ -147,16 +147,44 @@ export function ProductivityOverview() {
         // Store individual distraction entries for the activity log display (web sites & desktop apps)
         const allEntries = distractionLogs.map((d: Record<string, unknown>) => {
           const details = (d.details as any) || {};
-          let domain = String(d.domain || details.app || details.url || "unknown");
-          if (domain.startsWith("http://") || domain.startsWith("https://")) {
-            try { domain = new URL(domain).hostname; } catch {}
+
+          const rawType = String(d.type || "");
+          const rawDomain = String(d.domain || "").trim();
+          const detailApp = String(details.app || "").trim();
+          const detailDomain = String(details.domain || "").trim();
+          const detailUrl = String(details.url || d.url || "").trim();
+
+          const looksAppLike = (value: string) => value.toLowerCase().endsWith(".exe");
+          const typeIndicatesApp = rawType.includes("process") || rawType.includes("app");
+          const isApp =
+            looksAppLike(rawDomain) ||
+            looksAppLike(detailApp) ||
+            typeIndicatesApp ||
+            details.source === "windows_companion";
+
+          let domain = rawDomain || detailDomain || detailApp;
+
+          if (!domain || domain === "unknown") {
+            domain = detailUrl;
           }
-          const isApp = domain.endsWith(".exe") || String(d.type).includes("process") || details.source === "windows_companion";
+
+          if (domain.startsWith("http://") || domain.startsWith("https://")) {
+            try {
+              domain = new URL(domain).hostname;
+            } catch {
+              // keep as-is
+            }
+          }
+
+          if (!domain || domain === "unknown") {
+            domain = isApp ? (detailApp || "unknown.exe") : "unknown-site";
+          }
+
           return {
             domain,
-            type: String(d.type || (isApp ? "process_terminated" : "navigation_blocked")),
+            type: rawType || (isApp ? "process_terminated" : "navigation_blocked"),
             timestamp: String(d.timestamp || d.blocked_at || d.created_at || ""),
-            url: details.url || "",
+            url: detailUrl,
             isApp,
             source: details.source || (isApp ? "windows_companion" : "browser_extension"),
           };

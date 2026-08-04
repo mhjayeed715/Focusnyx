@@ -253,6 +253,8 @@ async function logDistraction(data: Partial<BlockEvent>) {
   if (state.token) {
     await syncBlockEvent(state.token, sessionId, rawUrl, event.type, domain, {
       url: rawUrl,
+      domain,
+      source: "browser_extension",
       timestamp: new Date(event.timestamp).toISOString(),
     });
   }
@@ -424,6 +426,8 @@ async function flushPendingEvents() {
     }
     await syncBlockEvent(state.token, event.sessionId, event.url, event.type, domain, {
       url: event.url,
+      domain,
+      source: "browser_extension",
       timestamp: new Date(event.timestamp).toISOString(),
     });
   }
@@ -501,7 +505,21 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
       if (duration > 0 && duration <= 1440) {
         duration = duration * 60 * 1000;
       }
-      const allowedUrls = request.allowedUrls || currentState.allowedUrls || ["localhost", "127.0.0.1", "focusnyx", "vercel.app"];
+      const requestedAllowed = Array.isArray(request.allowedUrls)
+        ? request.allowedUrls
+        : Array.isArray(request.blocklist)
+          ? request.blocklist
+          : [];
+      const allowedUrls = Array.from(
+        new Set(
+          [
+            ...(currentState.allowedUrls || ["localhost", "127.0.0.1", "focusnyx", "vercel.app"]),
+            ...requestedAllowed,
+          ]
+            .map((value) => String(value || "").trim().toLowerCase())
+            .filter(Boolean)
+        )
+      );
       const pin = request.pin || currentState.focusPIN || "123456";
       const token = request.token || currentState.token;
       const sessionId = request.sessionId || `session-${Date.now()}`;
