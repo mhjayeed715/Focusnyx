@@ -166,6 +166,9 @@ var ALLOWED_SYSTEM_DOMAINS = [
   "focusnyx.vercel.app",
   "focusnyx.com"
 ];
+function normalizeDomain(raw) {
+  return raw.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim();
+}
 function isDomainBlocked(url, state) {
   if (!state.active || !url) return false;
   if (url.startsWith("chrome-extension://") || url.startsWith("chrome://") || url.startsWith("edge://") || url.startsWith("about:") || url.startsWith("file://")) {
@@ -173,7 +176,7 @@ function isDomainBlocked(url, state) {
   }
   let hostname = "";
   try {
-    hostname = new URL(url).hostname.toLowerCase();
+    hostname = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
   } catch {
     return false;
   }
@@ -182,10 +185,9 @@ function isDomainBlocked(url, state) {
     ...state.allowedUrls || []
   ];
   const isAllowed = allowedList.some((allowed) => {
-    const cleanAllowed = allowed.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim();
+    const cleanAllowed = normalizeDomain(allowed);
     if (!cleanAllowed) return false;
-    const cleanHost = hostname.replace(/^www\./, "").trim();
-    return cleanHost === cleanAllowed || cleanHost.endsWith("." + cleanAllowed) || cleanHost.includes(cleanAllowed) || cleanAllowed.includes(cleanHost);
+    return hostname === cleanAllowed || hostname.endsWith("." + cleanAllowed);
   });
   if (isAllowed) return false;
   return true;
@@ -197,14 +199,16 @@ async function applyRules(state) {
   ];
   const cleanAllowedDomains = Array.from(
     new Set(
-      allowedList.map(
-        (d) => d.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim()
-      ).filter(Boolean)
+      allowedList.flatMap((d) => {
+        const clean = normalizeDomain(d);
+        if (!clean) return [];
+        return [clean, `www.${clean}`];
+      })
     )
   );
   const removeIds = Array.from({ length: 500 }, (_, i) => i + 1);
   const addRules = state.active ? [
-    // Priority 100: Allow system app domains and user-whitelisted allowed URLs
+    // Priority 100: Allow whitelisted domains (exact + www variant)
     ...cleanAllowedDomains.map((domain, i) => ({
       id: 10 + i,
       priority: 100,
@@ -483,13 +487,13 @@ function handleMessage(request, sender, sendResponse) {
       if (duration > 0 && duration <= 1440) {
         duration = duration * 60 * 1e3;
       }
-      const requestedAllowed = Array.isArray(request.allowedUrls) ? request.allowedUrls : Array.isArray(request.blocklist) ? request.blocklist : [];
+      const requestedAllowed = Array.isArray(request.allowedUrls) ? request.allowedUrls : [];
       const allowedUrls = Array.from(
         new Set(
           [
             ...currentState.allowedUrls || ["localhost", "127.0.0.1", "focusnyx", "vercel.app"],
             ...requestedAllowed
-          ].map((value) => String(value || "").trim().toLowerCase()).filter(Boolean)
+          ].map((value) => normalizeDomain(String(value || ""))).filter(Boolean)
         )
       );
       const pin = request.pin || currentState.focusPIN || "123456";
@@ -613,9 +617,10 @@ function handleMessage(request, sender, sendResponse) {
   if (request.action === "updateWhitelist") {
     (async () => {
       const state = await getState();
-      const newAllowed = Array.isArray(request.allowedUrls) ? request.allowedUrls : state.allowedUrls;
+      const newAllowed = Array.isArray(request.allowedUrls) ? request.allowedUrls.map((d) => normalizeDomain(d)).filter(Boolean) : state.allowedUrls;
+      const nextState = { ...state, allowedUrls: newAllowed };
       await setState({ allowedUrls: newAllowed });
-      applyRules({ ...state, allowedUrls: newAllowed });
+      await applyRules(nextState);
       sendResponse({ ok: true, success: true, message: "Whitelist updated" });
     })();
     return true;

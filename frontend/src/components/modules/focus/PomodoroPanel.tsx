@@ -406,16 +406,57 @@ export function PomodoroPanel() {
 
   // Live Distraction Log State & Detected Desktop Apps
   const [distractionLogs, setDistractionLogs] = useState<Array<{ id: string; type: string; app?: string; url?: string; timestamp: string }>>([]);
+  const [browserDistractionLogs, setBrowserDistractionLogs] = useState<Array<{ id: string; type: string; domain: string; timestamp: string }>>([]);
   const [detectedDesktopApps, setDetectedDesktopApps] = useState<Array<{ name: string; exe: string; running: boolean }>>([]);
   const [isCompanionActive, setIsCompanionActive] = useState<boolean>(false);
 
-  // Poll distraction logs and installed desktop apps from Companion App
+  // Fetch browser extension distraction logs from Supabase
+  useEffect(() => {
+    let isSubscribed = true;
+    const fetchBrowserLogs = async () => {
+      try {
+        const { createClient } = await import("@/lib/supabase/client");
+        const sb = createClient();
+        const { data: { user } } = await sb.auth.getUser();
+        if (!user) return;
+        const { data } = await sb
+          .from("distraction_logs")
+          .select("id, type, domain, timestamp, blocked_at, details")
+          .eq("user_id", user.id)
+          .order("blocked_at", { ascending: false })
+          .limit(30);
+        if (data && isSubscribed) {
+          const browserLogs = data
+            .filter((d: any) => {
+              const t = d.type || "";
+              const src = d.details?.source || "";
+              // Only browser extension logs (not companion app logs)
+              return !t.includes("process") && !t.includes("app_killed") && src !== "windows_companion";
+            })
+            .map((d: any) => ({
+              id: d.id,
+              type: d.type || "navigation_blocked",
+              domain: d.domain || "unknown",
+              timestamp: d.blocked_at || d.timestamp || new Date().toISOString(),
+            }));
+          setBrowserDistractionLogs(browserLogs);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    fetchBrowserLogs();
+    const interval = setInterval(fetchBrowserLogs, 10000);
+    return () => { isSubscribed = false; clearInterval(interval); };
+  }, []);
+
+  // Poll distraction logs (companion app) and installed desktop apps
   useEffect(() => {
     let isSubscribed = true;
     let timerId: NodeJS.Timeout;
 
     const poll = async () => {
-      let nextInterval = 4000;
+      let nextInterval = 5000;
       try {
         const [logsRes, appsRes] = await Promise.all([
           fetch("http://localhost:5000/distraction-logs").catch(() => null),
@@ -427,7 +468,10 @@ export function PomodoroPanel() {
           if (data.logs && Array.isArray(data.logs) && isSubscribed) {
             setDistractionLogs(data.logs);
           }
-          setIsCompanionActive(true);
+          if (isSubscribed) setIsCompanionActive(true);
+        } else if (isSubscribed) {
+          setIsCompanionActive(false);
+          nextInterval = 15000;
         }
 
         if (appsRes?.ok) {
@@ -435,7 +479,6 @@ export function PomodoroPanel() {
           if (appData.apps && Array.isArray(appData.apps) && isSubscribed) {
             setDetectedDesktopApps(appData.apps);
           }
-          setIsCompanionActive(true);
         }
       } catch {
         nextInterval = 15000;
@@ -789,13 +832,21 @@ export function PomodoroPanel() {
       setIsLocked(active);
 
       if (!active) {
-        syncState(0, false);
+        if (isRunningRef.current) {
+          syncState(0, false);
+        }
       } else if (extState.focusStartTime && extState.focusDuration) {
+        const durationMs = extState.focusDuration <= 1440
+          ? extState.focusDuration * 60 * 1000
+          : extState.focusDuration;
         const elapsedSecs = Math.floor((Date.now() - extState.focusStartTime) / 1000);
-        const totalSecs = Math.floor(extState.focusDuration / 1000);
+        const totalSecs = Math.floor(durationMs / 1000);
         const remainingSecs = Math.max(0, totalSecs - elapsedSecs);
         if (remainingSecs > 0) {
-          syncState(remainingSecs, true);
+          const drift = Math.abs(totalSecondsRef.current - remainingSecs);
+          if (!isRunningRef.current || drift > 10) {
+            syncState(remainingSecs, true);
+          }
         } else {
           syncState(0, false);
         }
@@ -823,8 +874,9 @@ export function PomodoroPanel() {
     let timerId: NodeJS.Timeout;
 
     const checkCompanionStatus = async () => {
+      // Always query extension state first for accurate remaining time
       notifyExtension("getStatus");
-      let nextInterval = 4000;
+      let nextInterval = 5000;
       try {
         const res = await fetch("http://localhost:5000/status");
         if (res.ok) {
@@ -834,15 +886,13 @@ export function PomodoroPanel() {
             if (typeof data.remaining_seconds === "number" && data.remaining_seconds > 0) {
               const companionSecs = data.remaining_seconds;
               const drift = Math.abs(totalSecondsRef.current - companionSecs);
-              // Only resync if PWA timer is not running, or drift exceeds 10s
-              // Prevents companion poll from constantly resetting endTime and breaking countdown
               if (!isRunningRef.current || drift > 10) {
                 syncState(companionSecs, true);
               }
             }
           } else if (!data.is_active && isSubscribed) {
-            setIsLocked(false);
-            syncState(0, false);
+            // Only unlock if extension also says inactive
+            // (extension is the source of truth for browser-started sessions)
           }
         } else {
           nextInterval = 15000;
@@ -2087,22 +2137,42 @@ export function PomodoroPanel() {
         : null}
 
       {/* Live Distraction Tracker Log Card */}
-      {distractionLogs.length > 0 && (
+      {(distractionLogs.length > 0 || browserDistractionLogs.length > 0) && (
         <div className="mt-6 rounded-[28px] border-2 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B]">
           <div className="flex items-center justify-between">
             <h3 className="font-display text-xl font-black text-red-500 flex items-center gap-2">
-              <ShieldAlert size={20} /> Live Distraction Log ({distractionLogs.length} Blocked)
+              <ShieldAlert size={20} /> Live Distraction Log ({distractionLogs.length + browserDistractionLogs.length} Blocked)
             </h3>
             <span className="hard-chip px-3 py-1 text-xs font-black bg-red-100 text-red-700">Protected</span>
           </div>
-          <div className="mt-4 space-y-2 max-h-40 overflow-y-auto pr-1">
-            {distractionLogs.map((log) => (
-              <div key={log.id} className="flex items-center justify-between rounded-[14px] border-2 border-[var(--foreground)] bg-[#FDF2F8] px-3 py-2 text-xs font-bold">
-                <span className="text-red-700">Killed {log.app || log.url || "Distraction Process"}</span>
-                <span className="text-[var(--muted-fg)]">{log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : "Just now"}</span>
+          {/* App kills from companion */}
+          {distractionLogs.length > 0 && (
+            <div className="mt-4">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted-fg)] mb-2">💻 Desktop App Blocks</p>
+              <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+                {distractionLogs.map((log) => (
+                  <div key={log.id} className="flex items-center justify-between rounded-[14px] border-2 border-[var(--foreground)] bg-[#FDF2F8] px-3 py-2 text-xs font-bold">
+                    <span className="text-red-700">💻 Killed: {log.app || log.url || "Distraction Process"}</span>
+                    <span className="text-[var(--muted-fg)]">{log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : "Just now"}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
+          {/* Browser blocked sites from Supabase */}
+          {browserDistractionLogs.length > 0 && (
+            <div className="mt-4">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted-fg)] mb-2">🌐 Browser Site Blocks</p>
+              <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+                {browserDistractionLogs.map((log) => (
+                  <div key={log.id} className="flex items-center justify-between rounded-[14px] border-2 border-[var(--foreground)] bg-[#E0F2FE] px-3 py-2 text-xs font-bold">
+                    <span className="text-sky-700">🌐 Blocked: {log.domain}</span>
+                    <span className="text-[var(--muted-fg)]">{log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : "Just now"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
       {/* ── Custom Task Delete Confirmation Modal ── */}

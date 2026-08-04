@@ -187,46 +187,62 @@ Write like a friend who knows their habits well, not like a corporate report.`,
 }
 
 function buildInsightPrompt(summary: WeeklySummary): string {
+  const taskRate = summary.tasks.total > 0
+    ? Math.round((summary.tasks.completed / summary.tasks.total) * 100)
+    : 0;
+
   return `
-Here is my study data from the past 7 days. Generate a personalized weekly insight report.
+Here is my real study data from the past 7 days. Generate a deeply personalized weekly insight report.
 
 FOCUS DATA:
-- Total focus sessions: ${summary.focus.totalSessions}
-- Completed sessions: ${summary.focus.completedSessions}
-- Total study time: ${summary.focus.totalFocusMinutes} minutes
+- Total focus sessions started: ${summary.focus.totalSessions}
+- Sessions fully completed: ${summary.focus.completedSessions}
+- Total study time logged: ${summary.focus.totalFocusMinutes} minutes
 - Average session length: ${summary.focus.avgSessionLength} minutes
 - Best study day: ${summary.focus.bestDay} (${summary.focus.bestDayMinutes} min)
 
 DISTRACTION DATA:
-- Total distraction attempts: ${summary.distractions.total}
-- Types of distractions: ${JSON.stringify(summary.distractions.byType)}
+- Total distraction attempts blocked: ${summary.distractions.total}
+- Breakdown by type: ${JSON.stringify(summary.distractions.byType)}
 - Peak distraction time: ${summary.distractions.peakHour}
 
+TASK COMPLETION:
+- Tasks created: ${summary.tasks.total}
+- Tasks completed: ${summary.tasks.completed}
+- Completion rate: ${taskRate}%
+
 NOTES & LEARNING:
-- Voice notes captured: ${summary.notes.total}
-- Subjects covered: ${summary.notes.subjects.join(", ") || "None recorded"}
+- Notes captured: ${summary.notes.total}
+- Subjects studied: ${summary.notes.subjects.join(", ") || "None recorded"}
 
 WELLNESS:
-- Average mood score: ${summary.wellness.avgMoodScore || "Not tracked"} out of 5
+- Average mood score: ${summary.wellness.avgMoodScore || "Not tracked"} / 5
 - Average sleep hours: ${summary.wellness.avgSleepHours || "Not tracked"}
-- Mood entries logged: ${summary.wellness.moodEntries}
+- Wellness entries logged: ${summary.wellness.moodEntries}
 
 FINANCE:
-- Total spent: ৳${summary.finance.totalSpent}
+- Total spent this week: ৳${summary.finance.totalSpent}
 - Transactions logged: ${summary.finance.entries}
 
-Write a personalized weekly summary. Be warm, specific, and use the actual numbers.
-Point out what went well, what pattern you notice, and give one clear recommendation for next week.
+Write a warm, specific, personalized weekly summary using the ACTUAL numbers above.
+Mention what went well, identify one behavioral pattern, and give ONE clear actionable recommendation for next week.
+Do NOT use bullet points. Write in natural flowing paragraphs. Keep it under 280 words.
+If data is zero in some areas, acknowledge it kindly and encourage the student to start tracking.
 `.trim();
 }
 
 function extractHighlights(summary: WeeklySummary) {
+  const taskRate = summary.tasks.total > 0
+    ? Math.round((summary.tasks.completed / summary.tasks.total) * 100)
+    : null;
   return {
     topStat: `${summary.focus.totalFocusMinutes} min focused`,
     distractionCount: summary.distractions.total,
     bestDay: summary.focus.bestDay,
     avgMood: summary.wellness.avgMoodScore,
     sessionsCompleted: summary.focus.completedSessions,
+    taskCompletionRate: taskRate,
+    notesCount: summary.notes.total,
   };
 }
 

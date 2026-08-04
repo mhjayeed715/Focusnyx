@@ -117,6 +117,8 @@ function ShellContent({
   const [sidebarOpen,       setSidebarOpen]       = useState(false);
   const [collapsed,         setCollapsed]         = useState<boolean>(initialCollapsed ?? false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showFocusNavWarn,  setShowFocusNavWarn]  = useState(false);
+  const [pendingNavHref,    setPendingNavHref]    = useState<string | null>(null);
 
   // ── AI Chat ──────────────────────────────────────────────────
   const [chatOpen,     setChatOpen]     = useState(false);
@@ -413,12 +415,22 @@ YOUR STRICT DOMAIN BOUNDARIES:
           {NAV_ITEMS.map(({ key, href, icon: Icon }) => {
             const active = pathname === href;
             const label = String(t[key] ?? key);
+            const isFocusPage = href === APP_ROUTES.focus;
             return (
               <Link
                 key={href}
                 href={href}
                 prefetch={true}
-                onClick={() => setSidebarOpen(false)}
+                onClick={(e) => {
+                  // If focus is locked and navigating away from focus page, warn user
+                  if (focusContext?.isLocked && pathname === APP_ROUTES.focus && !isFocusPage) {
+                    e.preventDefault();
+                    setPendingNavHref(href);
+                    setShowFocusNavWarn(true);
+                    return;
+                  }
+                  setSidebarOpen(false);
+                }}
                 title={collapsed ? label : undefined}
                 className={`flex items-center rounded-[14px] border-2 border-[var(--foreground)] px-3 py-2.5 text-sm font-bold shadow-[3px_3px_0_0_#1E293B] transition-all hover:shadow-[5px_5px_0_0_#1E293B] ${active ? "bg-[var(--foreground)] text-white" : "bg-white"} ${collapsed ? "lg:justify-center" : "gap-3"}`}
               >
@@ -471,6 +483,37 @@ YOUR STRICT DOMAIN BOUNDARIES:
             <Footer onContactClick={() => setIsContactOpen(true)} lang={lang} />
           </div>
       </main>
+
+      {/* ── Focus lock navigation warning ── */}
+      {showFocusNavWarn && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-sm rounded-[28px] border-2 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B]">
+            <h3 className="text-xl font-black">🔒 Focus Lock Active</h3>
+            <p className="mt-2 text-sm text-[var(--muted-fg)]">
+              Your Pomodoro timer is running. Navigating away will keep the timer running in the background — your progress will be saved. The focus lock will remain active.
+            </p>
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => { setShowFocusNavWarn(false); setPendingNavHref(null); }}
+                className="secondary-button flex-1 rounded-[18px] border-2 border-[var(--foreground)] px-4 py-3 font-bold"
+              >
+                Stay on Focus
+              </button>
+              <button
+                onClick={() => {
+                  setShowFocusNavWarn(false);
+                  setSidebarOpen(false);
+                  if (pendingNavHref) router.push(pendingNavHref as any);
+                  setPendingNavHref(null);
+                }}
+                className="candy-button flex-1 rounded-[18px] border-2 border-[var(--foreground)] px-4 py-3 font-bold"
+              >
+                Continue Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Logout confirm ── */}
       {showLogoutConfirm && (

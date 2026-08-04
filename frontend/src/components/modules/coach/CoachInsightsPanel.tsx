@@ -20,7 +20,7 @@ export function CoachInsightsPanel({ userId }: CoachInsightsPanelProps) {
   }, [userId]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+    <div className="space-y-8">
       <WeeklyInsightCard userId={resolvedUserId} />
     </div>
   );
