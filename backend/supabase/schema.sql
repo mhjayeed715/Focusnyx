@@ -316,15 +316,23 @@ create policy "savings_goals_all" on savings_goals
 -- Auto-create profile on signup (trigger)
 -- ============================================================
 create or replace function handle_new_user()
-returns trigger language plpgsql security definer as $$
+returns trigger language plpgsql security definer set search_path = public as $$
 begin
-  insert into profiles (id, university_email, display_name)
+  -- Delete legacy orphaned profile record with the same email if user was re-created
+  delete from public.profiles where university_email = new.email and id != new.id;
+
+  insert into public.profiles (id, university_email, display_name)
   values (
     new.id,
     new.email,
     coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1))
   )
-  on conflict (id) do nothing;
+  on conflict (id) do update set
+    university_email = excluded.university_email,
+    display_name = excluded.display_name;
+
+  return new;
+exception when others then
   return new;
 end;
 $$;
