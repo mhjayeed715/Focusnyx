@@ -69,24 +69,23 @@ export function getXpState(totalXp: number) {
   };
 }
 
-export function calculateStreak(previousLastActiveAt: string | null | undefined, currentStreak: number) {
+export function calculateStreak(previousLastActiveAt: string | null | undefined, currentStreak: number): number {
   if (!previousLastActiveAt) {
     return 1;
   }
 
-  const getBdtDateString = (date: Date) => {
-    const bdtStr = date.toLocaleString("en-US", { timeZone: "Asia/Dhaka" });
-    const bdtDate = new Date(bdtStr);
-    return `${bdtDate.getFullYear()}-${bdtDate.getMonth() + 1}-${bdtDate.getDate()}`;
+  const getBdtDateStr = (dateInput?: Date | string | number | null): string => {
+    const d = dateInput ? new Date(dateInput) : new Date();
+    if (isNaN(d.getTime())) return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dhaka" }).format(new Date());
+    return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dhaka" }).format(d);
   };
 
-  const lastActive = new Date(previousLastActiveAt);
   const today = new Date();
   const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
 
-  const lastActiveDay = getBdtDateString(lastActive);
-  const todayDay = getBdtDateString(today);
-  const yesterdayDay = getBdtDateString(yesterday);
+  const lastActiveDay = getBdtDateStr(previousLastActiveAt);
+  const todayDay = getBdtDateStr(today);
+  const yesterdayDay = getBdtDateStr(yesterday);
 
   if (lastActiveDay === todayDay) {
     return Math.max(1, currentStreak);

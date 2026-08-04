@@ -2,14 +2,26 @@ import { createClient } from "@/lib/supabase/client";
 import { getXpState } from "@/lib/xp";
 
 // Returns YYYY-MM-DD in Bangladesh Standard Time (UTC+6)
-// BD 12:00 AM = UTC 18:00 of the previous day — all date logic must use this
+export function getBdtDateStr(dateInput?: Date | string | number | null): string {
+  const d = dateInput ? new Date(dateInput) : new Date();
+  if (isNaN(d.getTime())) return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dhaka" }).format(new Date());
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dhaka" }).format(d);
+}
+
+export function getBdtYesterdayStr(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return getBdtDateStr(d);
+}
+
 function bdDateStr(offsetDays = 0): string {
-  const d = new Date(Date.now() + (6 * 60 - new Date().getTimezoneOffset()) * 60000 + offsetDays * 86400000);
-  return d.toISOString().slice(0, 10);
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return getBdtDateStr(d);
 }
 
 function localDateStr(): string {
-  return bdDateStr(0);
+  return getBdtDateStr();
 }
 
 const defaultBackendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080";
@@ -38,6 +50,88 @@ export async function backendRequest(path: string, init: RequestInit = {}) {
     ...init,
     headers,
   });
+}
+
+export async function fetchUserProfile() {
+  const supabase = createClient();
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return null;
+  }
+
+  try {
+    let { data: profile, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!profile) {
+      const defaultProfile = {
+        id: user.id,
+        university_email: user.email ?? "",
+        display_name: (user.user_metadata?.full_name as string) ?? user.email?.split("@")[0] ?? "Student",
+        level: 1,
+        total_xp: 0,
+        today_xp: 0,
+        streak: 1,
+        focus_score: 80,
+        completed_tasks_today: 0,
+        total_focus_time: 0,
+        sessions_completed: 0,
+        emergency_pin: "123456",
+        last_active_at: new Date().toISOString(),
+      };
+
+      const { data: inserted, error: insertError } = await supabase
+        .from("profiles")
+        .insert(defaultProfile)
+        .select("*")
+        .single();
+
+      if (!insertError && inserted) {
+        profile = inserted;
+      }
+    }
+
+    // ── Streak logic: BD timezone — day resets at 12AM BDT ──
+    const todayBD = getBdtDateStr();
+    const yesterdayBD = getBdtYesterdayStr();
+    const lastActiveBD = profile?.last_active_at ? getBdtDateStr(profile.last_active_at) : null;
+
+    let newStreak = profile?.streak ?? 1;
+    let shouldUpdateLastActive = false;
+
+    if (!lastActiveBD) {
+      newStreak = 1;
+      shouldUpdateLastActive = true;
+    } else if (lastActiveBD === todayBD) {
+      newStreak = Math.max(1, profile?.streak ?? 1);
+    } else if (lastActiveBD === yesterdayBD) {
+      newStreak = Math.max(1, profile?.streak ?? 1) + 1;
+      shouldUpdateLastActive = true;
+    } else {
+      newStreak = 1;
+      shouldUpdateLastActive = true;
+    }
+
+    if (shouldUpdateLastActive) {
+      await supabase
+        .from("profiles")
+        .update({ streak: newStreak, last_active_at: new Date().toISOString() })
+        .eq("id", user.id);
+      if (profile) {
+        profile.streak = newStreak;
+        profile.last_active_at = new Date().toISOString();
+      }
+    }
+    
+    return profile;
+  } catch (err) {
+    console.error("Error in fetchUserProfile:", err);
+    return null;
+  }
 }
 
 export async function getDashboardBootstrap() {
