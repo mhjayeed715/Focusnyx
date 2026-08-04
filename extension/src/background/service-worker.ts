@@ -96,6 +96,15 @@ const ALLOWED_SYSTEM_DOMAINS = [
   "focusnyx.com",
 ];
 
+function normalizeDomain(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .replace(/\/.*$/, "")
+    .trim();
+}
+
 function isDomainBlocked(url: string, state: FocusState): boolean {
   if (!state.active || !url) return false;
 
@@ -111,32 +120,24 @@ function isDomainBlocked(url: string, state: FocusState): boolean {
 
   let hostname = "";
   try {
-    hostname = new URL(url).hostname.toLowerCase();
+    hostname = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
   } catch {
     return false;
   }
 
-  // Allowed system domains + custom whitelisted allowedUrls
   const allowedList = [
     ...ALLOWED_SYSTEM_DOMAINS,
     ...(state.allowedUrls || []),
   ];
 
   const isAllowed = allowedList.some((allowed) => {
-    const cleanAllowed = allowed
-      .toLowerCase()
-      .replace(/^https?:\/\//, "")
-      .replace(/^www\./, "")
-      .replace(/\/.*$/, "")
-      .trim();
+    const cleanAllowed = normalizeDomain(allowed);
     if (!cleanAllowed) return false;
-    const cleanHost = hostname.replace(/^www\./, "").trim();
-    return cleanHost === cleanAllowed || cleanHost.endsWith("." + cleanAllowed) || cleanHost.includes(cleanAllowed) || cleanAllowed.includes(cleanHost);
+    // Exact match or subdomain match only (not substring)
+    return hostname === cleanAllowed || hostname.endsWith("." + cleanAllowed);
   });
 
   if (isAllowed) return false;
-
-  // In active Focus Mode, any non-whitelisted site is BLOCKED!
   return true;
 }
 
@@ -151,18 +152,14 @@ async function applyRules(state: FocusState): Promise<void> {
     ...(state.allowedUrls || []),
   ];
 
+  // Build deduplicated set of clean domains + their www. variants
   const cleanAllowedDomains = Array.from(
     new Set(
-      allowedList
-        .map((d) =>
-          d
-            .toLowerCase()
-            .replace(/^https?:\/\//, "")
-            .replace(/^www\./, "")
-            .replace(/\/.*$/, "")
-            .trim()
-        )
-        .filter(Boolean)
+      allowedList.flatMap((d) => {
+        const clean = normalizeDomain(d);
+        if (!clean) return [];
+        return [clean, `www.${clean}`];
+      })
     )
   );
 
@@ -170,7 +167,7 @@ async function applyRules(state: FocusState): Promise<void> {
 
   const addRules = state.active
     ? [
-        // Priority 100: Allow system app domains and user-whitelisted allowed URLs
+        // Priority 100: Allow whitelisted domains (exact + www variant)
         ...cleanAllowedDomains.map((domain, i) => ({
           id: 10 + i,
           priority: 100,
@@ -507,16 +504,14 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
       }
       const requestedAllowed = Array.isArray(request.allowedUrls)
         ? request.allowedUrls
-        : Array.isArray(request.blocklist)
-          ? request.blocklist
-          : [];
+        : [];
       const allowedUrls = Array.from(
         new Set(
           [
             ...(currentState.allowedUrls || ["localhost", "127.0.0.1", "focusnyx", "vercel.app"]),
             ...requestedAllowed,
           ]
-            .map((value) => String(value || "").trim().toLowerCase())
+            .map((value) => normalizeDomain(String(value || "")))
             .filter(Boolean)
         )
       );
@@ -655,9 +650,12 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
   if (request.action === "updateWhitelist") {
     (async () => {
       const state = await getState();
-      const newAllowed = Array.isArray(request.allowedUrls) ? request.allowedUrls : state.allowedUrls;
+      const newAllowed = Array.isArray(request.allowedUrls)
+        ? request.allowedUrls.map((d: string) => normalizeDomain(d)).filter(Boolean)
+        : state.allowedUrls;
+      const nextState = { ...state, allowedUrls: newAllowed };
       await setState({ allowedUrls: newAllowed });
-      applyRules({ ...state, allowedUrls: newAllowed });
+      await applyRules(nextState);
       sendResponse({ ok: true, success: true, message: "Whitelist updated" });
     })();
     return true;

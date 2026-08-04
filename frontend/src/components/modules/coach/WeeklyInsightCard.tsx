@@ -21,6 +21,7 @@ interface WeeklyReport {
     distractions?: {
       total?: number;
       peakHour?: string;
+      byType?: Record<string, number>;
     };
     wellness?: {
       avgMoodScore?: string | null;
@@ -34,6 +35,9 @@ interface WeeklyReport {
       total?: number;
       subjects?: string[];
     };
+    finance?: {
+      totalSpent?: number;
+    };
   };
   highlights: {
     topStat: string;
@@ -41,6 +45,8 @@ interface WeeklyReport {
     bestDay: string;
     avgMood?: string | null;
     sessionsCompleted: number;
+    taskCompletionRate?: number | null;
+    notesCount?: number;
   };
 }
 
@@ -154,37 +160,65 @@ export function WeeklyInsightCard({ userId }: WeeklyInsightCardProps) {
 
     const focusMins = raw.focus?.totalFocusMinutes ?? 0;
     const avgSession = raw.focus?.avgSessionLength ?? 0;
+    const sessions = raw.focus?.completedSessions ?? 0;
     const distractions = raw.distractions?.total ?? 0;
     const peakHour = raw.distractions?.peakHour || "your common distraction window";
+    const distractionTypes = raw.distractions?.byType ?? {};
     const sleepHours = Number(raw.wellness?.avgSleepHours ?? 0);
     const mood = Number(raw.wellness?.avgMoodScore ?? 0);
     const completed = raw.tasks?.completed ?? 0;
     const total = raw.tasks?.total ?? 0;
+    const notes = raw.notes?.total ?? 0;
+    const subjects = raw.notes?.subjects ?? [];
+    const spent = raw.finance?.totalSpent ?? 0;
 
     const actions: string[] = [];
 
-    if (focusMins < 180) {
-      actions.push("Schedule one guaranteed 25-minute deep-focus block daily for the next 7 days, ideally at the same clock time.");
+    // Focus recommendation
+    if (focusMins === 0) {
+      actions.push("You haven't logged any focus sessions this week. Start with just one 25-minute Pomodoro today — even a single session builds the habit.");
+    } else if (focusMins < 120) {
+      actions.push(`You logged ${focusMins} focus minutes this week. Aim to add one extra 25-minute session each day — that's only 175 more minutes to hit a solid 3-hour weekly baseline.`);
     } else {
-      actions.push(`You already banked ${focusMins} focus minutes this week. Keep the momentum by front-loading your hardest task in your first session each day.`);
+      const bestDay = raw.focus?.bestDay;
+      actions.push(`Strong week with ${focusMins} focus minutes across ${sessions} sessions${bestDay && bestDay !== "N/A" ? ` — ${bestDay} was your peak day` : ""}. Keep front-loading your hardest task in your first session each day to maintain this momentum.`);
     }
 
-    if (distractions > 0) {
-      actions.push(`Distractions peaked around ${peakHour}. Start focus lock 10 minutes before that window and pre-open only study tabs to reduce context-switching.`);
+    // Distraction recommendation
+    const topDistractionType = Object.entries(distractionTypes).sort((a, b) => b[1] - a[1])[0];
+    if (distractions > 5) {
+      const typeLabel = topDistractionType ? topDistractionType[0].replace(/_/g, " ") : "distractions";
+      actions.push(`You had ${distractions} distraction attempts this week, mostly ${typeLabel}. Peak friction was around ${peakHour}. Start your focus lock 10 minutes before that window and pre-close all non-study tabs.`);
+    } else if (distractions > 0) {
+      actions.push(`${distractions} distraction attempts blocked this week — that's well controlled. Keep the focus lock active during your study blocks to maintain this discipline.`);
     } else {
-      actions.push("Zero distraction attempts is excellent. Maintain this by preparing tomorrow's first task tonight so your start friction stays low.");
+      actions.push("Zero distraction attempts this week — excellent self-control. Maintain this by preparing tomorrow's study environment tonight so your start friction stays near zero.");
     }
 
+    // Task completion recommendation
     if (total > 0) {
-      actions.push(`Task follow-through is ${completed}/${total}. Convert every large task into 2-3 microsteps so completion stays consistent even on low-energy days.`);
+      const rate = Math.round((completed / total) * 100);
+      if (rate < 50) {
+        actions.push(`Task completion was ${completed}/${total} (${rate}%). Break each remaining task into 2-3 microsteps and schedule them with specific time slots — vague tasks get skipped, specific ones get done.`);
+      } else if (rate < 80) {
+        actions.push(`You completed ${completed} of ${total} tasks (${rate}%). For the uncompleted ones, identify if they were blocked by unclear scope or low energy — then reschedule them as your first task tomorrow morning.`);
+      }
     }
 
+    // Sleep/wellness recommendation
     if (sleepHours > 0 && sleepHours < 6.5) {
-      actions.push("Your sleep average is below 6.5 hours. Move your final study sprint 30 minutes earlier to protect recovery and improve next-day focus quality.");
+      actions.push(`Your average sleep was ${sleepHours} hours — below the 7-hour threshold for optimal memory consolidation. Move your final study sprint 30 minutes earlier to protect recovery and improve next-day focus quality.`);
     } else if (mood > 0 && mood < 3) {
-      actions.push("Mood trend is low this week. Use shorter sprints (15-20 minutes) with a 5-minute reset break to reduce cognitive resistance.");
+      actions.push(`Your mood average was ${mood}/5 this week. Use shorter 15-20 minute sprints with deliberate 5-minute reset breaks to reduce cognitive resistance on low-energy days.`);
     } else if (avgSession >= 45) {
-      actions.push("Your average session length is strong. Add one deliberate 5-minute recap at the end of each session to improve retention.");
+      actions.push(`Your average session length of ${avgSession} minutes is strong. Add a deliberate 5-minute recap at the end of each session — writing one sentence about what you learned improves retention by up to 30%.`);
+    }
+
+    // Notes recommendation
+    if (notes === 0) {
+      actions.push("You haven't captured any notes this week. Even 3-5 bullet points per study session in the Smart Notes Vault will dramatically improve recall during exams.");
+    } else if (subjects.length > 0) {
+      actions.push(`You studied ${subjects.length} subject${subjects.length > 1 ? "s" : ""} (${subjects.slice(0, 3).join(", ")}). Review your notes from the weakest subject first next week to close knowledge gaps before they compound.`);
     }
 
     return actions.slice(0, 4);
@@ -298,7 +332,7 @@ export function WeeklyInsightCard({ userId }: WeeklyInsightCardProps) {
               🚫 <strong>{highlights.distractionCount} blocks</strong>
             </div>
           )}
-          {highlights.bestDay && (
+          {highlights.bestDay && highlights.bestDay !== "N/A" && (
             <div className="rounded-full border-2 border-[var(--foreground)] bg-[#FEF3C7] px-3.5 py-1.5 text-xs font-bold text-[var(--foreground)] shadow-[3px_3px_0_0_#1E293B]">
               🏆 <strong>{highlights.bestDay} was best</strong>
             </div>
@@ -306,6 +340,16 @@ export function WeeklyInsightCard({ userId }: WeeklyInsightCardProps) {
           {highlights.avgMood && (
             <div className="rounded-full border-2 border-[var(--foreground)] bg-[#E0F2FE] px-3.5 py-1.5 text-xs font-bold text-[var(--foreground)] shadow-[3px_3px_0_0_#1E293B]">
               💛 <strong>Mood avg: {highlights.avgMood}/5</strong>
+            </div>
+          )}
+          {typeof highlights.taskCompletionRate === "number" && (
+            <div className="rounded-full border-2 border-[var(--foreground)] bg-[#FFF7D6] px-3.5 py-1.5 text-xs font-bold text-[var(--foreground)] shadow-[3px_3px_0_0_#1E293B]">
+              📝 <strong>{highlights.taskCompletionRate}% tasks done</strong>
+            </div>
+          )}
+          {typeof highlights.notesCount === "number" && highlights.notesCount > 0 && (
+            <div className="rounded-full border-2 border-[var(--foreground)] bg-[#F0FDF4] px-3.5 py-1.5 text-xs font-bold text-[var(--foreground)] shadow-[3px_3px_0_0_#1E293B]">
+              📚 <strong>{highlights.notesCount} notes</strong>
             </div>
           )}
         </div>
