@@ -1,11 +1,54 @@
 // src/shared/api.ts
 var SUPABASE_URL = "https://vavppeevglpvyfoorfje.supabase.co";
 var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhdnBwZWV2Z2xwdnlmb29yZmplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4ODEwNTksImV4cCI6MjA5MjQ1NzA1OX0.3PI_2nJsIHaJUzvEc_cNggcwbv147Q2aGlRhVdBncuA";
+async function refreshAccessToken() {
+  try {
+    const stored = await new Promise(
+      (res2) => chrome.storage.local.get("userAuth", (d) => res2(d.userAuth ?? {}))
+    );
+    const refreshToken = stored.refreshToken;
+    if (!refreshToken) return null;
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY },
+      body: JSON.stringify({ refresh_token: refreshToken })
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const newToken = data.access_token;
+    const newRefresh = data.refresh_token;
+    if (newToken) {
+      await chrome.storage.local.set({
+        userAuth: { ...stored, token: newToken, refreshToken: newRefresh ?? refreshToken }
+      });
+    }
+    return newToken ?? null;
+  } catch {
+    return null;
+  }
+}
+async function getValidToken(token) {
+  try {
+    const parts = token.split(".");
+    if (parts.length === 3) {
+      const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+      const pad = base64.length % 4;
+      const padded = pad ? base64 + "=".repeat(4 - pad) : base64;
+      const payload = JSON.parse(atob(padded));
+      if (payload.exp && payload.exp - Date.now() / 1e3 < 60) {
+        return await refreshAccessToken() ?? token;
+      }
+    }
+  } catch {
+  }
+  return token;
+}
 async function syncBlockEvent(token, sessionId, url, type = "navigation_blocked", domain, details) {
   if (!token) {
     console.warn("[Focusnyx Extension] syncBlockEvent skipped: no auth token available");
     return;
   }
+  token = await getValidToken(token) ?? token;
   let userId = null;
   try {
     const base64Url = token.split(".")[1];
@@ -197,24 +240,24 @@ async function applyRules(state) {
     ...ALLOWED_SYSTEM_DOMAINS,
     ...state.allowedUrls || []
   ];
-  const cleanAllowedDomains = Array.from(
+  const removeIds = Array.from({ length: 500 }, (_, i) => i + 1);
+  const baseDomains = Array.from(
     new Set(
-      allowedList.flatMap((d) => {
+      allowedList.map((d) => {
         const clean = normalizeDomain(d);
-        if (!clean) return [];
-        return [clean, `www.${clean}`];
-      })
+        return clean;
+      }).filter(Boolean)
     )
   );
-  const removeIds = Array.from({ length: 500 }, (_, i) => i + 1);
   const addRules = state.active ? [
-    // Priority 100: Allow whitelisted domains (exact + www variant)
-    ...cleanAllowedDomains.map((domain, i) => ({
+    // Priority 100: Allow whitelisted base domains + all their subdomains
+    ...baseDomains.map((domain, i) => ({
       id: 10 + i,
       priority: 100,
       action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
       condition: {
-        requestDomains: [domain],
+        // ||domain matches domain itself AND all subdomains (e.g. gist.github.com)
+        urlFilter: `||${domain}`,
         resourceTypes: [
           chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
           chrome.declarativeNetRequest.ResourceType.SUB_FRAME
@@ -466,7 +509,7 @@ function handleMessage(request, sender, sendResponse) {
         userId: nextUserId
       });
       await chrome.storage.local.set({
-        userAuth: { token: nextToken, userId: nextUserId, email: email || nextUserId }
+        userAuth: { token: nextToken, userId: nextUserId, email: email || nextUserId, refreshToken: request.refreshToken || "" }
       });
       if (request.pin) {
         await chrome.storage.local.set({ pin: request.pin });
