@@ -141,39 +141,34 @@ function isDomainBlocked(url: string, state: FocusState): boolean {
   return true;
 }
 
-function domainPattern(domain: string): string {
-  const d = domain.replace(/^https?:\/\//, "").replace(/\/$/, "");
-  return `||${d}`;
-}
-
 async function applyRules(state: FocusState): Promise<void> {
   const allowedList = [
     ...ALLOWED_SYSTEM_DOMAINS,
     ...(state.allowedUrls || []),
   ];
 
-  // Build deduplicated set of clean domains + their www. variants
-  const cleanAllowedDomains = Array.from(
+  const removeIds = Array.from({ length: 500 }, (_, i) => i + 1);
+
+  // Deduplicate: one rule per base domain (covers domain + all subdomains via ||domain pattern)
+  const baseDomains = Array.from(
     new Set(
-      allowedList.flatMap((d) => {
+      allowedList.map((d) => {
         const clean = normalizeDomain(d);
-        if (!clean) return [];
-        return [clean, `www.${clean}`];
-      })
+        return clean;
+      }).filter(Boolean)
     )
   );
 
-  const removeIds = Array.from({ length: 500 }, (_, i) => i + 1);
-
   const addRules = state.active
     ? [
-        // Priority 100: Allow whitelisted domains (exact + www variant)
-        ...cleanAllowedDomains.map((domain, i) => ({
+        // Priority 100: Allow whitelisted base domains + all their subdomains
+        ...baseDomains.map((domain, i) => ({
           id: 10 + i,
           priority: 100,
           action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
           condition: {
-            requestDomains: [domain],
+            // ||domain matches domain itself AND all subdomains (e.g. gist.github.com)
+            urlFilter: `||${domain}`,
             resourceTypes: [
               chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
               chrome.declarativeNetRequest.ResourceType.SUB_FRAME,
@@ -480,7 +475,7 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
         userId: nextUserId,
       });
       await chrome.storage.local.set({
-        userAuth: { token: nextToken, userId: nextUserId, email: email || nextUserId }
+        userAuth: { token: nextToken, userId: nextUserId, email: email || nextUserId, refreshToken: request.refreshToken || "" }
       });
       if (request.pin) {
         await chrome.storage.local.set({ pin: request.pin });

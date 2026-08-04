@@ -56,6 +56,7 @@
         let token = "";
         let userId = localStorage.getItem("focusnyxUserId") || "";
         let email = "";
+        let refreshToken = "";
 
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
@@ -87,6 +88,9 @@
             if (!email) {
               email = parsed.user?.email || parsed.currentSession?.user?.email || parsed.session?.user?.email || "";
             }
+            if (!refreshToken) {
+              refreshToken = parsed.refresh_token || parsed.currentSession?.refresh_token || parsed.session?.refresh_token || "";
+            }
             if (token) break;
           } catch {}
         }
@@ -97,7 +101,7 @@
         }
 
         if (token) {
-          safeSendMessage({ action: "syncAuth", token, userId, email });
+          safeSendMessage({ action: "syncAuth", token, userId, email, refreshToken });
         }
       } catch {}
     }

@@ -35,6 +35,53 @@ export async function authenticateUser(email: string, password: string): Promise
   }
 }
 
+// Refresh the Supabase access token using the stored refresh_token
+async function refreshAccessToken(): Promise<string | null> {
+  try {
+    const stored = await new Promise<any>((res) =>
+      chrome.storage.local.get("userAuth", (d) => res(d.userAuth ?? {}))
+    );
+    const refreshToken = stored.refreshToken;
+    if (!refreshToken) return null;
+
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const newToken = data.access_token;
+    const newRefresh = data.refresh_token;
+    if (newToken) {
+      await chrome.storage.local.set({
+        userAuth: { ...stored, token: newToken, refreshToken: newRefresh ?? refreshToken },
+      });
+    }
+    return newToken ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Returns a valid (non-expired) token, refreshing if needed
+async function getValidToken(token: string): Promise<string | null> {
+  try {
+    const parts = token.split(".");
+    if (parts.length === 3) {
+      const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+      const pad = base64.length % 4;
+      const padded = pad ? base64 + "=".repeat(4 - pad) : base64;
+      const payload = JSON.parse(atob(padded));
+      // Refresh if token expires within 60 seconds
+      if (payload.exp && payload.exp - Date.now() / 1000 < 60) {
+        return (await refreshAccessToken()) ?? token;
+      }
+    }
+  } catch {}
+  return token;
+}
+
 export async function syncBlockEvent(
   token: string,
   sessionId: string,
@@ -47,6 +94,8 @@ export async function syncBlockEvent(
     console.warn("[Focusnyx Extension] syncBlockEvent skipped: no auth token available");
     return;
   }
+  // Ensure token is fresh before writing
+  token = (await getValidToken(token)) ?? token;
 
   // Decode user_id from JWT safely (handles base64url in Supabase JWTs)
   let userId: string | null = null;
