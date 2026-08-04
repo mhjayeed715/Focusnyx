@@ -2082,7 +2082,7 @@ export function PomodoroPanel() {
                   maxLength={6}
                   value={emergencyPinInput}
                   onChange={(e) => setEmergencyPinInput(e.target.value.replace(/\D/g, ""))}
-                  placeholder="••••"
+                  placeholder="••••••"
                   className="w-full rounded-[16px] border-2 border-[var(--foreground)] bg-[#FFF7D6] px-4 py-3 text-center text-2xl font-black tracking-widest outline-none mb-3"
                 />
                 {pinError && <p className="text-xs font-bold text-red-500 mb-3 text-center">{pinError}</p>}
