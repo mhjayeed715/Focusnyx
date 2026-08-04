@@ -39,8 +39,9 @@ async function getState(): Promise<FocusState> {
 
       // Check if timer has expired
       if (state.active && state.focusStartTime && state.focusDuration) {
+        const durationMs = state.focusDuration <= 1440 ? state.focusDuration * 60 * 1000 : state.focusDuration;
         const elapsed = Date.now() - state.focusStartTime;
-        if (elapsed >= state.focusDuration) {
+        if (elapsed >= durationMs) {
           console.log("[Focusnyx Extension] Focus duration completed. Auto-unlocking.");
           state.active = false;
           state.focusStartTime = null;
@@ -482,7 +483,10 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
   if (request.action === "startFocus" || request.type === "START_SESSION") {
     (async () => {
       const currentState = await getState();
-      const duration = request.duration || (request.durationMinutes ? request.durationMinutes * 60 * 1000 : 25 * 60 * 1000);
+      let duration = request.duration || (request.durationMinutes ? request.durationMinutes * 60 * 1000 : 25 * 60 * 1000);
+      if (duration > 0 && duration <= 1440) {
+        duration = duration * 60 * 1000;
+      }
       const allowedUrls = request.allowedUrls || currentState.allowedUrls || ["localhost", "127.0.0.1", "focusnyx", "vercel.app"];
       const pin = request.pin || currentState.focusPIN || "123456";
       const token = request.token || currentState.token;
