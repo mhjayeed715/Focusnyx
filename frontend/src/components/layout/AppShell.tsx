@@ -200,8 +200,8 @@ function ShellContent({
 
   useEffect(() => {
     const sb = createClient();
-    const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT" || !session) {
+    const { data: { subscription } } = sb.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
         router.replace("/auth");
       }
     });
