@@ -129,11 +129,34 @@ async function fetchBlocklist(token) {
 
 // src/background/service-worker.ts
 var FALLBACK_BLOCKLIST = [];
+var FOCUSNYX_APP_DOMAINS = [
+  "localhost",
+  "127.0.0.1",
+  "focusnyx.vercel.app",
+  "focusnyx.com"
+];
+var ALLOWED_SYSTEM_DOMAINS = [
+  "localhost",
+  "127.0.0.1",
+  "focusnyx.vercel.app",
+  "focusnyx.com",
+  "vavppeevglpvyfoorfje.supabase.co",
+  "supabase.co"
+];
+var PWA_SEED_URLS = ["localhost", "127.0.0.1", "focusnyx.vercel.app", "focusnyx.com"];
+function isFocusnyxTab(url) {
+  try {
+    const h = new URL(url).hostname.toLowerCase();
+    return FOCUSNYX_APP_DOMAINS.some((d) => h === d || h.endsWith("." + d));
+  } catch {
+    return false;
+  }
+}
 var DEFAULT_STATE = {
   active: false,
   sessionId: null,
   blocklist: [],
-  allowedUrls: ["localhost", "127.0.0.1", "focusnyx", "vercel.app"],
+  allowedUrls: [...PWA_SEED_URLS],
   userId: null,
   token: null,
   focusStartTime: null,
@@ -144,24 +167,21 @@ async function getState() {
   return new Promise((resolve) => {
     chrome.storage.local.get(["focusState", "pin", "userAuth"], async (data) => {
       let state = data.focusState ?? DEFAULT_STATE;
-      if (data.pin) {
-        state.focusPIN = data.pin;
-      }
+      if (data.pin) state.focusPIN = data.pin;
       if (data.userAuth?.token) {
         state.token = data.userAuth.token;
         state.userId = data.userAuth.email || data.userAuth.userId || state.userId;
       }
       if (!state.allowedUrls || !Array.isArray(state.allowedUrls)) {
-        state.allowedUrls = ["localhost", "127.0.0.1", "focusnyx", "vercel.app"];
+        state.allowedUrls = [...PWA_SEED_URLS];
       } else {
-        ["localhost", "127.0.0.1", "focusnyx", "vercel.app"].forEach((d) => {
+        PWA_SEED_URLS.forEach((d) => {
           if (!state.allowedUrls.includes(d)) state.allowedUrls.push(d);
         });
       }
       if (state.active && state.focusStartTime && state.focusDuration) {
         const durationMs = state.focusDuration <= 1440 ? state.focusDuration * 60 * 1e3 : state.focusDuration;
-        const elapsed = Date.now() - state.focusStartTime;
-        if (elapsed >= durationMs) {
+        if (Date.now() - state.focusStartTime >= durationMs) {
           console.log("[Focusnyx Extension] Focus duration completed. Auto-unlocking.");
           state.active = false;
           state.focusStartTime = null;
@@ -201,62 +221,35 @@ function syncCompanionApp(isStart, durationMins = 25, pin = "123456") {
   }).catch(() => {
   });
 }
-var ALLOWED_SYSTEM_DOMAINS = [
-  "localhost",
-  "127.0.0.1",
-  "focusnyx",
-  "vercel.app",
-  "focusnyx.vercel.app",
-  "focusnyx.com"
-];
 function normalizeDomain(raw) {
   return raw.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim();
 }
 function isDomainBlocked(url, state) {
   if (!state.active || !url) return false;
-  if (url.startsWith("chrome-extension://") || url.startsWith("chrome://") || url.startsWith("edge://") || url.startsWith("about:") || url.startsWith("file://")) {
-    return false;
-  }
+  if (url.startsWith("chrome-extension://") || url.startsWith("chrome://") || url.startsWith("edge://") || url.startsWith("about:") || url.startsWith("file://")) return false;
   let hostname = "";
   try {
     hostname = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
   } catch {
     return false;
   }
-  const allowedList = [
-    ...ALLOWED_SYSTEM_DOMAINS,
-    ...state.allowedUrls || []
-  ];
-  const isAllowed = allowedList.some((allowed) => {
-    const cleanAllowed = normalizeDomain(allowed);
-    if (!cleanAllowed) return false;
-    return hostname === cleanAllowed || hostname.endsWith("." + cleanAllowed);
+  const allowedList = [...ALLOWED_SYSTEM_DOMAINS, ...state.allowedUrls || []];
+  return !allowedList.some((allowed) => {
+    const clean = normalizeDomain(allowed);
+    return clean && (hostname === clean || hostname.endsWith("." + clean));
   });
-  if (isAllowed) return false;
-  return true;
 }
 async function applyRules(state) {
-  const allowedList = [
-    ...ALLOWED_SYSTEM_DOMAINS,
-    ...state.allowedUrls || []
-  ];
+  const allowedList = [...ALLOWED_SYSTEM_DOMAINS, ...state.allowedUrls || []];
+  const baseDomains = Array.from(new Set(allowedList.map(normalizeDomain).filter(Boolean)));
   const removeIds = Array.from({ length: 500 }, (_, i) => i + 1);
-  const baseDomains = Array.from(
-    new Set(
-      allowedList.map((d) => {
-        const clean = normalizeDomain(d);
-        return clean;
-      }).filter(Boolean)
-    )
-  );
   const addRules = state.active ? [
-    // Priority 100: Allow whitelisted base domains + all their subdomains
+    // Priority 100: Allow each whitelisted domain + all its subdomains
     ...baseDomains.map((domain, i) => ({
       id: 10 + i,
       priority: 100,
       action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
       condition: {
-        // ||domain matches domain itself AND all subdomains (e.g. gist.github.com)
         urlFilter: `||${domain}`,
         resourceTypes: [
           chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
@@ -264,7 +257,7 @@ async function applyRules(state) {
         ]
       }
     })),
-    // Priority 1: Redirect all non-whitelisted http/https navigations to blocked.html
+    // Priority 1: Redirect everything else to blocked.html
     {
       id: 1,
       priority: 1,
@@ -291,14 +284,10 @@ function notifyAllTabs(isActive) {
   chrome.tabs.query({}, (tabs) => {
     tabs.forEach((tab) => {
       if (tab.id && tab.url && !tab.url.startsWith("chrome://") && !tab.url.startsWith("edge://") && !tab.url.startsWith("about:")) {
-        chrome.tabs.sendMessage(
-          tab.id,
-          { action: "focusStateChanged", isActive },
-          () => {
-            if (chrome.runtime.lastError) {
-            }
+        chrome.tabs.sendMessage(tab.id, { action: "focusStateChanged", isActive }, () => {
+          if (chrome.runtime.lastError) {
           }
-        );
+        });
       }
     });
   });
@@ -332,15 +321,12 @@ async function logDistraction(data) {
     });
   }
 }
-chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
+chrome.tabs.onRemoved.addListener(async () => {
   const state = await getState();
   if (!state.active) return;
   const tabs = await chrome.tabs.query({});
-  const focusTab = tabs.find(
-    (t) => t.url && (t.url.includes("localhost") || t.url.includes("focusnyx") || t.url.includes("vercel.app"))
-  );
-  if (!focusTab) {
-    console.log("[Focusnyx Extension] Dashboard closed. Auto-unlocking session to prevent lockout.");
+  if (!tabs.find((t) => t.url && isFocusnyxTab(t.url))) {
+    console.log("[Focusnyx Extension] Dashboard closed. Auto-unlocking.");
     await setState({ active: false, focusStartTime: null, sessionId: null });
     syncCompanionApp(false);
   }
@@ -349,18 +335,14 @@ chrome.runtime.onStartup.addListener(async () => {
   const state = await getState();
   if (!state.active) return;
   const tabs = await chrome.tabs.query({});
-  const focusTab = tabs.find(
-    (t) => t.url && (t.url.includes("localhost") || t.url.includes("focusnyx") || t.url.includes("vercel.app"))
-  );
-  if (!focusTab) {
-    console.log("[Focusnyx Extension] Browser started without Focusnyx tab. Auto-unlocking session.");
+  if (!tabs.find((t) => t.url && isFocusnyxTab(t.url))) {
+    console.log("[Focusnyx Extension] Browser started without Focusnyx tab. Auto-unlocking.");
     await setState({ active: false, focusStartTime: null, sessionId: null });
     syncCompanionApp(false);
   }
 });
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === "autoUnlockFocus") {
-    console.log("[Focusnyx Extension] Alarm triggered: Auto unlocking focus lock.");
     const state = await getState();
     if (state.active) {
       await setState({ active: false, focusStartTime: null, sessionId: null });
@@ -371,18 +353,11 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 chrome.webNavigation?.onBeforeNavigate.addListener(async (details) => {
   if (details.frameId !== 0) return;
   const state = await getState();
-  if (!state.active) return;
-  if (isDomainBlocked(details.url, state)) {
-    chrome.tabs.update(details.tabId, { url: chrome.runtime.getURL("blocked.html") });
-    const tabs = await chrome.tabs.query({});
-    const focusTab = tabs.find(
-      (t) => t.url && (t.url.includes("localhost") || t.url.includes("focusnyx") || t.url.includes("vercel.app"))
-    );
-    if (focusTab && focusTab.id) {
-      chrome.tabs.update(focusTab.id, { active: true });
-    }
-    logDistraction({ type: "navigation_blocked", url: details.url });
-  }
+  if (!state.active || !isDomainBlocked(details.url, state)) return;
+  chrome.tabs.update(details.tabId, { url: chrome.runtime.getURL("blocked.html") });
+  const focusTab = (await chrome.tabs.query({})).find((t) => t.url && isFocusnyxTab(t.url));
+  if (focusTab?.id) chrome.tabs.update(focusTab.id, { active: true });
+  logDistraction({ type: "navigation_blocked", url: details.url });
 });
 chrome.tabs.onCreated.addListener(async (tab) => {
   const state = await getState();
@@ -390,48 +365,33 @@ chrome.tabs.onCreated.addListener(async (tab) => {
   setTimeout(async () => {
     try {
       if (!tab.id) return;
-      const currentTab = await chrome.tabs.get(tab.id);
-      const url = currentTab.url || currentTab.pendingUrl || "";
-      if (isDomainBlocked(url, state)) {
-        chrome.tabs.update(tab.id, { url: chrome.runtime.getURL("blocked.html") });
-        const tabs = await chrome.tabs.query({});
-        const focusTab = tabs.find(
-          (t) => t.url && (t.url.includes("localhost") || t.url.includes("focusnyx") || t.url.includes("vercel.app"))
-        );
-        if (focusTab && focusTab.id) {
-          chrome.tabs.update(focusTab.id, { active: true });
-        }
-        logDistraction({ type: "new_tab_blocked", url });
-      }
-    } catch (e) {
+      const current = await chrome.tabs.get(tab.id);
+      const url = current.url || current.pendingUrl || "";
+      if (!isDomainBlocked(url, state)) return;
+      chrome.tabs.update(tab.id, { url: chrome.runtime.getURL("blocked.html") });
+      const focusTab = (await chrome.tabs.query({})).find((t) => t.url && isFocusnyxTab(t.url));
+      if (focusTab?.id) chrome.tabs.update(focusTab.id, { active: true });
+      logDistraction({ type: "new_tab_blocked", url });
+    } catch {
     }
   }, 250);
 });
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
   const state = await getState();
-  if (!state.active) return;
-  if (changeInfo.url && isDomainBlocked(changeInfo.url, state)) {
-    chrome.tabs.update(tabId, { url: chrome.runtime.getURL("blocked.html") });
-    logDistraction({ type: "navigation_blocked", url: changeInfo.url });
-  }
+  if (!state.active || !changeInfo.url || !isDomainBlocked(changeInfo.url, state)) return;
+  chrome.tabs.update(tabId, { url: chrome.runtime.getURL("blocked.html") });
+  logDistraction({ type: "navigation_blocked", url: changeInfo.url });
 });
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
   const state = await getState();
   if (!state.active) return;
   try {
     const tab = await chrome.tabs.get(activeInfo.tabId);
-    if (!tab || !tab.url) return;
-    if (isDomainBlocked(tab.url, state)) {
-      chrome.tabs.update(tab.id, { url: chrome.runtime.getURL("blocked.html") });
-      const tabs = await chrome.tabs.query({});
-      const focusTab = tabs.find(
-        (t) => t.url && (t.url.includes("localhost") || t.url.includes("focusnyx") || t.url.includes("vercel.app"))
-      );
-      if (focusTab && focusTab.id) {
-        chrome.tabs.update(focusTab.id, { active: true });
-      }
-      logDistraction({ type: "tab_switch_blocked", url: tab.url });
-    }
+    if (!tab?.url || !isDomainBlocked(tab.url, state)) return;
+    chrome.tabs.update(tab.id, { url: chrome.runtime.getURL("blocked.html") });
+    const focusTab = (await chrome.tabs.query({})).find((t) => t.url && isFocusnyxTab(t.url));
+    if (focusTab?.id) chrome.tabs.update(focusTab.id, { active: true });
+    logDistraction({ type: "tab_switch_blocked", url: tab.url });
   } catch (e) {
     console.error("[Focusnyx Extension] Error in tab activation check:", e);
   }
@@ -439,8 +399,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 chrome.webNavigation?.onErrorOccurred.addListener(async (details) => {
   if (details.error !== "net::ERR_BLOCKED_BY_CLIENT") return;
   const state = await getState();
-  if (!state.active) return;
-  logDistraction({ type: "navigation_blocked", url: details.url });
+  if (state.active) logDistraction({ type: "navigation_blocked", url: details.url });
 });
 async function flushPendingEvents() {
   const state = await getState();
@@ -468,23 +427,18 @@ async function flushPendingEvents() {
 function handleMessage(request, sender, sendResponse) {
   if (request.action === "syncAuth") {
     (async () => {
-      console.log("[Focusnyx Extension] syncAuth received. Token present:", Boolean(request.token), "UserId:", request.userId, "Email:", request.email);
       const currentState = await getState();
       const nextToken = request.token || currentState.token;
       const nextUserId = request.userId || currentState.userId;
       let email = request.email || "";
       if (!email && nextToken) {
         try {
-          const base64Url = nextToken.split(".")[1];
-          if (base64Url) {
-            const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-            const pad = base64.length % 4;
-            const padded = pad ? base64 + "=".repeat(4 - pad) : base64;
-            const jsonPayload = decodeURIComponent(
-              atob(padded).split("").map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)).join("")
-            );
-            const parsed = JSON.parse(jsonPayload);
-            email = parsed.email || "";
+          const b64 = nextToken.split(".")[1];
+          if (b64) {
+            const pad = b64.length % 4;
+            const padded = pad ? b64 + "=".repeat(4 - pad) : b64;
+            const payload = JSON.parse(atob(padded.replace(/-/g, "+").replace(/_/g, "/")));
+            email = payload.email || "";
           }
         } catch {
         }
@@ -497,28 +451,21 @@ function handleMessage(request, sender, sendResponse) {
               "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhdnBwZWV2Z2xwdnlmb29yZmplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4ODEwNTksImV4cCI6MjA5MjQ1NzA1OX0.3PI_2nJsIHaJUzvEc_cNggcwbv147Q2aGlRhVdBncuA"
             }
           });
-          if (res.ok) {
-            const userData = await res.json();
-            email = userData.email || "";
-          }
+          if (res.ok) email = (await res.json()).email || "";
         } catch {
         }
       }
-      await setState({
-        token: nextToken,
-        userId: nextUserId
-      });
+      await setState({ token: nextToken, userId: nextUserId });
       await chrome.storage.local.set({
         userAuth: { token: nextToken, userId: nextUserId, email: email || nextUserId, refreshToken: request.refreshToken || "" }
       });
       if (request.pin) {
         await chrome.storage.local.set({ pin: request.pin });
-        const latestState = await getState();
-        latestState.focusPIN = request.pin;
-        await chrome.storage.local.set({ focusState: latestState });
+        const s = await getState();
+        s.focusPIN = request.pin;
+        await chrome.storage.local.set({ focusState: s });
       }
       await flushPendingEvents();
-      console.log("[Focusnyx Extension] syncAuth complete. Email:", email, "Token stored.");
       sendResponse({ ok: true, success: true });
     })();
     return true;
@@ -527,25 +474,17 @@ function handleMessage(request, sender, sendResponse) {
     (async () => {
       const currentState = await getState();
       let duration = request.duration || (request.durationMinutes ? request.durationMinutes * 60 * 1e3 : 25 * 60 * 1e3);
-      if (duration > 0 && duration <= 1440) {
-        duration = duration * 60 * 1e3;
-      }
-      const requestedAllowed = Array.isArray(request.allowedUrls) ? request.allowedUrls : [];
-      const allowedUrls = Array.from(
-        new Set(
-          [
-            ...currentState.allowedUrls || ["localhost", "127.0.0.1", "focusnyx", "vercel.app"],
-            ...requestedAllowed
-          ].map((value) => normalizeDomain(String(value || ""))).filter(Boolean)
-        )
-      );
+      if (duration > 0 && duration <= 1440) duration = duration * 60 * 1e3;
+      const allowedUrls = Array.from(new Set(
+        [...currentState.allowedUrls || [...PWA_SEED_URLS], ...Array.isArray(request.allowedUrls) ? request.allowedUrls : []].map((v) => normalizeDomain(String(v || ""))).filter(Boolean)
+      ));
       const pin = request.pin || currentState.focusPIN || "123456";
       const token = request.token || currentState.token;
       const sessionId = request.sessionId || `session-${Date.now()}`;
       const userId = request.userId || currentState.userId;
       const reqBlocklist = Array.isArray(request.blocklist) && request.blocklist.length > 0 ? request.blocklist : null;
       const fetched = token ? await fetchBlocklist(token) : null;
-      const blocklist = reqBlocklist || (fetched && fetched.length > 0 ? fetched : null) || (currentState.blocklist && currentState.blocklist.length > 0 ? currentState.blocklist : FALLBACK_BLOCKLIST);
+      const blocklist = reqBlocklist || (fetched?.length ? fetched : null) || (currentState.blocklist?.length ? currentState.blocklist : FALLBACK_BLOCKLIST);
       chrome.alarms.create("autoUnlockFocus", { when: Date.now() + duration });
       syncCompanionApp(true, Math.round(duration / 6e4), pin);
       const newState = {
@@ -568,14 +507,14 @@ function handleMessage(request, sender, sendResponse) {
   if (request.action === "endFocus" || request.type === "STOP_SESSION") {
     (async () => {
       const state = await getState();
-      const pin = request.pin;
       const storedPin = state.focusPIN || "123456";
+      const pin = request.pin;
       if (!pin || pin === storedPin || pin === "123456") {
         chrome.alarms.clear("autoUnlockFocus");
         syncCompanionApp(false, 0, pin || storedPin);
-        const inactiveState = { active: false, focusStartTime: null, sessionId: null };
-        await setState(inactiveState);
-        await applyRules(inactiveState);
+        const inactive = { active: false, focusStartTime: null, sessionId: null };
+        await setState(inactive);
+        await applyRules(inactive);
         sendResponse({ ok: true, success: true, message: "Focus lock released" });
       } else {
         sendResponse({ ok: false, success: false, message: "Incorrect PIN" });
@@ -586,16 +525,14 @@ function handleMessage(request, sender, sendResponse) {
   if (request.action === "closeBlockedTab" || request.action === "redirectOrCloseBlockedTab") {
     (async () => {
       const tabs = await chrome.tabs.query({});
-      const focusTab = tabs.find(
-        (t) => t.url && (t.url.includes("localhost") || t.url.includes("focusnyx") || t.url.includes("vercel.app"))
-      );
+      const focusTab = tabs.find((t) => t.url && isFocusnyxTab(t.url));
       const defaultAppUrl = "https://focusnyx.vercel.app/focus";
-      if (focusTab && focusTab.id) {
+      if (focusTab?.id) {
         chrome.tabs.update(focusTab.id, { active: true }, () => {
           if (chrome.runtime.lastError) {
           }
         });
-        if (sender.tab && sender.tab.id) {
+        if (sender.tab?.id) {
           if (tabs.length > 1) {
             chrome.tabs.remove(sender.tab.id, () => {
               if (chrome.runtime.lastError) {
@@ -605,10 +542,8 @@ function handleMessage(request, sender, sendResponse) {
             chrome.tabs.update(sender.tab.id, { url: defaultAppUrl });
           }
         }
-      } else {
-        if (sender.tab && sender.tab.id) {
-          chrome.tabs.update(sender.tab.id, { url: defaultAppUrl });
-        }
+      } else if (sender.tab?.id) {
+        chrome.tabs.update(sender.tab.id, { url: defaultAppUrl });
       }
       sendResponse({ ok: true });
     })();
@@ -618,11 +553,7 @@ function handleMessage(request, sender, sendResponse) {
     (async () => {
       const state = await getState();
       const remaining = state.focusStartTime ? Math.max(0, state.focusDuration - (Date.now() - state.focusStartTime)) : 0;
-      sendResponse({
-        ...state,
-        isActive: state.active,
-        remainingTime: remaining
-      });
+      sendResponse({ ...state, isActive: state.active, remainingTime: remaining });
     })();
     return true;
   }
@@ -641,29 +572,12 @@ function handleMessage(request, sender, sendResponse) {
     sendResponse({ logged: true });
     return true;
   }
-  if (request.action === "closeBlockedTab") {
-    (async () => {
-      try {
-        if (sender.tab?.id) {
-          try {
-            await chrome.tabs.goBack(sender.tab.id);
-          } catch {
-            await chrome.tabs.update(sender.tab.id, { url: "http://localhost:3000/dashboard" });
-          }
-        }
-      } catch {
-      }
-      sendResponse({ ok: true });
-    })();
-    return true;
-  }
   if (request.action === "updateWhitelist") {
     (async () => {
       const state = await getState();
       const newAllowed = Array.isArray(request.allowedUrls) ? request.allowedUrls.map((d) => normalizeDomain(d)).filter(Boolean) : state.allowedUrls;
-      const nextState = { ...state, allowedUrls: newAllowed };
       await setState({ allowedUrls: newAllowed });
-      await applyRules(nextState);
+      await applyRules({ ...state, allowedUrls: newAllowed });
       sendResponse({ ok: true, success: true, message: "Whitelist updated" });
     })();
     return true;
@@ -672,9 +586,9 @@ function handleMessage(request, sender, sendResponse) {
     (async () => {
       if (request.pin) {
         await chrome.storage.local.set({ pin: request.pin });
-        const latestState = await getState();
-        latestState.focusPIN = request.pin;
-        await chrome.storage.local.set({ focusState: latestState });
+        const s = await getState();
+        s.focusPIN = request.pin;
+        await chrome.storage.local.set({ focusState: s });
       }
       sendResponse({ ok: true });
     })();
