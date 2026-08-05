@@ -39,7 +39,13 @@ export function createClient() {
         cookiesToSet.forEach(({ name, value }) => {
           const isDelete = value === "";
           const maxAge = isDelete ? 0 : 31536000;
-          document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+          
+          const date = new Date();
+          date.setTime(date.getTime() + (maxAge * 1000));
+          const expires = isDelete ? "Thu, 01 Jan 1970 00:00:00 GMT" : date.toUTCString();
+          
+          const secure = window.location.protocol === 'https:' ? 'Secure;' : '';
+          document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; expires=${expires}; SameSite=Lax; ${secure}`;
         });
       },
     },

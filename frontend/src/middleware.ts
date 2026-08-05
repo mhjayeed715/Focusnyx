@@ -26,7 +26,15 @@ export async function middleware(request: NextRequest) {
           request,
         });
         cookiesToSet.forEach(({ name, value, options }) =>
-          response.cookies.set(name, value, options)
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+            maxAge: 31536000,
+            path: "/",
+            sameSite: "lax",
+            secure: process.env.NODE_ENV === 'production',
+          })
         );
       },
     },
