@@ -4,7 +4,8 @@ import type { FocusState } from "../shared/types";
 import { authenticateUser } from "../shared/api";
 
 let selectedDuration = 25 * 60 * 1000;
-let allowedUrls: string[] = ["localhost", "127.0.0.1", "focusnyx"];
+const FOCUSNYX_APP_DOMAINS = ["localhost", "127.0.0.1", "focusnyx.vercel.app", "focusnyx.com"];
+let allowedUrls: string[] = [...FOCUSNYX_APP_DOMAINS];
 let focusActive = false;
 let timerInterval: ReturnType<typeof setInterval> | null = null;
 let savedEmergencyPin = "";
@@ -98,9 +99,11 @@ function setupEventListeners() {
 }
 
 function loadSavedSettings() {
-  chrome.storage.local.get(["allowedUrls", "pin", "userAuth"], (result: any) => {
-    if (result.allowedUrls && Array.isArray(result.allowedUrls)) {
-      allowedUrls = result.allowedUrls;
+  chrome.storage.local.get(["focusState", "pin", "userAuth"], (result: any) => {
+    if (result.focusState?.allowedUrls && Array.isArray(result.focusState.allowedUrls)) {
+      // Merge stored allowed URLs with required app domains
+      const stored: string[] = result.focusState.allowedUrls;
+      allowedUrls = Array.from(new Set([...FOCUSNYX_APP_DOMAINS, ...stored]));
     }
 
     if (result.userAuth?.token) {
@@ -289,9 +292,29 @@ function startFocus() {
       if (res && res.success) {
         focusActive = true;
         updateUIForActive(selectedDuration);
+        // Open/focus the PWA tab so it receives the sync immediately
+        openFocusnyxTab();
       }
     }
   );
+}
+
+function openFocusnyxTab() {
+  const pwaUrls = [
+    "http://localhost:3000",
+    "https://focusnyx.vercel.app",
+    "https://focusnyx.com",
+  ];
+  chrome.tabs.query({}, (tabs: any[]) => {
+    const existing = tabs.find((t) =>
+      t.url && pwaUrls.some((u) => t.url.startsWith(u))
+    );
+    if (existing?.id) {
+      chrome.tabs.update(existing.id, { active: true });
+    } else {
+      chrome.tabs.create({ url: "https://focusnyx.vercel.app/focus" });
+    }
+  });
 }
 
 

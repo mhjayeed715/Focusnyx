@@ -243,39 +243,58 @@ async function applyRules(state) {
   const allowedList = [...ALLOWED_SYSTEM_DOMAINS, ...state.allowedUrls || []];
   const baseDomains = Array.from(new Set(allowedList.map(normalizeDomain).filter(Boolean)));
   const removeIds = Array.from({ length: 500 }, (_, i) => i + 1);
-  const addRules = state.active ? [
-    // Priority 100: Allow each whitelisted domain + all its subdomains
-    ...baseDomains.map((domain, i) => ({
-      id: 10 + i,
-      priority: 100,
+  if (!state.active) {
+    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: removeIds, addRules: [] });
+    return;
+  }
+  const allowRules = [];
+  baseDomains.forEach((domain, i) => {
+    const base = 10 + i * 2;
+    allowRules.push({
+      id: base,
+      priority: 2,
       action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
       condition: {
-        urlFilter: `||${domain}`,
+        urlFilter: `*://${domain}/*`,
         resourceTypes: [
           chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
           chrome.declarativeNetRequest.ResourceType.SUB_FRAME
         ]
       }
-    })),
-    // Priority 1: Redirect everything else to blocked.html
-    {
-      id: 1,
-      priority: 1,
-      action: {
-        type: chrome.declarativeNetRequest.RuleActionType.REDIRECT,
-        redirect: { extensionPath: "/blocked.html" }
-      },
+    });
+    allowRules.push({
+      id: base + 1,
+      priority: 2,
+      action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
       condition: {
-        urlFilter: "|http",
+        urlFilter: `*://*.${domain}/*`,
         resourceTypes: [
           chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
           chrome.declarativeNetRequest.ResourceType.SUB_FRAME
         ]
       }
+    });
+  });
+  const blockRule = {
+    id: 1,
+    priority: 1,
+    action: {
+      type: chrome.declarativeNetRequest.RuleActionType.REDIRECT,
+      redirect: { extensionPath: "/blocked.html" }
+    },
+    condition: {
+      urlFilter: "*",
+      resourceTypes: [
+        chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
+        chrome.declarativeNetRequest.ResourceType.SUB_FRAME
+      ]
     }
-  ] : [];
+  };
   try {
-    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: removeIds, addRules });
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds: removeIds,
+      addRules: [blockRule, ...allowRules]
+    });
   } catch (e) {
     console.error("[Focusnyx Extension] Error updating DNR rules:", e);
   }

@@ -141,6 +141,7 @@
     });
     let lastActionTimestamp = Date.now();
     window.addEventListener("storage", checkLocalStorageAction2);
+    setInterval(checkLocalStorageAction2, 500);
     window.addEventListener("message", (event) => {
       if (!event.data || event.data.type !== "FOCUSNYX_WEB_APP_ACTION") return;
       const { action, duration, durationMinutes, pin } = event.data;
