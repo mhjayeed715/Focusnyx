@@ -254,7 +254,7 @@ async function applyRules(state) {
       priority: 2,
       action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
       condition: {
-        requestDomains: [domain],
+        urlFilter: `||${domain}`,
         resourceTypes: [
           chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
           chrome.declarativeNetRequest.ResourceType.SUB_FRAME
