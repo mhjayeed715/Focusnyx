@@ -1,16 +1,14 @@
 """
 Focusnyx Windows Companion - Low-Level Keyboard Blocker
-Blocks system shortcut keys (Alt+Tab, Win, Ctrl+Esc, Alt+Esc) during Focus Lock.
-Allows all normal typing inside Focusnyx window.
-Outside Focusnyx: blocks typing but allows scroll/navigation/digit keys.
+Uses ctypes WH_KEYBOARD_LL to strictly block keys.
+Inside Focusnyx window: allows normal typing but blocks Ctrl+W, Alt+F4, Win, Alt+Tab, etc.
+Outside Focusnyx window: blocks ALL normal typing (except navigation if needed).
 """
 import logging
 import threading
-
-try:
-    import keyboard
-except ImportError:
-    keyboard = None
+import ctypes
+from ctypes import wintypes
+import time
 
 try:
     import win32gui
@@ -28,16 +26,6 @@ except ImportError:
 
 logger = logging.getLogger("focusnyx.keyboard_blocker")
 
-# Keys that are always allowed outside Focusnyx (navigation, digits for PIN)
-ALLOWED_OUTSIDE = {
-    "up", "down", "left", "right",
-    "page up", "page down", "home", "end",
-    "space", "backspace", "delete", "enter", "escape", "tab",
-    "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
-    "numpad 0", "numpad 1", "numpad 2", "numpad 3", "numpad 4",
-    "numpad 5", "numpad 6", "numpad 7", "numpad 8", "numpad 9",
-}
-
 EXCLUDED_PROCESSES = {
     "code.exe", "devenv.exe", "idea64.exe", "pycharm64.exe",
     "webstorm64.exe", "sublime_text.exe", "notepad.exe",
@@ -54,7 +42,6 @@ FOCUSNYX_TITLES = {
     "focusnyx", "localhost:3000", "127.0.0.1:3000",
     "localhost:3001", "focusnyx.vercel.app",
 }
-
 
 def _get_foreground_proc_and_title():
     if not win32gui:
@@ -76,7 +63,6 @@ def _get_foreground_proc_and_title():
     except Exception:
         return "", ""
 
-
 def _is_focusnyx_window():
     proc_name, title = _get_foreground_proc_and_title()
     if proc_name in EXCLUDED_PROCESSES:
@@ -89,75 +75,120 @@ def _is_focusnyx_window():
         return any(t in title for t in FOCUSNYX_TITLES)
     return False
 
+# User32 types and constants
+user32 = ctypes.WinDLL('user32', use_last_error=True)
+WH_KEYBOARD_LL = 13
+WM_KEYDOWN = 0x0100
+WM_KEYUP = 0x0101
+WM_SYSKEYDOWN = 0x0104
+WM_SYSKEYUP = 0x0105
+
+# Virtual Key Codes
+VK_TAB = 0x09
+VK_CONTROL = 0x11
+VK_MENU = 0x12 # Alt
+VK_ESCAPE = 0x1B
+VK_LWIN = 0x5B
+VK_RWIN = 0x5C
+VK_F4 = 0x73
+VK_W = 0x57
+
+class KBDLLHOOKSTRUCT(ctypes.Structure):
+    _fields_ = [
+        ("vkCode", wintypes.DWORD),
+        ("scanCode", wintypes.DWORD),
+        ("flags", wintypes.DWORD),
+        ("time", wintypes.DWORD),
+        ("dwExtraInfo", ctypes.POINTER(wintypes.ULONG))
+    ]
+
+HOOKPROC = ctypes.WINFUNCTYPE(wintypes.LPARAM, wintypes.INT, wintypes.WPARAM, wintypes.LPARAM)
 
 class KeyboardBlocker:
     def __init__(self):
         self.is_blocking = False
-        self._hook_handle = None
-        self._hotkey_handles = []
+        self._hook_id = None
+        self._hook_proc = None
+        self._thread = None
 
-    def _on_key_event(self, event):
-        """Called for every key event when hook is active (suppress=True blocks all by default).
-        We selectively allow keys by returning False to suppress or True to pass through."""
-        if not self.is_blocking:
-            return True  # pass through
+    def _hook_callback(self, nCode, wParam, lParam):
+        if nCode >= 0:
+            kbd_struct = ctypes.cast(lParam, ctypes.POINTER(KBDLLHOOKSTRUCT)).contents
+            vk_code = kbd_struct.vkCode
+            
+            # Check if Ctrl or Alt are pressed
+            ctrl_pressed = (user32.GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0
+            alt_pressed = (user32.GetAsyncKeyState(VK_MENU) & 0x8000) != 0
 
-        name = (event.name or "").lower()
+            # 1. ALWAYS block system shortcuts globally
+            # Block Windows Key
+            if vk_code in (VK_LWIN, VK_RWIN):
+                return 1
+            # Block Alt+Tab
+            if alt_pressed and vk_code == VK_TAB:
+                return 1
+            # Block Alt+Esc
+            if alt_pressed and vk_code == VK_ESCAPE:
+                return 1
+            # Block Ctrl+Esc
+            if ctrl_pressed and vk_code == VK_ESCAPE:
+                return 1
+            
+            is_app = _is_focusnyx_window()
+            
+            if is_app:
+                # Inside the app: block tab close / browser close
+                if ctrl_pressed and vk_code == VK_W:
+                    return 1
+                if alt_pressed and vk_code == VK_F4:
+                    return 1
+                if ctrl_pressed and vk_code == VK_F4:
+                    return 1
+                # Allow other normal typing inside the app
+            else:
+                # Outside the app: block ALL standard typing and shortcuts
+                # Allow navigation keys (Arrows, PageUp/Down, Home, End)
+                # and maybe enter/esc so the user is not completely stuck.
+                if vk_code not in (0x25, 0x26, 0x27, 0x28, 0x21, 0x22, 0x24, 0x23, VK_ESCAPE, VK_TAB):
+                    return 1
 
-        # Always suppress OS-level system shortcuts
-        if name in ("left windows", "right windows"):
-            return False
-        if name == "escape" and _is_ctrl_pressed():
-            return False  # Ctrl+Esc
-        if name == "tab" and _is_alt_pressed():
-            return False  # Alt+Tab
-        if name == "escape" and _is_alt_pressed():
-            return False  # Alt+Esc
+        return user32.CallNextHookEx(self._hook_id, nCode, wParam, lParam)
 
-        # Inside Focusnyx window: allow everything
-        if _is_focusnyx_window():
-            return True
+    def _run_hook(self):
+        self._hook_proc = HOOKPROC(self._hook_callback)
+        self._hook_id = user32.SetWindowsHookExW(WH_KEYBOARD_LL, self._hook_proc, 0, 0)
+        if not self._hook_id:
+            logger.error("Failed to install keyboard hook")
+            return
 
-        # Outside Focusnyx: allow only navigation/digit keys
-        if name in ALLOWED_OUTSIDE:
-            return True
+        msg = wintypes.MSG()
+        while self.is_blocking:
+            # We use PeekMessage so we can periodically check self.is_blocking
+            if user32.PeekMessageW(ctypes.byref(msg), 0, 0, 0, 1):
+                user32.TranslateMessage(ctypes.byref(msg))
+                user32.DispatchMessageW(ctypes.byref(msg))
+            else:
+                time.sleep(0.01)
 
-        # Block everything else outside Focusnyx
-        return False
+        user32.UnhookWindowsHookEx(self._hook_id)
+        self._hook_id = None
+        self._hook_proc = None
 
     def start_blocking(self):
-        if self.is_blocking or not keyboard:
+        if self.is_blocking:
             return
         self.is_blocking = True
         logger.info("[Focusnyx Companion] Keyboard hooks ENGAGED")
-        try:
-            # suppress=True means keyboard library suppresses ALL events by default;
-            # we use the hook callback to selectively re-inject allowed keys
-            self._hook_handle = keyboard.hook(self._on_key_event, suppress=True)
-        except Exception as e:
-            logger.error(f"Error starting keyboard hook: {e}")
+        
+        # Run in a separate thread so message loop doesn't block main app
+        self._thread = threading.Thread(target=self._run_hook, daemon=True)
+        self._thread.start()
 
     def stop_blocking(self):
-        if not self.is_blocking or not keyboard:
+        if not self.is_blocking:
             return
         self.is_blocking = False
         logger.info("[Focusnyx Companion] Keyboard hooks RELEASED")
-        try:
-            keyboard.unhook_all()
-            self._hook_handle = None
-        except Exception as e:
-            logger.warning(f"keyboard unhook error: {e}")
-
-
-def _is_alt_pressed():
-    try:
-        return keyboard.is_pressed("alt")
-    except Exception:
-        return False
-
-
-def _is_ctrl_pressed():
-    try:
-        return keyboard.is_pressed("ctrl")
-    except Exception:
-        return False
+        if self._thread:
+            self._thread.join(timeout=1.0)
+            self._thread = None

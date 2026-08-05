@@ -16,6 +16,9 @@ DEFAULT_BLACKLIST = [
     "epicgameslauncher.exe",
     "telegram.exe",
     "whatsapp.exe",
+    "taskmgr.exe",
+    "procexp.exe",
+    "processhacker.exe",
 ]
 
 class ProcessMonitor:

@@ -21,7 +21,6 @@ export function createClient() {
     auth: {
       lock: noOpLock,
       persistSession: true,
-      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
     },
   });
   return client;

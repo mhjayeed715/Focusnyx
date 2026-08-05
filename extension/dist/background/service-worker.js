@@ -249,25 +249,12 @@ async function applyRules(state) {
   }
   const allowRules = [];
   baseDomains.forEach((domain, i) => {
-    const base = 10 + i * 2;
     allowRules.push({
-      id: base,
+      id: 10 + i,
       priority: 2,
       action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
       condition: {
-        urlFilter: `*://${domain}/*`,
-        resourceTypes: [
-          chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
-          chrome.declarativeNetRequest.ResourceType.SUB_FRAME
-        ]
-      }
-    });
-    allowRules.push({
-      id: base + 1,
-      priority: 2,
-      action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
-      condition: {
-        urlFilter: `*://*.${domain}/*`,
+        requestDomains: [domain],
         resourceTypes: [
           chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
           chrome.declarativeNetRequest.ResourceType.SUB_FRAME
