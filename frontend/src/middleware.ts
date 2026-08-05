@@ -30,6 +30,11 @@ export async function middleware(request: NextRequest) {
         );
       },
     },
+    cookieOptions: {
+      maxAge: 31536000,
+      path: "/",
+      sameSite: "lax",
+    },
   });
 
   const {
