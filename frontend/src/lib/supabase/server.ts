@@ -16,10 +16,10 @@ export function createServerSupabaseClient() {
         return cookieStore.get(name)?.value;
       },
       set(name: string, value: string, options: Record<string, unknown>) {
-        cookieStore.set({ name, value, ...options });
+        cookieStore.set({ name, value, ...options, maxAge: 31536000, path: "/", sameSite: "lax", secure: process.env.NODE_ENV === 'production' });
       },
       remove(name: string, options: Record<string, unknown>) {
-        cookieStore.set({ name, value: "", ...options });
+        cookieStore.set({ name, value: "", ...options, maxAge: 0, path: "/", sameSite: "lax", secure: process.env.NODE_ENV === 'production' });
       }
     },
     cookieOptions: {
