@@ -1,7 +1,8 @@
 // src/content/overlay.ts
 (function() {
   const currentHost = window.location.hostname;
-  const isAppDomain = currentHost.includes("localhost") || currentHost.includes("127.0.0.1") || currentHost.includes("focusnyx") || currentHost.includes("vercel.app");
+  const FOCUSNYX_HOSTS = ["localhost", "127.0.0.1", "focusnyx.vercel.app", "focusnyx.com"];
+  const isAppDomain = FOCUSNYX_HOSTS.some((h) => currentHost === h || currentHost.endsWith("." + h));
   const syncChannel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("FOCUSNYX_SYNC_CHANNEL") : null;
   function safeSendMessage(message, callback) {
     try {
