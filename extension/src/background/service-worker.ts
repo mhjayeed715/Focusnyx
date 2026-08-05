@@ -153,31 +153,15 @@ async function applyRules(state: FocusState): Promise<void> {
     return;
   }
 
-  // For each whitelisted domain, create two rules: exact domain + wildcard subdomains.
-  // Rule IDs: exact = 10 + (i*2), subdomain = 10 + (i*2) + 1
+  // For each whitelisted domain, create one rule using requestDomains to match domain and subdomains natively
   const allowRules: any[] = [];
   baseDomains.forEach((domain, i) => {
-    const base = 10 + i * 2;
-    // Exact domain: *://github.com/*
     allowRules.push({
-      id: base,
+      id: 10 + i,
       priority: 2,
       action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
       condition: {
-        urlFilter: `*://${domain}/*`,
-        resourceTypes: [
-          chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
-          chrome.declarativeNetRequest.ResourceType.SUB_FRAME,
-        ],
-      },
-    });
-    // All subdomains: *://*.github.com/*
-    allowRules.push({
-      id: base + 1,
-      priority: 2,
-      action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
-      condition: {
-        urlFilter: `*://*.${domain}/*`,
+        requestDomains: [domain],
         resourceTypes: [
           chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
           chrome.declarativeNetRequest.ResourceType.SUB_FRAME,

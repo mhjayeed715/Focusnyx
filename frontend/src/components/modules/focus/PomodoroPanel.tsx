@@ -759,11 +759,20 @@ export function PomodoroPanel() {
       }
     };
 
+    // Prevent closing the tab/browser while locked
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "Focus mode is active. Are you sure you want to exit?";
+      return e.returnValue;
+    };
+
     document.addEventListener("keydown", handleKeyDown, true);
     document.addEventListener("fullscreenchange", handleFullscreenChange);
+    window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
       document.removeEventListener("keydown", handleKeyDown, true);
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [isLocked]);
 
@@ -876,7 +885,7 @@ export function PomodoroPanel() {
     const checkCompanionStatus = async () => {
       // Always query extension state first for accurate remaining time
       notifyExtension("getStatus");
-      let nextInterval = 5000;
+      let nextInterval = 1000;
       try {
         const res = await fetch("http://localhost:5000/status");
         if (res.ok) {
@@ -888,6 +897,10 @@ export function PomodoroPanel() {
               const drift = Math.abs(totalSecondsRef.current - companionSecs);
               if (!isRunningRef.current || drift > 10) {
                 syncState(companionSecs, true);
+              }
+              // If extension is not yet active, activate it now so it starts blocking
+              if (!isRunningRef.current) {
+                notifyExtension("startFocus", Math.ceil(companionSecs / 60));
               }
             }
           } else if (!data.is_active && isSubscribed) {
