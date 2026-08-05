@@ -206,48 +206,8 @@ function ShellContent({
       }
     });
 
-    sb.auth.getUser().then(({ data: { user } }) => {
-      if (!user) {
-        router.replace("/auth");
-      }
-    });
-
-    // ── Security: detect data/cache clearing ──────────────────
-    // When localStorage is cleared externally (DevTools, clear site data),
-    // the 'storage' event fires. Re-validate auth immediately.
-    const handleStorageChange = (e: StorageEvent) => {
-      // If specific Supabase keys are removed or all storage is cleared
-      if (e.key === null || (e.key && e.key.startsWith("sb-"))) {
-        sb.auth.getUser().then(({ data: { user } }) => {
-          if (!user) router.replace("/auth");
-        });
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
-
-    // When the user switches back to this tab after clearing data elsewhere,
-    // actively re-check if auth tokens still exist
-    const handleVisibilityChange = () => {
-      if (document.visibilityState !== "visible") return;
-      sb.auth.getUser().then(({ data: { user } }) => {
-        if (!user) router.replace("/auth");
-      });
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    // Also listen to the 'focus' event for the same reason
-    const handleFocus = () => {
-      sb.auth.getUser().then(({ data: { user } }) => {
-        if (!user) router.replace("/auth");
-      });
-    };
-    window.addEventListener("focus", handleFocus);
-
     return () => {
       subscription.unsubscribe();
-      window.removeEventListener("storage", handleStorageChange);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("focus", handleFocus);
     };
   }, [router]);
 
