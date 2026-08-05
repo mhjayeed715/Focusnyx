@@ -22,6 +22,11 @@ export function createClient() {
       lock: noOpLock,
       persistSession: true,
     },
+    cookieOptions: {
+      maxAge: 31536000, // 1 year
+      path: "/",
+      sameSite: "lax",
+    },
   });
   return client;
 }

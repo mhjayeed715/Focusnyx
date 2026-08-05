@@ -21,6 +21,11 @@ export function createServerSupabaseClient() {
       remove(name: string, options: Record<string, unknown>) {
         cookieStore.set({ name, value: "", ...options });
       }
-    }
+    },
+    cookieOptions: {
+      maxAge: 31536000,
+      path: "/",
+      sameSite: "lax",
+    },
   });
 }
