@@ -34,9 +34,9 @@ export function createClient() {
           }
         });
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet: { name: string; value: string; options?: any }[]) {
         if (typeof document === "undefined") return;
-        cookiesToSet.forEach(({ name, value, options }) => {
+        cookiesToSet.forEach(({ name, value }) => {
           const isDelete = value === "";
           const maxAge = isDelete ? 0 : 31536000;
           document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
