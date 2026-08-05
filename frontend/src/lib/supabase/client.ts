@@ -22,10 +22,26 @@ export function createClient() {
       lock: noOpLock,
       persistSession: true,
     },
-    cookieOptions: {
-      maxAge: 31536000, // 1 year
-      path: "/",
-      sameSite: "lax",
+    cookies: {
+      getAll() {
+        if (typeof document === "undefined") return [];
+        return document.cookie.split(";").map((c) => {
+          const [key, ...v] = c.split("=");
+          try {
+            return { name: key.trim(), value: decodeURIComponent(v.join("=").trim()) };
+          } catch {
+            return { name: key.trim(), value: v.join("=").trim() };
+          }
+        });
+      },
+      setAll(cookiesToSet) {
+        if (typeof document === "undefined") return;
+        cookiesToSet.forEach(({ name, value, options }) => {
+          const isDelete = value === "";
+          const maxAge = isDelete ? 0 : 31536000;
+          document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+        });
+      },
     },
   });
   return client;
