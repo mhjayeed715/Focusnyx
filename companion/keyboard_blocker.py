@@ -155,6 +155,7 @@ class KeyboardBlocker:
         return user32.CallNextHookEx(self._hook_id, nCode, wParam, lParam)
 
     def _run_hook(self):
+        self._thread_id = ctypes.windll.kernel32.GetCurrentThreadId()
         self._hook_proc = HOOKPROC(self._hook_callback)
         self._hook_id = user32.SetWindowsHookExW(WH_KEYBOARD_LL, self._hook_proc, 0, 0)
         if not self._hook_id:
@@ -162,13 +163,15 @@ class KeyboardBlocker:
             return
 
         msg = wintypes.MSG()
-        while self.is_blocking:
-            # We use PeekMessage so we can periodically check self.is_blocking
-            if user32.PeekMessageW(ctypes.byref(msg), 0, 0, 0, 1):
-                user32.TranslateMessage(ctypes.byref(msg))
-                user32.DispatchMessageW(ctypes.byref(msg))
-            else:
-                time.sleep(0.01)
+        while True:
+            bRet = user32.GetMessageW(ctypes.byref(msg), None, 0, 0)
+            if bRet <= 0:
+                break
+            # Use WM_USER + 1 as custom quit to avoid GetMessage returning 0 prematurely if not intended
+            if msg.message == 0x0401: 
+                break
+            user32.TranslateMessage(ctypes.byref(msg))
+            user32.DispatchMessageW(ctypes.byref(msg))
 
         user32.UnhookWindowsHookEx(self._hook_id)
         self._hook_id = None
@@ -180,7 +183,6 @@ class KeyboardBlocker:
         self.is_blocking = True
         logger.info("[Focusnyx Companion] Keyboard hooks ENGAGED")
         
-        # Run in a separate thread so message loop doesn't block main app
         self._thread = threading.Thread(target=self._run_hook, daemon=True)
         self._thread.start()
 
@@ -189,6 +191,8 @@ class KeyboardBlocker:
             return
         self.is_blocking = False
         logger.info("[Focusnyx Companion] Keyboard hooks RELEASED")
+        if getattr(self, '_thread_id', None):
+            user32.PostThreadMessageW(self._thread_id, 0x0401, 0, 0)
         if self._thread:
             self._thread.join(timeout=1.0)
             self._thread = None
