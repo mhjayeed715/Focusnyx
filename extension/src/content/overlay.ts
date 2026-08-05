@@ -153,6 +153,8 @@
     }
 
     window.addEventListener("storage", checkLocalStorageAction);
+    // Also poll every 500ms — storage events don't fire in the same tab that wrote the value
+    setInterval(checkLocalStorageAction, 500);
 
     // Listen for requests from Web App DOM
     window.addEventListener("message", (event) => {

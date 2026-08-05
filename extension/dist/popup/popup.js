@@ -33,7 +33,8 @@ async function authenticateUser(email, password) {
 
 // src/popup/popup.ts
 var selectedDuration = 25 * 60 * 1e3;
-var allowedUrls = ["localhost", "127.0.0.1", "focusnyx"];
+var FOCUSNYX_APP_DOMAINS = ["localhost", "127.0.0.1", "focusnyx.vercel.app", "focusnyx.com"];
+var allowedUrls = [...FOCUSNYX_APP_DOMAINS];
 var focusActive = false;
 var timerInterval = null;
 var savedEmergencyPin = "";
@@ -111,9 +112,10 @@ function setupEventListeners() {
   });
 }
 function loadSavedSettings() {
-  chrome.storage.local.get(["allowedUrls", "pin", "userAuth"], (result) => {
-    if (result.allowedUrls && Array.isArray(result.allowedUrls)) {
-      allowedUrls = result.allowedUrls;
+  chrome.storage.local.get(["focusState", "pin", "userAuth"], (result) => {
+    if (result.focusState?.allowedUrls && Array.isArray(result.focusState.allowedUrls)) {
+      const stored = result.focusState.allowedUrls;
+      allowedUrls = Array.from(/* @__PURE__ */ new Set([...FOCUSNYX_APP_DOMAINS, ...stored]));
     }
     if (result.userAuth?.token) {
       authProfileCard.style.display = "block";
@@ -269,9 +271,27 @@ function startFocus() {
       if (res && res.success) {
         focusActive = true;
         updateUIForActive(selectedDuration);
+        openFocusnyxTab();
       }
     }
   );
+}
+function openFocusnyxTab() {
+  const pwaUrls = [
+    "http://localhost:3000",
+    "https://focusnyx.vercel.app",
+    "https://focusnyx.com"
+  ];
+  chrome.tabs.query({}, (tabs) => {
+    const existing = tabs.find(
+      (t) => t.url && pwaUrls.some((u) => t.url.startsWith(u))
+    );
+    if (existing?.id) {
+      chrome.tabs.update(existing.id, { active: true });
+    } else {
+      chrome.tabs.create({ url: "https://focusnyx.vercel.app/focus" });
+    }
+  });
 }
 async function handleAuthLogin() {
   const email = authEmail.value.trim();

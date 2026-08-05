@@ -148,42 +148,66 @@ async function applyRules(state: FocusState): Promise<void> {
   const baseDomains = Array.from(new Set(allowedList.map(normalizeDomain).filter(Boolean)));
   const removeIds = Array.from({ length: 500 }, (_, i) => i + 1);
 
-  const addRules = state.active
-    ? [
-        // Priority 100: Allow each whitelisted domain + all its subdomains
-        ...baseDomains.map((domain, i) => ({
-          id: 10 + i,
-          priority: 100,
-          action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
-          condition: {
-            urlFilter: `||${domain}`,
-            resourceTypes: [
-              chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
-              chrome.declarativeNetRequest.ResourceType.SUB_FRAME,
-            ],
-          },
-        })),
-        // Priority 1: Redirect everything else to blocked.html
-        {
-          id: 1,
-          priority: 1,
-          action: {
-            type: chrome.declarativeNetRequest.RuleActionType.REDIRECT,
-            redirect: { extensionPath: "/blocked.html" },
-          },
-          condition: {
-            urlFilter: "|http",
-            resourceTypes: [
-              chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
-              chrome.declarativeNetRequest.ResourceType.SUB_FRAME,
-            ],
-          },
-        },
-      ]
-    : [];
+  if (!state.active) {
+    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: removeIds, addRules: [] });
+    return;
+  }
+
+  // For each whitelisted domain, create two rules: exact domain + wildcard subdomains.
+  // Rule IDs: exact = 10 + (i*2), subdomain = 10 + (i*2) + 1
+  const allowRules: any[] = [];
+  baseDomains.forEach((domain, i) => {
+    const base = 10 + i * 2;
+    // Exact domain: *://github.com/*
+    allowRules.push({
+      id: base,
+      priority: 2,
+      action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
+      condition: {
+        urlFilter: `*://${domain}/*`,
+        resourceTypes: [
+          chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
+          chrome.declarativeNetRequest.ResourceType.SUB_FRAME,
+        ],
+      },
+    });
+    // All subdomains: *://*.github.com/*
+    allowRules.push({
+      id: base + 1,
+      priority: 2,
+      action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
+      condition: {
+        urlFilter: `*://*.${domain}/*`,
+        resourceTypes: [
+          chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
+          chrome.declarativeNetRequest.ResourceType.SUB_FRAME,
+        ],
+      },
+    });
+  });
+
+  // Priority 1: block everything else
+  const blockRule = {
+    id: 1,
+    priority: 1,
+    action: {
+      type: chrome.declarativeNetRequest.RuleActionType.REDIRECT,
+      redirect: { extensionPath: "/blocked.html" },
+    },
+    condition: {
+      urlFilter: "*",
+      resourceTypes: [
+        chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
+        chrome.declarativeNetRequest.ResourceType.SUB_FRAME,
+      ],
+    },
+  };
 
   try {
-    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: removeIds, addRules });
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds: removeIds,
+      addRules: [blockRule, ...allowRules],
+    });
   } catch (e) {
     console.error("[Focusnyx Extension] Error updating DNR rules:", e);
   }
