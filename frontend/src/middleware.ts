@@ -30,10 +30,6 @@ export async function middleware(request: NextRequest) {
             name,
             value,
             ...options,
-            maxAge: 31536000,
-            path: "/",
-            sameSite: "lax",
-            secure: process.env.NODE_ENV === 'production',
           })
         );
       },
