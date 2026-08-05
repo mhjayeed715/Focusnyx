@@ -12,20 +12,18 @@ export function createServerSupabaseClient() {
 
   return createServerClient(url, key, {
     cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
+      getAll() {
+        return cookieStore.getAll();
       },
-      set(name: string, value: string, options: Record<string, unknown>) {
-        cookieStore.set({ name, value, ...options, maxAge: 31536000, path: "/", sameSite: "lax", secure: process.env.NODE_ENV === 'production' });
+      setAll(cookiesToSet: Array<{ name: string; value: string; options?: any }>) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          );
+        } catch {
+          // Called from a Server Component.
+        }
       },
-      remove(name: string, options: Record<string, unknown>) {
-        cookieStore.set({ name, value: "", ...options, maxAge: 0, path: "/", sameSite: "lax", secure: process.env.NODE_ENV === 'production' });
-      }
-    },
-    cookieOptions: {
-      maxAge: 31536000,
-      path: "/",
-      sameSite: "lax",
     },
   });
 }

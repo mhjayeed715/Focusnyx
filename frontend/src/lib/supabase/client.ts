@@ -22,33 +22,6 @@ export function createClient() {
       lock: noOpLock,
       persistSession: true,
     },
-    cookies: {
-      getAll() {
-        if (typeof document === "undefined") return [];
-        return document.cookie.split(";").map((c) => {
-          const [key, ...v] = c.split("=");
-          try {
-            return { name: key.trim(), value: decodeURIComponent(v.join("=").trim()) };
-          } catch {
-            return { name: key.trim(), value: v.join("=").trim() };
-          }
-        });
-      },
-      setAll(cookiesToSet: { name: string; value: string; options?: any }[]) {
-        if (typeof document === "undefined") return;
-        cookiesToSet.forEach(({ name, value }) => {
-          const isDelete = value === "";
-          const maxAge = isDelete ? 0 : 31536000;
-          
-          const date = new Date();
-          date.setTime(date.getTime() + (maxAge * 1000));
-          const expires = isDelete ? "Thu, 01 Jan 1970 00:00:00 GMT" : date.toUTCString();
-          
-          const secure = window.location.protocol === 'https:' ? 'Secure;' : '';
-          document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; expires=${expires}; SameSite=Lax; ${secure}`;
-        });
-      },
-    },
   });
   return client;
 }
