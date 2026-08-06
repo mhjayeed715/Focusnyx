@@ -65,14 +65,13 @@ def _get_foreground_proc_and_title():
 
 def _is_focusnyx_window():
     proc_name, title = _get_foreground_proc_and_title()
-    if proc_name in EXCLUDED_PROCESSES:
-        return False
+    # Browser with Focusnyx tab active — always check this first
+    if proc_name in BROWSER_PROCESSES or not proc_name:
+        return any(t in title for t in FOCUSNYX_TITLES)
     # Companion app GUI
     if ("python" in proc_name or "focusnyxcompanion" in proc_name) and "focusnyx" in title:
         return True
-    # Browser with Focusnyx tab active
-    if proc_name in BROWSER_PROCESSES or not proc_name:
-        return any(t in title for t in FOCUSNYX_TITLES)
+    # Non-browser, non-companion process = outside the app
     return False
 
 # User32 types and constants
@@ -120,36 +119,32 @@ class KeyboardBlocker:
             ctrl_pressed = (user32.GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0
             alt_pressed = (user32.GetAsyncKeyState(VK_MENU) & 0x8000) != 0
 
-            # 1. ALWAYS block system shortcuts globally
-            # Block Windows Key
+            # 1. ALWAYS block system shortcuts globally (regardless of window)
             if vk_code in (VK_LWIN, VK_RWIN):
                 return 1
-            # Block Alt+Tab
             if alt_pressed and vk_code == VK_TAB:
                 return 1
-            # Block Alt+Esc
             if alt_pressed and vk_code == VK_ESCAPE:
                 return 1
-            # Block Ctrl+Esc
             if ctrl_pressed and vk_code == VK_ESCAPE:
                 return 1
             
             is_app = _is_focusnyx_window()
             
             if is_app:
-                # Inside the app: block tab close / browser close
+                # Inside the Focusnyx browser tab: only block close shortcuts
                 if ctrl_pressed and vk_code == VK_W:
                     return 1
                 if alt_pressed and vk_code == VK_F4:
                     return 1
                 if ctrl_pressed and vk_code == VK_F4:
                     return 1
-                # Allow other normal typing inside the app
+                # Allow all other typing inside the app
             else:
-                # Outside the app: block ALL standard typing and shortcuts
-                # Allow navigation keys (Arrows, PageUp/Down, Home, End)
-                # and maybe enter/esc so the user is not completely stuck.
-                if vk_code not in (0x25, 0x26, 0x27, 0x28, 0x21, 0x22, 0x24, 0x23, VK_ESCAPE, VK_TAB):
+                # Outside the Focusnyx app: block ALL keys except pure navigation
+                # Navigation keys: Left/Right/Up/Down arrows, PageUp/Down, Home, End
+                NAVIGATION_KEYS = {0x25, 0x26, 0x27, 0x28, 0x21, 0x22, 0x23, 0x24}
+                if vk_code not in NAVIGATION_KEYS:
                     return 1
 
         return user32.CallNextHookEx(self._hook_id, nCode, wParam, lParam)
