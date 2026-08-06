@@ -201,7 +201,8 @@ function ShellContent({
   useEffect(() => {
     const sb = createClient();
     const { data: { subscription } } = sb.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT") {
+      // Ignore SIGNED_OUT fired during page unload (tab close / refresh)
+      if (event === "SIGNED_OUT" && !document.hidden) {
         router.replace("/auth");
       }
     });

@@ -493,10 +493,15 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
     (async () => {
       const state = await getState();
       const newAllowed = Array.isArray(request.allowedUrls)
-        ? request.allowedUrls.map((d: string) => normalizeDomain(d)).filter(Boolean)
+        ? Array.from(new Set([
+            ...PWA_SEED_URLS,
+            ...request.allowedUrls.map((d: string) => normalizeDomain(d)).filter(Boolean)
+          ]))
         : state.allowedUrls;
-      await setState({ allowedUrls: newAllowed });
-      await applyRules({ ...state, allowedUrls: newAllowed });
+      // Always persist and apply — even if focus is not active yet (prepares for next session)
+      const nextState = { ...state, allowedUrls: newAllowed };
+      await chrome.storage.local.set({ focusState: nextState });
+      await applyRules(nextState);
       sendResponse({ ok: true, success: true, message: "Whitelist updated" });
     })();
     return true;

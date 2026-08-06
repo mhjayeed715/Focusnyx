@@ -581,9 +581,13 @@ function handleMessage(request, sender, sendResponse) {
   if (request.action === "updateWhitelist") {
     (async () => {
       const state = await getState();
-      const newAllowed = Array.isArray(request.allowedUrls) ? request.allowedUrls.map((d) => normalizeDomain(d)).filter(Boolean) : state.allowedUrls;
-      await setState({ allowedUrls: newAllowed });
-      await applyRules({ ...state, allowedUrls: newAllowed });
+      const newAllowed = Array.isArray(request.allowedUrls) ? Array.from(/* @__PURE__ */ new Set([
+        ...PWA_SEED_URLS,
+        ...request.allowedUrls.map((d) => normalizeDomain(d)).filter(Boolean)
+      ])) : state.allowedUrls;
+      const nextState = { ...state, allowedUrls: newAllowed };
+      await chrome.storage.local.set({ focusState: nextState });
+      await applyRules(nextState);
       sendResponse({ ok: true, success: true, message: "Whitelist updated" });
     })();
     return true;
