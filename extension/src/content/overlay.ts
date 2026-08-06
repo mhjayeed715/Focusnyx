@@ -146,6 +146,11 @@
                   }
                 }
               );
+            } else if (action === "updateWhitelist") {
+              safeSendMessage(
+                { action: "updateWhitelist", allowedUrls: parsed.allowedUrls },
+                (res) => { if (res) postStateToWebApp(res); }
+              );
             }
           }
         }

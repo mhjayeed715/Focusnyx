@@ -198,19 +198,9 @@ function ShellContent({
     void loadKeys();
   }, []);
 
-  useEffect(() => {
-    const sb = createClient();
-    const { data: { subscription } } = sb.auth.onAuthStateChange((event) => {
-      // Ignore SIGNED_OUT fired during page unload (tab close / refresh)
-      if (event === "SIGNED_OUT" && !document.hidden) {
-        router.replace("/auth");
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [router]);
+  // No onAuthStateChange listener needed — middleware.ts already redirects
+  // unauthenticated requests server-side. Listening here causes cross-tab
+  // logout when signOut() broadcasts SIGNED_OUT to all tabs via shared storage.
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -218,7 +208,13 @@ function ShellContent({
 
   const handleLogout = async () => {
     if (confirmLogout && !showLogoutConfirm) { setShowLogoutConfirm(true); return; }
-    try { const sb = createClient(); await sb.auth.signOut(); } catch {}
+    // Clear session from storage directly — do NOT call signOut() which broadcasts
+    // SIGNED_OUT to all open tabs via the shared Supabase storage event.
+    try {
+      const sb = createClient();
+      // Remove the session without broadcasting to other tabs
+      await sb.auth.signOut({ scope: "local" });
+    } catch {}
     router.push(APP_ROUTES.auth);
   };
 
