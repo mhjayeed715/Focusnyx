@@ -514,19 +514,21 @@ export function PomodoroPanel() {
 
   const syncBlocklistToAll = (sites: typeof blockedSites, apps: string[]) => {
     const enabledDomains = sites.filter((s) => s.enabled).map((s) => s.site);
-    
-    // 1. Extension sync
-    window.postMessage(
-      {
-        type: "FOCUSNYX_WEB_APP_ACTION",
-        action: "updateWhitelist",
-        allowedUrls: enabledDomains,
-        blocklist: enabledDomains,
-      },
-      "*"
-    );
 
-    // 2. Companion App sync
+    // Write directly to the localStorage key the content script polls every 500ms.
+    // Use action "updateWhitelist" — the content script relays this to the background.
+    const payload = {
+      type: "FOCUSNYX_WEB_APP_ACTION",
+      action: "updateWhitelist",
+      allowedUrls: enabledDomains,
+      timestamp: Date.now(),
+    };
+    try { localStorage.setItem("focusnyx_app_focus_state", JSON.stringify(payload)); } catch {}
+
+    // Also postMessage for immediate relay (content script listens to this too)
+    window.postMessage(payload, "*");
+
+    // Companion App sync
     try {
       fetch("http://localhost:5000/update-blocklist", {
         method: "POST",
