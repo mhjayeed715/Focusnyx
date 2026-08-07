@@ -906,8 +906,13 @@ export function PomodoroPanel() {
               }
             }
           } else if (!data.is_active && isSubscribed) {
-            // Only unlock if extension also says inactive
-            // (extension is the source of truth for browser-started sessions)
+            if (isRunningRef.current || isLocked) {
+              // Companion app focus lock was released (e.g. via Emergency PIN in Companion App GUI)
+              syncState(0, false);
+              setIsLocked(false);
+              notifyExtension("endFocus", 0);
+              setStatusMessage("Focus lock unlocked via Companion App Emergency PIN.");
+            }
           }
         } else {
           nextInterval = 15000;
