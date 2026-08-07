@@ -153,7 +153,7 @@ async function applyRules(state: FocusState): Promise<void> {
     return;
   }
 
-  // For each whitelisted domain, create one rule using requestDomains to match domain and subdomains natively
+  // Priority 2: allow each whitelisted domain and its subdomains
   const allowRules: any[] = [];
   baseDomains.forEach((domain, i) => {
     allowRules.push({
@@ -161,16 +161,14 @@ async function applyRules(state: FocusState): Promise<void> {
       priority: 2,
       action: { type: "allow" },
       condition: {
-        urlFilter: `||${domain}`,
-        resourceTypes: [
-          "main_frame",
-          "sub_frame",
-        ],
+        regexFilter: `(^|\\.)${domain.replace(/\./g, "\\\\.")}\.?$`,
+        requestDomains: [domain],
+        resourceTypes: ["main_frame", "sub_frame"],
       },
     });
   });
 
-  // Priority 1: block everything else
+  // Priority 1: block everything else using regexFilter to match all URLs
   const blockRule = {
     id: 1,
     priority: 1,
@@ -179,11 +177,8 @@ async function applyRules(state: FocusState): Promise<void> {
       redirect: { extensionPath: "/blocked.html" },
     },
     condition: {
-      urlFilter: "*",
-      resourceTypes: [
-        "main_frame",
-        "sub_frame",
-      ],
+      regexFilter: ".*",
+      resourceTypes: ["main_frame"],
     },
   };
 
@@ -395,7 +390,7 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
       if (duration > 0 && duration <= 1440) duration = duration * 60 * 1000;
 
       const allowedUrls = Array.from(new Set(
-        [...(currentState.allowedUrls || [...PWA_SEED_URLS]), ...(Array.isArray(request.allowedUrls) ? request.allowedUrls : [])]
+        [...PWA_SEED_URLS, ...(Array.isArray(request.allowedUrls) ? request.allowedUrls : (currentState.allowedUrls || []))]
           .map((v) => normalizeDomain(String(v || ""))).filter(Boolean)
       ));
       const pin = request.pin || currentState.focusPIN || "123456";
