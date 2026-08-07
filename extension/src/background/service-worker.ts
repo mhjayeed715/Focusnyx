@@ -44,6 +44,9 @@ const DEFAULT_STATE: FocusState = {
   focusPIN: "123456",
 };
 
+// In-memory cache — always up to date, no async race conditions
+let _stateCache: FocusState = { ...DEFAULT_STATE };
+
 async function getState(): Promise<FocusState> {
   return new Promise((resolve) => {
     chrome.storage.local.get(["focusState", "pin", "userAuth"], async (data) => {
@@ -71,6 +74,7 @@ async function getState(): Promise<FocusState> {
           state.active = false;
           state.focusStartTime = null;
           await chrome.storage.local.set({ focusState: state });
+          _stateCache = state;
           applyRules(state);
           notifyAllTabs(false);
           chrome.alarms.clear("autoUnlockFocus");
@@ -78,6 +82,7 @@ async function getState(): Promise<FocusState> {
         }
       }
 
+      _stateCache = state;
       resolve(state);
     });
   });
@@ -86,6 +91,7 @@ async function getState(): Promise<FocusState> {
 async function setState(partial: Partial<FocusState>): Promise<void> {
   const current = await getState();
   const next = { ...current, ...partial };
+  _stateCache = next;
   await chrome.storage.local.set({ focusState: next });
   applyRules(next);
   notifyAllTabs(next.active);
@@ -95,6 +101,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && changes.focusState) {
     const newState: FocusState = changes.focusState.newValue;
     if (newState) {
+      _stateCache = newState;
       applyRules(newState);
       notifyAllTabs(Boolean(newState.active));
     }
@@ -144,52 +151,9 @@ function isDomainBlocked(url: string, state: FocusState): boolean {
 }
 
 async function applyRules(state: FocusState): Promise<void> {
-  const allowedList = [...ALLOWED_SYSTEM_DOMAINS, ...(state.allowedUrls || [])];
-  const baseDomains = Array.from(new Set(allowedList.map(normalizeDomain).filter(Boolean)));
   const removeIds = Array.from({ length: 500 }, (_, i) => i + 1);
-
-  if (!state.active) {
-    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: removeIds, addRules: [] });
-    return;
-  }
-
-  // Priority 2: allow each whitelisted domain and its subdomains
-  const allowRules: any[] = [];
-  baseDomains.forEach((domain, i) => {
-    allowRules.push({
-      id: 10 + i,
-      priority: 2,
-      action: { type: "allow" },
-      condition: {
-        regexFilter: `(^|\\.)${domain.replace(/\./g, "\\\\.")}\.?$`,
-        requestDomains: [domain],
-        resourceTypes: ["main_frame", "sub_frame"],
-      },
-    });
-  });
-
-  // Priority 1: block everything else using regexFilter to match all URLs
-  const blockRule = {
-    id: 1,
-    priority: 1,
-    action: {
-      type: "redirect",
-      redirect: { extensionPath: "/blocked.html" },
-    },
-    condition: {
-      regexFilter: ".*",
-      resourceTypes: ["main_frame"],
-    },
-  };
-
-  try {
-    await chrome.declarativeNetRequest.updateDynamicRules({
-      removeRuleIds: removeIds,
-      addRules: [blockRule, ...allowRules],
-    });
-  } catch (e) {
-    console.error("[Focusnyx Extension] Error updating DNR rules:", e);
-  }
+  // Always clear all DNR rules — blocking is handled entirely by event listeners
+  await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: removeIds, addRules: [] });
 }
 
 function notifyAllTabs(isActive: boolean) {
@@ -267,7 +231,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
 chrome.webNavigation?.onBeforeNavigate.addListener(async (details) => {
   if (details.frameId !== 0) return;
-  const state = await getState();
+  const state = _stateCache;
   if (!state.active || !isDomainBlocked(details.url, state)) return;
   chrome.tabs.update(details.tabId, { url: chrome.runtime.getURL("blocked.html") });
   const focusTab = (await chrome.tabs.query({})).find((t) => t.url && isFocusnyxTab(t.url));
@@ -276,14 +240,14 @@ chrome.webNavigation?.onBeforeNavigate.addListener(async (details) => {
 });
 
 chrome.tabs.onCreated.addListener(async (tab) => {
-  const state = await getState();
+  const state = _stateCache;
   if (!state.active) return;
   setTimeout(async () => {
     try {
       if (!tab.id) return;
       const current = await chrome.tabs.get(tab.id);
       const url = current.url || current.pendingUrl || "";
-      if (!isDomainBlocked(url, state)) return;
+      if (!isDomainBlocked(url, _stateCache)) return;
       chrome.tabs.update(tab.id, { url: chrome.runtime.getURL("blocked.html") });
       const focusTab = (await chrome.tabs.query({})).find((t) => t.url && isFocusnyxTab(t.url));
       if (focusTab?.id) chrome.tabs.update(focusTab.id, { active: true });
@@ -293,14 +257,14 @@ chrome.tabs.onCreated.addListener(async (tab) => {
 });
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
-  const state = await getState();
+  const state = _stateCache;
   if (!state.active || !changeInfo.url || !isDomainBlocked(changeInfo.url, state)) return;
   chrome.tabs.update(tabId, { url: chrome.runtime.getURL("blocked.html") });
   logDistraction({ type: "navigation_blocked", url: changeInfo.url });
 });
 
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
-  const state = await getState();
+  const state = _stateCache;
   if (!state.active) return;
   try {
     const tab = await chrome.tabs.get(activeInfo.tabId);
@@ -520,5 +484,10 @@ chrome.runtime.onMessage.addListener(handleMessage);
 if (chrome.runtime.onMessageExternal) {
   chrome.runtime.onMessageExternal.addListener(handleMessage);
 }
+
+// Initialize cache from storage on service worker startup
+getState().then(() => {
+  console.log("[Focusnyx Extension] State cache initialized. Active:", _stateCache.active);
+});
 
 export {};
