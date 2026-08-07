@@ -1,35 +1,29 @@
 // src/content/overlay.ts
 (function() {
-  const currentHost = window.location.hostname;
+  const currentHost = window.location.hostname.toLowerCase().replace(/^www\./, "");
   const FOCUSNYX_HOSTS = ["localhost", "127.0.0.1", "focusnyx.vercel.app", "focusnyx.com"];
   const isAppDomain = FOCUSNYX_HOSTS.some((h) => currentHost === h || currentHost.endsWith("." + h));
   const syncChannel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("FOCUSNYX_SYNC_CHANNEL") : null;
   function safeSendMessage(message, callback) {
     try {
-      if (typeof chrome === "undefined" || !chrome.runtime || !chrome.runtime.id) {
-        return;
-      }
+      if (typeof chrome === "undefined" || !chrome.runtime || !chrome.runtime.id) return;
       chrome.runtime.sendMessage(message, (res) => {
-        if (chrome.runtime.lastError) {
-          return;
-        }
+        if (chrome.runtime.lastError) return;
         if (callback) callback(res);
       });
-    } catch (e) {
+    } catch {
     }
   }
   function extractEmailFromJwt(token) {
     try {
-      const base64Url = token.split(".")[1];
-      if (!base64Url) return "";
-      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-      const pad = base64.length % 4;
-      const padded = pad ? base64 + "=".repeat(4 - pad) : base64;
-      const jsonPayload = decodeURIComponent(
-        atob(padded).split("").map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)).join("")
+      const b64 = token.split(".")[1];
+      if (!b64) return "";
+      const pad = b64.length % 4;
+      const padded = pad ? b64 + "=".repeat(4 - pad) : b64;
+      const json = decodeURIComponent(
+        atob(padded.replace(/-/g, "+").replace(/_/g, "/")).split("").map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)).join("")
       );
-      const parsed = JSON.parse(jsonPayload);
-      return parsed.email || "";
+      return JSON.parse(json).email || "";
     } catch {
       return "";
     }
@@ -37,104 +31,64 @@
   if (isAppDomain) {
     let syncAuthFromLocalStorage2 = function() {
       try {
-        let token = "";
-        let userId = localStorage.getItem("focusnyxUserId") || "";
-        let email = "";
-        let refreshToken = "";
+        let token = "", userId = localStorage.getItem("focusnyxUserId") || "", email = "", refreshToken = "";
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
           if (!key) continue;
-          const isSupabaseKey = key.includes("supabase") || key.includes("sb-") || key.includes("auth-token") || key.includes("auth");
-          if (!isSupabaseKey) continue;
+          if (!key.includes("supabase") && !key.includes("sb-") && !key.includes("auth-token") && !key.includes("auth")) continue;
           const raw = localStorage.getItem(key);
           if (!raw) continue;
           try {
-            const parsed = JSON.parse(raw);
-            const candidates = [
-              parsed.access_token,
-              parsed.currentSession?.access_token,
-              parsed.token,
-              parsed.session?.access_token
-            ];
-            for (const candidate of candidates) {
-              if (candidate && typeof candidate === "string" && candidate.startsWith("eyJ")) {
-                token = candidate;
+            const p = JSON.parse(raw);
+            for (const c of [p.access_token, p.currentSession?.access_token, p.token, p.session?.access_token]) {
+              if (c && typeof c === "string" && c.startsWith("eyJ")) {
+                token = c;
                 break;
               }
             }
-            if (!userId) {
-              userId = parsed.user?.id || parsed.currentSession?.user?.id || parsed.session?.user?.id || "";
-            }
-            if (!email) {
-              email = parsed.user?.email || parsed.currentSession?.user?.email || parsed.session?.user?.email || "";
-            }
-            if (!refreshToken) {
-              refreshToken = parsed.refresh_token || parsed.currentSession?.refresh_token || parsed.session?.refresh_token || "";
-            }
+            if (!userId) userId = p.user?.id || p.currentSession?.user?.id || p.session?.user?.id || "";
+            if (!email) email = p.user?.email || p.currentSession?.user?.email || p.session?.user?.email || "";
+            if (!refreshToken) refreshToken = p.refresh_token || p.currentSession?.refresh_token || p.session?.refresh_token || "";
             if (token) break;
           } catch {
           }
         }
-        if (token && !email) {
-          email = extractEmailFromJwt(token);
-        }
-        if (token) {
-          safeSendMessage({ action: "syncAuth", token, userId, email, refreshToken });
-        }
+        if (token && !email) email = extractEmailFromJwt(token);
+        if (token) safeSendMessage({ action: "syncAuth", token, userId, email, refreshToken });
       } catch {
       }
     }, checkLocalStorageAction2 = function() {
       try {
         const raw = localStorage.getItem("focusnyx_app_focus_state");
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed.timestamp && parsed.timestamp > lastActionTimestamp) {
-            lastActionTimestamp = parsed.timestamp;
-            const { action, durationMinutes, pin } = parsed;
-            if (action === "startFocus") {
-              const durationMs = (durationMinutes || 25) * 60 * 1e3;
-              safeSendMessage(
-                {
-                  action: "startFocus",
-                  duration: durationMs,
-                  allowedUrls: parsed.allowedUrls,
-                  blocklist: parsed.blocklist || parsed.allowedUrls,
-                  pin: pin || "123456"
-                },
-                (res) => {
-                  if (res) {
-                    safeSendMessage({ action: "getStatus" }, (status) => postStateToWebApp2(status));
-                  }
-                }
-              );
-            } else if (action === "endFocus") {
-              safeSendMessage(
-                { action: "endFocus", pin: pin || "123456" },
-                (res) => {
-                  if (res) {
-                    safeSendMessage({ action: "getStatus" }, (status) => postStateToWebApp2(status));
-                  }
-                }
-              );
-            } else if (action === "updateWhitelist") {
-              safeSendMessage(
-                { action: "updateWhitelist", allowedUrls: parsed.allowedUrls },
-                (res) => {
-                  if (res) postStateToWebApp2(res);
-                }
-              );
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (!parsed.timestamp || parsed.timestamp <= lastActionTimestamp) return;
+        lastActionTimestamp = parsed.timestamp;
+        const { action, durationMinutes, pin } = parsed;
+        if (action === "startFocus") {
+          safeSendMessage({
+            action: "startFocus",
+            duration: (durationMinutes || 25) * 60 * 1e3,
+            allowedUrls: parsed.allowedUrls || [],
+            pin: pin || "123456"
+          }, (res) => {
+            if (res) safeSendMessage({ action: "getStatus" }, postStateToWebApp2);
+          });
+        } else if (action === "endFocus") {
+          safeSendMessage(
+            { action: "endFocus", pin: pin || "123456" },
+            (res) => {
+              if (res) safeSendMessage({ action: "getStatus" }, postStateToWebApp2);
             }
-          }
+          );
+        } else if (action === "updateWhitelist") {
+          safeSendMessage({ action: "updateWhitelist", allowedUrls: parsed.allowedUrls || [] });
         }
       } catch {
       }
     }, postStateToWebApp2 = function(state) {
       if (!state) return;
-      const payload = {
-        type: "FOCUSNYX_EXTENSION_EVENT",
-        action: "FOCUS_STATE_CHANGED",
-        state
-      };
+      const payload = { type: "FOCUSNYX_EXTENSION_EVENT", action: "FOCUS_STATE_CHANGED", state };
       window.postMessage(payload, "*");
       if (syncChannel) syncChannel.postMessage(payload);
     };
@@ -142,84 +96,38 @@
     syncAuthFromLocalStorage2();
     setInterval(syncAuthFromLocalStorage2, 3e3);
     window.addEventListener("storage", (e) => {
-      if (e.key && (e.key.includes("sb-") || e.key.includes("supabase") || e.key.includes("auth-token"))) {
+      if (e.key && (e.key.includes("sb-") || e.key.includes("supabase") || e.key.includes("auth-token")))
         setTimeout(syncAuthFromLocalStorage2, 100);
-      }
     });
-    let lastActionTimestamp = Date.now();
+    let lastActionTimestamp = 0;
     window.addEventListener("storage", checkLocalStorageAction2);
     setInterval(checkLocalStorageAction2, 500);
     window.addEventListener("message", (event) => {
       if (!event.data || event.data.type !== "FOCUSNYX_WEB_APP_ACTION") return;
-      const { action, duration, durationMinutes, pin } = event.data;
+      const { action, durationMinutes, duration, pin } = event.data;
       const durationMins = durationMinutes || (duration ? duration / 6e4 : 25);
-      if (action === "startFocus") {
-        const durationMs = durationMins * 60 * 1e3;
-        safeSendMessage(
-          {
-            action: "startFocus",
-            duration: durationMs,
-            allowedUrls: event.data.allowedUrls,
-            blocklist: event.data.blocklist || event.data.blockedSites || event.data.allowedUrls,
-            pin: pin || "123456"
-          },
-          (res) => {
-            if (res) {
-              safeSendMessage({ action: "getStatus" }, (status) => postStateToWebApp2(status));
-            }
-          }
-        );
-      } else if (action === "endFocus") {
-        safeSendMessage(
-          { action: "endFocus", pin: pin || "123456" },
-          (res) => {
-            if (res) {
-              safeSendMessage({ action: "getStatus" }, (status) => postStateToWebApp2(status));
-            }
-          }
-        );
-      } else if (action === "getStatus") {
-        safeSendMessage({ action: "getStatus" }, (res) => {
-          if (res) postStateToWebApp2(res);
-        });
-      } else if (action === "updateBlocklist") {
-        safeSendMessage({ action: "updateBlocklist", blocklist: event.data.blocklist }, (res) => {
-          if (res) postStateToWebApp2(res);
-        });
-      } else if (action === "updateWhitelist") {
-        safeSendMessage({ action: "updateWhitelist", allowedUrls: event.data.allowedUrls }, (res) => {
-          if (res) postStateToWebApp2(res);
-        });
-      } else if (action === "syncPin") {
-        safeSendMessage({ action: "syncPin", pin: event.data.pin });
-      }
-    });
-    document.addEventListener("FOCUSNYX_DOM_ACTION", (event) => {
-      if (!event.detail) return;
-      const { action, durationMinutes, pin } = event.detail;
-      const durationMins = durationMinutes || 25;
       if (action === "startFocus") {
         safeSendMessage({
           action: "startFocus",
           duration: durationMins * 60 * 1e3,
-          allowedUrls: event.detail.allowedUrls,
-          blocklist: event.detail.blocklist || event.detail.allowedUrls,
+          allowedUrls: event.data.allowedUrls || [],
           pin: pin || "123456"
         }, (res) => {
-          if (res) {
-            safeSendMessage({ action: "getStatus" }, (status) => postStateToWebApp2(status));
-          }
+          if (res) safeSendMessage({ action: "getStatus" }, postStateToWebApp2);
         });
       } else if (action === "endFocus") {
-        safeSendMessage({ action: "endFocus", pin: pin || "123456" }, (res) => {
-          if (res) {
-            safeSendMessage({ action: "getStatus" }, (status) => postStateToWebApp2(status));
+        safeSendMessage(
+          { action: "endFocus", pin: pin || "123456" },
+          (res) => {
+            if (res) safeSendMessage({ action: "getStatus" }, postStateToWebApp2);
           }
-        });
+        );
       } else if (action === "getStatus") {
-        safeSendMessage({ action: "getStatus" }, (res) => {
-          if (res) postStateToWebApp2(res);
-        });
+        safeSendMessage({ action: "getStatus" }, postStateToWebApp2);
+      } else if (action === "updateWhitelist") {
+        safeSendMessage({ action: "updateWhitelist", allowedUrls: event.data.allowedUrls || [] });
+      } else if (action === "syncPin") {
+        safeSendMessage({ action: "syncPin", pin: event.data.pin });
       }
     });
     if (syncChannel) {
@@ -227,264 +135,182 @@
         if (!event.data || event.data.type !== "FOCUSNYX_WEB_APP_ACTION") return;
         const { action, durationMinutes, pin } = event.data;
         if (action === "startFocus") {
-          const durationMs = (durationMinutes || 25) * 60 * 1e3;
           safeSendMessage({
             action: "startFocus",
-            duration: durationMs,
-            allowedUrls: event.data.allowedUrls,
-            blocklist: event.data.blocklist || event.data.allowedUrls,
+            duration: (durationMinutes || 25) * 60 * 1e3,
+            allowedUrls: event.data.allowedUrls || [],
             pin: pin || "123456"
           }, (res) => {
-            if (res) {
-              safeSendMessage({ action: "getStatus" }, (status) => postStateToWebApp2(status));
-            }
+            if (res) safeSendMessage({ action: "getStatus" }, postStateToWebApp2);
           });
         } else if (action === "endFocus") {
-          safeSendMessage({ action: "endFocus", pin: pin || "123456" }, (res) => {
-            if (res) {
-              safeSendMessage({ action: "getStatus" }, (status) => postStateToWebApp2(status));
+          safeSendMessage(
+            { action: "endFocus", pin: pin || "123456" },
+            (res) => {
+              if (res) safeSendMessage({ action: "getStatus" }, postStateToWebApp2);
             }
-          });
+          );
         } else if (action === "getStatus") {
-          safeSendMessage({ action: "getStatus" }, (res) => {
-            if (res) postStateToWebApp2(res);
-          });
+          safeSendMessage({ action: "getStatus" }, postStateToWebApp2);
         }
       };
     }
     try {
-      if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessage) {
-        chrome.runtime.onMessage.addListener((msg) => {
-          if (msg.action === "focusStateChanged") {
-            safeSendMessage({ action: "getStatus" }, (res) => {
-              if (res) postStateToWebApp2(res);
-            });
-          }
-        });
-      }
+      chrome.runtime.onMessage.addListener((msg) => {
+        if (msg.action === "focusStateChanged")
+          safeSendMessage({ action: "getStatus" }, postStateToWebApp2);
+      });
     } catch {
     }
-    safeSendMessage({ action: "getStatus" }, (res) => {
-      if (res) postStateToWebApp2(res);
-    });
+    safeSendMessage({ action: "getStatus" }, postStateToWebApp2);
     return;
   }
   let overlayEl = null;
-  let isOverlayActive = false;
-  function createBlockOverlay() {
+  let inputBlockingActive = false;
+  function normHost(raw) {
+    return raw.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim();
+  }
+  function isSiteAllowed(state) {
+    const allowedUrls = state?.allowedUrls || [];
+    const systemAllowed = ["localhost", "127.0.0.1", "focusnyx.vercel.app", "focusnyx.com", "vavppeevglpvyfoorfje.supabase.co"];
+    return [...systemAllowed, ...allowedUrls].some((d) => {
+      const clean = normHost(d);
+      return clean && (currentHost === clean || currentHost.endsWith("." + clean));
+    });
+  }
+  function createOverlay() {
     if (overlayEl) return;
     overlayEl = document.createElement("div");
     overlayEl.id = "focusnyx-block-overlay";
     overlayEl.style.cssText = `
-      position: fixed !important;
-      top: 0 !important; left: 0 !important;
+      position: fixed !important; top: 0 !important; left: 0 !important;
       width: 100vw !important; height: 100vh !important;
       z-index: 2147483647 !important;
       background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 40%, #312e81 100%) !important;
-      display: flex !important;
-      flex-direction: column !important;
-      align-items: center !important;
-      justify-content: center !important;
+      display: flex !important; flex-direction: column !important;
+      align-items: center !important; justify-content: center !important;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-      color: white !important;
-      cursor: not-allowed !important;
-      user-select: none !important;
-      -webkit-user-select: none !important;
+      color: white !important; cursor: not-allowed !important;
+      user-select: none !important; -webkit-user-select: none !important;
     `;
     overlayEl.innerHTML = `
-      <div style="text-align: center; max-width: 420px; padding: 40px;">
-        <div style="font-size: 64px; margin-bottom: 16px;">\u{1F6E1}\uFE0F</div>
-        <h1 style="font-size: 28px; font-weight: 900; margin: 0 0 8px 0; letter-spacing: -0.5px; color: #fff;">
-          Focus Lock Active
-        </h1>
-        <p style="font-size: 15px; color: rgba(255,255,255,0.7); margin: 0 0 24px 0; line-height: 1.5;">
-          This site is blocked during your focus session.<br/>
-          Stay focused \u2014 you're building discipline! \u{1F4AA}
+      <div style="text-align:center;max-width:420px;padding:40px;">
+        <div style="font-size:64px;margin-bottom:16px;">\u{1F6E1}\uFE0F</div>
+        <h1 style="font-size:28px;font-weight:900;margin:0 0 8px 0;color:#fff;">Focus Lock Active</h1>
+        <p style="font-size:15px;color:rgba(255,255,255,0.7);margin:0 0 24px 0;line-height:1.5;">
+          This site is blocked during your focus session.<br/>Stay focused \u2014 you're building discipline! \u{1F4AA}
         </p>
-        <div style="
-          background: rgba(255,255,255,0.1);
-          border: 2px solid rgba(255,255,255,0.2);
-          border-radius: 16px;
-          padding: 16px 24px;
-          margin-bottom: 24px;
-        ">
-          <p style="font-size: 13px; color: rgba(255,255,255,0.6); margin: 0 0 4px 0;">Attempted to visit:</p>
-          <p style="font-size: 16px; font-weight: 700; color: #f87171; margin: 0; word-break: break-all;">
-            ${currentHost}
-          </p>
+        <div style="background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.2);border-radius:16px;padding:16px 24px;margin-bottom:24px;">
+          <p style="font-size:13px;color:rgba(255,255,255,0.6);margin:0 0 4px 0;">Attempted to visit:</p>
+          <p style="font-size:16px;font-weight:700;color:#f87171;margin:0;word-break:break-all;">${currentHost}</p>
         </div>
         <button id="focusnyx-go-back" style="
-          background: linear-gradient(135deg, #6366f1, #8b5cf6);
-          border: 2px solid rgba(255,255,255,0.3);
-          color: white;
-          font-size: 14px;
-          font-weight: 800;
-          padding: 12px 32px;
-          border-radius: 12px;
-          cursor: pointer;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          transition: all 0.2s;
-        ">\u2190 Go Back to Focusnyx</button>
+          background:linear-gradient(135deg,#6366f1,#8b5cf6);border:2px solid rgba(255,255,255,0.3);
+          color:white;font-size:14px;font-weight:800;padding:12px 32px;border-radius:12px;
+          cursor:pointer;text-transform:uppercase;letter-spacing:1px;">\u2190 Go Back to Focusnyx</button>
       </div>
     `;
     document.documentElement.appendChild(overlayEl);
-    const goBackBtn = document.getElementById("focusnyx-go-back");
-    if (goBackBtn) {
-      goBackBtn.addEventListener("mousedown", (e) => {
+    const btn = document.getElementById("focusnyx-go-back");
+    if (btn) {
+      btn.addEventListener("mousedown", (e) => {
         e.stopImmediatePropagation();
         safeSendMessage({ action: "closeBlockedTab" });
       }, { capture: true });
     }
-    isOverlayActive = true;
   }
-  function removeBlockOverlay() {
+  function removeOverlay() {
     if (overlayEl) {
       overlayEl.remove();
       overlayEl = null;
     }
-    isOverlayActive = false;
   }
-  function blockAllInput(e) {
-    if (!isOverlayActive) return;
+  function blockInput(e) {
     const target = e.target;
-    if (target && target.id === "focusnyx-go-back") return;
+    if (target?.id === "focusnyx-go-back") return;
     e.preventDefault();
     e.stopPropagation();
     e.stopImmediatePropagation();
-    return false;
   }
+  const BLOCK_EVENTS = [
+    "keydown",
+    "keyup",
+    "keypress",
+    "mousedown",
+    "mouseup",
+    "click",
+    "dblclick",
+    "contextmenu",
+    "wheel",
+    "input",
+    "change",
+    "paste",
+    "cut",
+    "copy",
+    "dragstart",
+    "drop",
+    "touchstart",
+    "touchmove",
+    "touchend"
+  ];
   function enableInputBlocking() {
-    const blockEvents = [
-      "keydown",
-      "keyup",
-      "keypress",
-      "mousedown",
-      "mouseup",
-      "click",
-      "dblclick",
-      "contextmenu",
-      "wheel",
-      "input",
-      "change",
-      "paste",
-      "cut",
-      "copy",
-      "dragstart",
-      "drop",
-      "touchstart",
-      "touchmove",
-      "touchend"
-    ];
-    blockEvents.forEach((evt) => {
-      document.addEventListener(evt, blockAllInput, { capture: true, passive: false });
-    });
+    if (inputBlockingActive) return;
+    inputBlockingActive = true;
+    BLOCK_EVENTS.forEach(
+      (evt) => document.addEventListener(evt, blockInput, { capture: true, passive: false })
+    );
     document.querySelectorAll("input, textarea, select, [contenteditable]").forEach((el) => {
       el.setAttribute("tabindex", "-1");
       el.blur();
     });
   }
   function disableInputBlocking() {
-    const blockEvents = [
-      "keydown",
-      "keyup",
-      "keypress",
-      "mousedown",
-      "mouseup",
-      "click",
-      "dblclick",
-      "contextmenu",
-      "wheel",
-      "input",
-      "change",
-      "paste",
-      "cut",
-      "copy",
-      "dragstart",
-      "drop",
-      "touchstart",
-      "touchmove",
-      "touchend"
-    ];
-    blockEvents.forEach((evt) => {
-      document.removeEventListener(evt, blockAllInput, { capture: true });
-    });
+    if (!inputBlockingActive) return;
+    inputBlockingActive = false;
+    BLOCK_EVENTS.forEach(
+      (evt) => document.removeEventListener(evt, blockInput, { capture: true })
+    );
   }
-  function isCurrentSiteAllowed(state) {
-    const allowed = [
-      ...state.allowedUrls || [],
-      "localhost",
-      "127.0.0.1",
-      "focusnyx.vercel.app",
-      "focusnyx.com",
-      "vavppeevglpvyfoorfje.supabase.co"
-    ];
-    return allowed.some((d) => {
-      const clean = d.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim();
-      return clean && (currentHost === clean || currentHost.endsWith("." + clean));
-    });
-  }
-  function handleFocusState(state) {
+  function applyFocusState(state) {
     if (!state) return;
     const active = Boolean(state.isActive ?? state.active);
-    if (active && isCurrentSiteAllowed(state)) {
-      removeBlockOverlay();
+    if (!active) {
+      removeOverlay();
       disableInputBlocking();
       return;
     }
-    if (active && !isOverlayActive) {
-      createBlockOverlay();
-      enableInputBlocking();
-      safeSendMessage({
-        action: "blockAttempt",
-        type: "site_visit_blocked",
-        url: window.location.href
-      });
-    } else if (!active && isOverlayActive) {
-      removeBlockOverlay();
+    if (isSiteAllowed(state)) {
+      removeOverlay();
       disableInputBlocking();
+    } else {
+      createOverlay();
+      enableInputBlocking();
     }
   }
-  safeSendMessage({ action: "getStatus" }, (res) => {
-    handleFocusState(res);
-  });
+  safeSendMessage({ action: "getStatus" }, applyFocusState);
   try {
-    if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessage) {
-      chrome.runtime.onMessage.addListener((msg) => {
-        if (msg.action === "focusStateChanged") {
-          safeSendMessage({ action: "getStatus" }, (res) => {
-            handleFocusState(res);
-          });
-        }
-      });
-    }
-  } catch {
-  }
-  try {
-    if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged) {
-      chrome.storage.onChanged.addListener((changes, area) => {
-        if (area === "local" && changes.focusState) {
-          const newState = changes.focusState.newValue;
-          handleFocusState(newState);
-        }
-      });
-    }
-  } catch {
-  }
-  setInterval(() => {
-    safeSendMessage({ action: "getStatus" }, (res) => {
-      handleFocusState(res);
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (msg.action === "focusStateChanged")
+        safeSendMessage({ action: "getStatus" }, applyFocusState);
     });
-  }, 2e3);
+  } catch {
+  }
+  try {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === "local" && changes.focusState)
+        applyFocusState(changes.focusState.newValue);
+    });
+  } catch {
+  }
+  setInterval(() => safeSendMessage({ action: "getStatus" }, applyFocusState), 3e3);
   const observer = new MutationObserver(() => {
-    if (isOverlayActive) {
+    if (overlayEl && overlayEl.parentElement !== document.documentElement)
+      document.documentElement.appendChild(overlayEl);
+    if (inputBlockingActive) {
       document.querySelectorAll("input, textarea, select, [contenteditable]").forEach((el) => {
         el.setAttribute("tabindex", "-1");
         el.blur();
       });
-      if (overlayEl && overlayEl.parentElement !== document.documentElement) {
-        document.documentElement.appendChild(overlayEl);
-      }
     }
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
