@@ -153,7 +153,9 @@ function shouldBlock(url) {
     return false;
   }
   const allowedList = buildAllowedList(_state.allowedUrls || []);
-  return !allowedList.some((clean) => clean && (hostname === clean || hostname.endsWith("." + clean)));
+  const blocked = !allowedList.some((clean) => clean && (hostname === clean || hostname.endsWith("." + clean)));
+  if (blocked) console.log("[Focusnyx SW] BLOCKING", hostname, "| _state.allowedUrls:", _state.allowedUrls);
+  return blocked;
 }
 async function persistState() {
   await chrome.storage.local.set({ focusState: { ..._state } });
@@ -351,6 +353,7 @@ function handleMessage(request, sender, sendResponse) {
       let duration = request.duration || (request.durationMinutes ? request.durationMinutes * 60 * 1e3 : 25 * 60 * 1e3);
       if (duration > 0 && duration <= 1440) duration = duration * 60 * 1e3;
       const incoming = Array.isArray(request.allowedUrls) ? request.allowedUrls : [];
+      console.log("[Focusnyx SW] startFocus received. incoming allowedUrls:", incoming);
       const allowedUrls = Array.from(new Set(
         [...PWA_SEED_URLS, ...incoming].map((v) => normalizeDomain(String(v || ""))).filter(Boolean)
       ));

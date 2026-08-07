@@ -62,7 +62,9 @@ function shouldBlock(url: string): boolean {
   } catch { return false; }
 
   const allowedList = buildAllowedList(_state.allowedUrls || []);
-  return !allowedList.some((clean) => clean && (hostname === clean || hostname.endsWith("." + clean)));
+  const blocked = !allowedList.some((clean) => clean && (hostname === clean || hostname.endsWith("." + clean)));
+  if (blocked) console.log("[Focusnyx SW] BLOCKING", hostname, "| _state.allowedUrls:", _state.allowedUrls);
+  return blocked;
 }
 
 // Persist state to storage and notify all tabs
@@ -285,6 +287,7 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
 
       // Build allowedUrls: always use what the PWA sends; never fall back to empty
       const incoming: string[] = Array.isArray(request.allowedUrls) ? request.allowedUrls : [];
+      console.log("[Focusnyx SW] startFocus received. incoming allowedUrls:", incoming);
       const allowedUrls = Array.from(new Set(
         [...PWA_SEED_URLS, ...incoming].map((v) => normalizeDomain(String(v || ""))).filter(Boolean)
       ));
