@@ -163,6 +163,7 @@ var DEFAULT_STATE = {
   focusDuration: 25 * 60 * 1e3,
   focusPIN: "123456"
 };
+var _stateCache = { ...DEFAULT_STATE };
 async function getState() {
   return new Promise((resolve) => {
     chrome.storage.local.get(["focusState", "pin", "userAuth"], async (data) => {
@@ -186,12 +187,14 @@ async function getState() {
           state.active = false;
           state.focusStartTime = null;
           await chrome.storage.local.set({ focusState: state });
+          _stateCache = state;
           applyRules(state);
           notifyAllTabs(false);
           chrome.alarms.clear("autoUnlockFocus");
           syncCompanionApp(false);
         }
       }
+      _stateCache = state;
       resolve(state);
     });
   });
@@ -199,6 +202,7 @@ async function getState() {
 async function setState(partial) {
   const current = await getState();
   const next = { ...current, ...partial };
+  _stateCache = next;
   await chrome.storage.local.set({ focusState: next });
   applyRules(next);
   notifyAllTabs(next.active);
@@ -207,6 +211,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && changes.focusState) {
     const newState = changes.focusState.newValue;
     if (newState) {
+      _stateCache = newState;
       applyRules(newState);
       notifyAllTabs(Boolean(newState.active));
     }
@@ -240,51 +245,8 @@ function isDomainBlocked(url, state) {
   });
 }
 async function applyRules(state) {
-  const allowedList = [...ALLOWED_SYSTEM_DOMAINS, ...state.allowedUrls || []];
-  const baseDomains = Array.from(new Set(allowedList.map(normalizeDomain).filter(Boolean)));
   const removeIds = Array.from({ length: 500 }, (_, i) => i + 1);
-  if (!state.active) {
-    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: removeIds, addRules: [] });
-    return;
-  }
-  const allowRules = [];
-  baseDomains.forEach((domain, i) => {
-    allowRules.push({
-      id: 10 + i,
-      priority: 2,
-      action: { type: "allow" },
-      condition: {
-        urlFilter: `||${domain}`,
-        resourceTypes: [
-          "main_frame",
-          "sub_frame"
-        ]
-      }
-    });
-  });
-  const blockRule = {
-    id: 1,
-    priority: 1,
-    action: {
-      type: "redirect",
-      redirect: { extensionPath: "/blocked.html" }
-    },
-    condition: {
-      urlFilter: "*",
-      resourceTypes: [
-        "main_frame",
-        "sub_frame"
-      ]
-    }
-  };
-  try {
-    await chrome.declarativeNetRequest.updateDynamicRules({
-      removeRuleIds: removeIds,
-      addRules: [blockRule, ...allowRules]
-    });
-  } catch (e) {
-    console.error("[Focusnyx Extension] Error updating DNR rules:", e);
-  }
+  await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: removeIds, addRules: [] });
 }
 function notifyAllTabs(isActive) {
   chrome.tabs.query({}, (tabs) => {
@@ -358,23 +320,27 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 });
 chrome.webNavigation?.onBeforeNavigate.addListener(async (details) => {
   if (details.frameId !== 0) return;
-  const state = await getState();
+  let state = _stateCache;
+  if (!state.active) state = await getState();
   if (!state.active || !isDomainBlocked(details.url, state)) return;
-  chrome.tabs.update(details.tabId, { url: chrome.runtime.getURL("blocked.html") });
+  const blockedUrl = chrome.runtime.getURL("blocked.html") + "?url=" + encodeURIComponent(details.url);
+  chrome.tabs.update(details.tabId, { url: blockedUrl });
   const focusTab = (await chrome.tabs.query({})).find((t) => t.url && isFocusnyxTab(t.url));
   if (focusTab?.id) chrome.tabs.update(focusTab.id, { active: true });
   logDistraction({ type: "navigation_blocked", url: details.url });
 });
 chrome.tabs.onCreated.addListener(async (tab) => {
-  const state = await getState();
+  let state = _stateCache;
+  if (!state.active) state = await getState();
   if (!state.active) return;
   setTimeout(async () => {
     try {
       if (!tab.id) return;
       const current = await chrome.tabs.get(tab.id);
       const url = current.url || current.pendingUrl || "";
-      if (!isDomainBlocked(url, state)) return;
-      chrome.tabs.update(tab.id, { url: chrome.runtime.getURL("blocked.html") });
+      if (!isDomainBlocked(url, _stateCache)) return;
+      const blockedUrl = chrome.runtime.getURL("blocked.html") + "?url=" + encodeURIComponent(url);
+      chrome.tabs.update(tab.id, { url: blockedUrl });
       const focusTab = (await chrome.tabs.query({})).find((t) => t.url && isFocusnyxTab(t.url));
       if (focusTab?.id) chrome.tabs.update(focusTab.id, { active: true });
       logDistraction({ type: "new_tab_blocked", url });
@@ -383,18 +349,22 @@ chrome.tabs.onCreated.addListener(async (tab) => {
   }, 250);
 });
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
-  const state = await getState();
+  let state = _stateCache;
+  if (!state.active) state = await getState();
   if (!state.active || !changeInfo.url || !isDomainBlocked(changeInfo.url, state)) return;
-  chrome.tabs.update(tabId, { url: chrome.runtime.getURL("blocked.html") });
+  const blockedUrl = chrome.runtime.getURL("blocked.html") + "?url=" + encodeURIComponent(changeInfo.url);
+  chrome.tabs.update(tabId, { url: blockedUrl });
   logDistraction({ type: "navigation_blocked", url: changeInfo.url });
 });
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
-  const state = await getState();
+  let state = _stateCache;
+  if (!state.active) state = await getState();
   if (!state.active) return;
   try {
     const tab = await chrome.tabs.get(activeInfo.tabId);
     if (!tab?.url || !isDomainBlocked(tab.url, state)) return;
-    chrome.tabs.update(tab.id, { url: chrome.runtime.getURL("blocked.html") });
+    const blockedUrl = chrome.runtime.getURL("blocked.html") + "?url=" + encodeURIComponent(tab.url);
+    chrome.tabs.update(tab.id, { url: blockedUrl });
     const focusTab = (await chrome.tabs.query({})).find((t) => t.url && isFocusnyxTab(t.url));
     if (focusTab?.id) chrome.tabs.update(focusTab.id, { active: true });
     logDistraction({ type: "tab_switch_blocked", url: tab.url });
@@ -482,7 +452,7 @@ function handleMessage(request, sender, sendResponse) {
       let duration = request.duration || (request.durationMinutes ? request.durationMinutes * 60 * 1e3 : 25 * 60 * 1e3);
       if (duration > 0 && duration <= 1440) duration = duration * 60 * 1e3;
       const allowedUrls = Array.from(new Set(
-        [...currentState.allowedUrls || [...PWA_SEED_URLS], ...Array.isArray(request.allowedUrls) ? request.allowedUrls : []].map((v) => normalizeDomain(String(v || ""))).filter(Boolean)
+        [...PWA_SEED_URLS, ...Array.isArray(request.allowedUrls) ? request.allowedUrls : currentState.allowedUrls || []].map((v) => normalizeDomain(String(v || ""))).filter(Boolean)
       ));
       const pin = request.pin || currentState.focusPIN || "123456";
       const token = request.token || currentState.token;
@@ -609,3 +579,8 @@ chrome.runtime.onMessage.addListener(handleMessage);
 if (chrome.runtime.onMessageExternal) {
   chrome.runtime.onMessageExternal.addListener(handleMessage);
 }
+chrome.runtime.onInstalled.addListener(() => getState());
+chrome.runtime.onStartup.addListener(() => getState());
+getState().then(() => {
+  console.log("[Focusnyx Extension] State cache initialized. Active:", _stateCache.active);
+});

@@ -231,7 +231,9 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
 chrome.webNavigation?.onBeforeNavigate.addListener(async (details) => {
   if (details.frameId !== 0) return;
-  const state = _stateCache;
+  let state = _stateCache;
+  // Re-hydrate if SW woke from idle with stale inactive cache
+  if (!state.active) state = await getState();
   if (!state.active || !isDomainBlocked(details.url, state)) return;
   const blockedUrl = chrome.runtime.getURL("blocked.html") + "?url=" + encodeURIComponent(details.url);
   chrome.tabs.update(details.tabId, { url: blockedUrl });
@@ -241,7 +243,8 @@ chrome.webNavigation?.onBeforeNavigate.addListener(async (details) => {
 });
 
 chrome.tabs.onCreated.addListener(async (tab) => {
-  const state = _stateCache;
+  let state = _stateCache;
+  if (!state.active) state = await getState();
   if (!state.active) return;
   setTimeout(async () => {
     try {
@@ -259,7 +262,8 @@ chrome.tabs.onCreated.addListener(async (tab) => {
 });
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
-  const state = _stateCache;
+  let state = _stateCache;
+  if (!state.active) state = await getState();
   if (!state.active || !changeInfo.url || !isDomainBlocked(changeInfo.url, state)) return;
   const blockedUrl = chrome.runtime.getURL("blocked.html") + "?url=" + encodeURIComponent(changeInfo.url);
   chrome.tabs.update(tabId, { url: blockedUrl });
@@ -267,7 +271,8 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
 });
 
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
-  const state = _stateCache;
+  let state = _stateCache;
+  if (!state.active) state = await getState();
   if (!state.active) return;
   try {
     const tab = await chrome.tabs.get(activeInfo.tabId);
@@ -488,6 +493,10 @@ chrome.runtime.onMessage.addListener(handleMessage);
 if (chrome.runtime.onMessageExternal) {
   chrome.runtime.onMessageExternal.addListener(handleMessage);
 }
+
+// Re-hydrate cache on every service worker wake (handles Chrome killing the SW after idle)
+chrome.runtime.onInstalled.addListener(() => getState());
+chrome.runtime.onStartup.addListener(() => getState());
 
 // Initialize cache from storage on service worker startup
 getState().then(() => {
