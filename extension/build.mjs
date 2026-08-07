@@ -32,5 +32,10 @@ if (watch) {
   popupHtml = popupHtml.replace('src="../../dist/popup/popup.js"', 'src="./popup.js"');
   fs.writeFileSync(path.join("dist", "popup", "popup.html"), popupHtml);
   fs.copyFileSync(path.join("src", "popup", "popup.css"), path.join("dist", "popup", "popup.css"));
-  console.log("Build complete.");
+  // Auto-package to the correct ZIP filename used by the landing page
+  const { execSync } = await import("child_process");
+  const zipTarget = path.join("..", "frontend", "public", "downloads", "Focusnyx-Chrome-Extension.zip");
+  if (fs.existsSync(zipTarget)) fs.unlinkSync(zipTarget);
+  execSync(`powershell -Command "Compress-Archive -Path dist,icons,blocked.html,blocked.js,manifest.json -DestinationPath '${zipTarget}'"`);
+  console.log("Build complete. ZIP updated: Focusnyx-Chrome-Extension.zip");
 }
