@@ -170,9 +170,7 @@
   function isSiteAllowed(state: any): boolean {
     const allowedUrls: string[] = state?.allowedUrls || [];
     const systemAllowed = [
-      "localhost", "127.0.0.1", "focusnyx.vercel.app", "focusnyx.com", "vavppeevglpvyfoorfje.supabase.co",
-      "github.com", "stackoverflow.com", "wikipedia.org", "kaggle.com", "scholar.google.com",
-      "developer.mozilla.org", "w3schools.com", "coursera.org", "khanacademy.org", "arxiv.org", "docs.google.com", "notion.so", "chatgpt.com"
+      "localhost", "127.0.0.1", "focusnyx.vercel.app", "focusnyx.com", "vavppeevglpvyfoorfje.supabase.co", "supabase.co"
     ];
     return [...systemAllowed, ...allowedUrls].some((d) => {
       const clean = normHost(d);

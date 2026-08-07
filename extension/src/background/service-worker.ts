@@ -59,7 +59,7 @@ function isFocusnyxTab(url: string): boolean {
 
 // Build the full allowed list: system domains + user whitelist
 function buildAllowedList(allowedUrls: string[]): string[] {
-  return [...ALWAYS_ALLOWED_DOMAINS, ...DEFAULT_WHITELISTED_DOMAINS, ...allowedUrls].map(normalizeDomain).filter(Boolean);
+  return [...ALWAYS_ALLOWED_DOMAINS, ...allowedUrls].map(normalizeDomain).filter(Boolean);
 }
 
 // Returns true if this URL should be redirected to blocked.html
@@ -261,6 +261,25 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   }
 });
 
+// Periodically check if Companion App was unlocked via PIN
+setInterval(async () => {
+  if (!_state.active) return;
+  try {
+    const res = await fetch("http://localhost:5000/status");
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.is_active === false && _state.active) {
+        console.log("[Focusnyx SW] Companion app focus lock unlocked via PIN. Unlocking extension.");
+        _state.active = false;
+        _state.focusStartTime = null;
+        _state.sessionId = null;
+        await persistState();
+        await applyRules();
+      }
+    }
+  } catch {}
+}, 2000);
+
 chrome.webNavigation?.onErrorOccurred.addListener((details) => {
   if (details.error !== "net::ERR_BLOCKED_BY_CLIENT") return;
   if (_state.active) logDistraction({ type: "navigation_blocked", url: details.url });
@@ -306,11 +325,12 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
       let duration = request.duration || (request.durationMinutes ? request.durationMinutes * 60 * 1000 : 25 * 60 * 1000);
       if (duration > 0 && duration <= 1440) duration = duration * 60 * 1000;
 
-      // Build allowedUrls: merge default whitelisted domains with PWA/incoming allowed list
+      // Build allowedUrls: use incoming allowedUrls if provided, otherwise seed with default whitelisted domains
       const incoming: string[] = Array.isArray(request.allowedUrls) ? request.allowedUrls : [];
       console.log("[Focusnyx SW] startFocus received. incoming allowedUrls:", incoming);
+      const listToSeed = incoming.length > 0 ? incoming : DEFAULT_WHITELISTED_DOMAINS;
       const allowedUrls = Array.from(new Set(
-        [...PWA_SEED_URLS, ...DEFAULT_WHITELISTED_DOMAINS, ...incoming].map((v) => normalizeDomain(String(v || ""))).filter(Boolean)
+        [...PWA_SEED_URLS, ...listToSeed].map((v) => normalizeDomain(String(v || ""))).filter(Boolean)
       ));
 
       const pin = request.pin || _state.focusPIN || "123456";
