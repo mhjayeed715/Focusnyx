@@ -106,29 +106,8 @@ async function syncBlockEvent(token, sessionId, url, type = "navigation_blocked"
     console.warn("[Focusnyx Extension] Failed to sync block event:", err);
   }
 }
-async function fetchBlocklist(token) {
-  if (!token) return [];
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/blocklist_sites?select=domain&is_active=eq.true`, {
-      headers: {
-        "apikey": SUPABASE_ANON_KEY,
-        "Authorization": `Bearer ${token}`
-      }
-    });
-    if (!res.ok) {
-      console.warn("[Focusnyx Extension] Failed to fetch blocklist:", res.status);
-      return [];
-    }
-    const data = await res.json();
-    return (data || []).map((row) => row.domain).filter(Boolean);
-  } catch (err) {
-    console.warn("[Focusnyx Extension] Error fetching blocklist:", err);
-    return [];
-  }
-}
 
 // src/background/service-worker.ts
-var FALLBACK_BLOCKLIST = [];
 var FOCUSNYX_APP_DOMAINS = [
   "localhost",
   "127.0.0.1",
@@ -320,8 +299,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 });
 chrome.webNavigation?.onBeforeNavigate.addListener(async (details) => {
   if (details.frameId !== 0) return;
-  let state = _stateCache;
-  if (!state.active) state = await getState();
+  const state = await getState();
   if (!state.active || !isDomainBlocked(details.url, state)) return;
   const blockedUrl = chrome.runtime.getURL("blocked.html") + "?url=" + encodeURIComponent(details.url);
   chrome.tabs.update(details.tabId, { url: blockedUrl });
@@ -330,15 +308,15 @@ chrome.webNavigation?.onBeforeNavigate.addListener(async (details) => {
   logDistraction({ type: "navigation_blocked", url: details.url });
 });
 chrome.tabs.onCreated.addListener(async (tab) => {
-  let state = _stateCache;
-  if (!state.active) state = await getState();
+  const state = await getState();
   if (!state.active) return;
   setTimeout(async () => {
     try {
       if (!tab.id) return;
       const current = await chrome.tabs.get(tab.id);
       const url = current.url || current.pendingUrl || "";
-      if (!isDomainBlocked(url, _stateCache)) return;
+      const freshState = await getState();
+      if (!isDomainBlocked(url, freshState)) return;
       const blockedUrl = chrome.runtime.getURL("blocked.html") + "?url=" + encodeURIComponent(url);
       chrome.tabs.update(tab.id, { url: blockedUrl });
       const focusTab = (await chrome.tabs.query({})).find((t) => t.url && isFocusnyxTab(t.url));
@@ -349,16 +327,15 @@ chrome.tabs.onCreated.addListener(async (tab) => {
   }, 250);
 });
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
-  let state = _stateCache;
-  if (!state.active) state = await getState();
-  if (!state.active || !changeInfo.url || !isDomainBlocked(changeInfo.url, state)) return;
+  if (!changeInfo.url) return;
+  const state = await getState();
+  if (!state.active || !isDomainBlocked(changeInfo.url, state)) return;
   const blockedUrl = chrome.runtime.getURL("blocked.html") + "?url=" + encodeURIComponent(changeInfo.url);
   chrome.tabs.update(tabId, { url: blockedUrl });
   logDistraction({ type: "navigation_blocked", url: changeInfo.url });
 });
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
-  let state = _stateCache;
-  if (!state.active) state = await getState();
+  const state = await getState();
   if (!state.active) return;
   try {
     const tab = await chrome.tabs.get(activeInfo.tabId);
@@ -458,9 +435,6 @@ function handleMessage(request, sender, sendResponse) {
       const token = request.token || currentState.token;
       const sessionId = request.sessionId || `session-${Date.now()}`;
       const userId = request.userId || currentState.userId;
-      const reqBlocklist = Array.isArray(request.blocklist) && request.blocklist.length > 0 ? request.blocklist : null;
-      const fetched = token ? await fetchBlocklist(token) : null;
-      const blocklist = reqBlocklist || (fetched?.length ? fetched : null) || (currentState.blocklist?.length ? currentState.blocklist : FALLBACK_BLOCKLIST);
       chrome.alarms.create("autoUnlockFocus", { when: Date.now() + duration });
       syncCompanionApp(true, Math.round(duration / 6e4), pin);
       const newState = {
@@ -468,14 +442,15 @@ function handleMessage(request, sender, sendResponse) {
         sessionId,
         token,
         userId,
-        blocklist,
+        blocklist: [],
+        // unused — blocking is allowedUrls-based only
         allowedUrls,
         focusStartTime: Date.now(),
         focusDuration: duration,
         focusPIN: pin
       };
+      _stateCache = newState;
       await setState(newState);
-      await applyRules(newState);
       sendResponse({ ok: true, success: true, message: "Focus lock active" });
     })();
     return true;
