@@ -24,6 +24,7 @@ export function createServerSupabaseClient() {
           // Called from a Server Component.
         }
       },
+    },
     cookieOptions: {
       maxAge: 31536000,
       path: "/",
