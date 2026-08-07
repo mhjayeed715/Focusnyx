@@ -391,10 +391,16 @@ export function SmartNotesPanel() {
             <span className="hard-chip px-3 py-1.5 text-xs font-bold rounded-full">🎙️ Voice</span>
             <button
               onClick={() => setLang(l => l === "en-US" ? "bn-BD" : "en-US")}
-              className="hard-chip px-3 py-1.5 text-xs font-bold rounded-full"
-              title="Toggle language"
+              title="Toggle voice language"
+              className="flex items-center gap-1 rounded-full border-2 border-[var(--foreground)] bg-white shadow-[3px_3px_0_0_#1E293B] overflow-hidden cursor-pointer hover:-translate-y-0.5 transition-transform"
             >
-              {lang === "en-US" ? "🇺🇸 EN" : "🇧🇩 BN"}
+              <span className={`px-3 py-1.5 text-xs font-black transition-colors ${
+                lang === "en-US" ? "bg-[#1E293B] text-white" : "text-[var(--muted-fg)]"
+              }`}>🇺🇸 EN</span>
+              <span className="text-[10px] font-black text-[var(--muted-fg)] select-none">|</span>
+              <span className={`px-3 py-1.5 text-xs font-black transition-colors ${
+                lang === "bn-BD" ? "bg-[#1E293B] text-white" : "text-[var(--muted-fg)]"
+              }`}>🇧🇩 BN</span>
             </button>
           </div>
         </div>
