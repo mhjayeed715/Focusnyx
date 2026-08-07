@@ -38,6 +38,7 @@ export async function middleware(request: NextRequest) {
       maxAge: 31536000,
       path: "/",
       sameSite: "lax",
+      httpOnly: false,
     },
   });
 
@@ -57,12 +58,19 @@ export async function middleware(request: NextRequest) {
     "/settings",
   ];
 
+  const publicRoutes = ["/", "/auth", "/signup"];
+
   const isProtected = protectedRoutes.some((route) =>
     request.nextUrl.pathname.startsWith(route)
   );
+  const isPublic = publicRoutes.includes(request.nextUrl.pathname);
 
   if (isProtected && !user) {
     return NextResponse.redirect(new URL("/auth", request.url));
+  }
+
+  if (isPublic && user) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   return response;
@@ -70,14 +78,14 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/dashboard/:path*",
-    "/focus/:path*",
-    "/analytics/:path*",
-    "/academic/:path*",
-    "/wellness/:path*",
-    "/finance/:path*",
-    "/notes/:path*",
-    "/coach/:path*",
-    "/settings/:path*",
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - api (API routes)
+     * - favicon.ico (favicon file)
+     * - static asset files (svg, png, jpg, etc.)
+     */
+    "/((?!_next/static|_next/image|api|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp3)$).*)",
   ],
 };

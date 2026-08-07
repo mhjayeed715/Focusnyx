@@ -43,6 +43,16 @@ FOCUSNYX_TITLES = {
     "localhost:3001", "focusnyx.vercel.app",
 }
 
+BROWSER_SUFFIXES = [
+    " - google chrome",
+    " - microsoft edge",
+    " - brave",
+    " - mozilla firefox",
+    " - opera",
+    " - vivaldi",
+    " - arc",
+]
+
 def _get_foreground_proc_and_title():
     if not win32gui:
         return "", ""
@@ -65,9 +75,18 @@ def _get_foreground_proc_and_title():
 
 def _is_focusnyx_window():
     proc_name, title = _get_foreground_proc_and_title()
-    # Browser with Focusnyx tab active — always check this first
+    title = title.strip()
+    
+    # Strip browser suffix if present
+    clean_title = title
+    for suffix in BROWSER_SUFFIXES:
+        if clean_title.endswith(suffix):
+            clean_title = clean_title[:-len(suffix)].strip()
+            break
+
+    # Browser with Focusnyx tab active
     if proc_name in BROWSER_PROCESSES or not proc_name:
-        return any(t in title for t in FOCUSNYX_TITLES)
+        return clean_title in FOCUSNYX_TITLES
     # Companion app GUI
     if ("python" in proc_name or "focusnyxcompanion" in proc_name) and "focusnyx" in title:
         return True
@@ -76,6 +95,39 @@ def _is_focusnyx_window():
 
 # User32 types and constants
 user32 = ctypes.WinDLL('user32', use_last_error=True)
+kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+
+# Define Hook Procedure callback type
+HOOKPROC = ctypes.WINFUNCTYPE(wintypes.LPARAM, wintypes.INT, wintypes.WPARAM, wintypes.LPARAM)
+
+# Declare Win32 ctypes signatures to prevent 64-bit pointer truncation issues
+kernel32.GetModuleHandleW.argtypes = [wintypes.LPCWSTR]
+kernel32.GetModuleHandleW.restype = wintypes.HMODULE
+
+user32.SetWindowsHookExW.argtypes = [ctypes.c_int, HOOKPROC, wintypes.HINSTANCE, wintypes.DWORD]
+user32.SetWindowsHookExW.restype = wintypes.HHOOK
+
+user32.UnhookWindowsHookEx.argtypes = [wintypes.HHOOK]
+user32.UnhookWindowsHookEx.restype = wintypes.BOOL
+
+user32.CallNextHookEx.argtypes = [wintypes.HHOOK, ctypes.c_int, wintypes.WPARAM, wintypes.LPARAM]
+user32.CallNextHookEx.restype = wintypes.LPARAM
+
+user32.GetMessageW.argtypes = [ctypes.POINTER(wintypes.MSG), wintypes.HWND, wintypes.UINT, wintypes.UINT]
+user32.GetMessageW.restype = wintypes.BOOL
+
+user32.TranslateMessage.argtypes = [ctypes.POINTER(wintypes.MSG)]
+user32.TranslateMessage.restype = wintypes.BOOL
+
+user32.DispatchMessageW.argtypes = [ctypes.POINTER(wintypes.MSG)]
+user32.DispatchMessageW.restype = wintypes.LPARAM
+
+user32.PostThreadMessageW.argtypes = [wintypes.DWORD, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+user32.PostThreadMessageW.restype = wintypes.BOOL
+
+user32.GetAsyncKeyState.argtypes = [ctypes.c_int]
+user32.GetAsyncKeyState.restype = ctypes.c_short
+
 WH_KEYBOARD_LL = 13
 WM_KEYDOWN = 0x0100
 WM_KEYUP = 0x0101
@@ -100,8 +152,6 @@ class KBDLLHOOKSTRUCT(ctypes.Structure):
         ("time", wintypes.DWORD),
         ("dwExtraInfo", ctypes.POINTER(wintypes.ULONG))
     ]
-
-HOOKPROC = ctypes.WINFUNCTYPE(wintypes.LPARAM, wintypes.INT, wintypes.WPARAM, wintypes.LPARAM)
 
 class KeyboardBlocker:
     def __init__(self):
@@ -152,7 +202,8 @@ class KeyboardBlocker:
     def _run_hook(self):
         self._thread_id = ctypes.windll.kernel32.GetCurrentThreadId()
         self._hook_proc = HOOKPROC(self._hook_callback)
-        self._hook_id = user32.SetWindowsHookExW(WH_KEYBOARD_LL, self._hook_proc, 0, 0)
+        h_mod = kernel32.GetModuleHandleW(None)
+        self._hook_id = user32.SetWindowsHookExW(WH_KEYBOARD_LL, self._hook_proc, h_mod, 0)
         if not self._hook_id:
             logger.error("Failed to install keyboard hook")
             return

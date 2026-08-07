@@ -5,13 +5,14 @@ a = Analysis(
     ['focusnyx_companion.py'],
     pathex=[],
     binaries=[],
-    datas=[('assets', 'assets')],
+    datas=[('.env', '.'), ('assets', 'assets')],
     hiddenimports=['win32gui', 'win32con', 'keyboard', 'pynput', 'psutil', 'flask', 'tkinter'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
     noarchive=False,
+    optimize=0,
 )
 pyz = PYZ(a.pure)
 
