@@ -233,7 +233,8 @@ chrome.webNavigation?.onBeforeNavigate.addListener(async (details) => {
   if (details.frameId !== 0) return;
   const state = _stateCache;
   if (!state.active || !isDomainBlocked(details.url, state)) return;
-  chrome.tabs.update(details.tabId, { url: chrome.runtime.getURL("blocked.html") });
+  const blockedUrl = chrome.runtime.getURL("blocked.html") + "?url=" + encodeURIComponent(details.url);
+  chrome.tabs.update(details.tabId, { url: blockedUrl });
   const focusTab = (await chrome.tabs.query({})).find((t) => t.url && isFocusnyxTab(t.url));
   if (focusTab?.id) chrome.tabs.update(focusTab.id, { active: true });
   logDistraction({ type: "navigation_blocked", url: details.url });
@@ -248,7 +249,8 @@ chrome.tabs.onCreated.addListener(async (tab) => {
       const current = await chrome.tabs.get(tab.id);
       const url = current.url || current.pendingUrl || "";
       if (!isDomainBlocked(url, _stateCache)) return;
-      chrome.tabs.update(tab.id, { url: chrome.runtime.getURL("blocked.html") });
+      const blockedUrl = chrome.runtime.getURL("blocked.html") + "?url=" + encodeURIComponent(url);
+      chrome.tabs.update(tab.id, { url: blockedUrl });
       const focusTab = (await chrome.tabs.query({})).find((t) => t.url && isFocusnyxTab(t.url));
       if (focusTab?.id) chrome.tabs.update(focusTab.id, { active: true });
       logDistraction({ type: "new_tab_blocked", url });
@@ -259,7 +261,8 @@ chrome.tabs.onCreated.addListener(async (tab) => {
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
   const state = _stateCache;
   if (!state.active || !changeInfo.url || !isDomainBlocked(changeInfo.url, state)) return;
-  chrome.tabs.update(tabId, { url: chrome.runtime.getURL("blocked.html") });
+  const blockedUrl = chrome.runtime.getURL("blocked.html") + "?url=" + encodeURIComponent(changeInfo.url);
+  chrome.tabs.update(tabId, { url: blockedUrl });
   logDistraction({ type: "navigation_blocked", url: changeInfo.url });
 });
 
@@ -269,7 +272,8 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
   try {
     const tab = await chrome.tabs.get(activeInfo.tabId);
     if (!tab?.url || !isDomainBlocked(tab.url, state)) return;
-    chrome.tabs.update(tab.id, { url: chrome.runtime.getURL("blocked.html") });
+    const blockedUrl = chrome.runtime.getURL("blocked.html") + "?url=" + encodeURIComponent(tab.url);
+    chrome.tabs.update(tab.id, { url: blockedUrl });
     const focusTab = (await chrome.tabs.query({})).find((t) => t.url && isFocusnyxTab(t.url));
     if (focusTab?.id) chrome.tabs.update(focusTab.id, { active: true });
     logDistraction({ type: "tab_switch_blocked", url: tab.url });
