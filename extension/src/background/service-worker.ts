@@ -159,12 +159,12 @@ async function applyRules(state: FocusState): Promise<void> {
     allowRules.push({
       id: 10 + i,
       priority: 2,
-      action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
+      action: { type: "allow" },
       condition: {
         urlFilter: `||${domain}`,
         resourceTypes: [
-          chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
-          chrome.declarativeNetRequest.ResourceType.SUB_FRAME,
+          "main_frame",
+          "sub_frame",
         ],
       },
     });
@@ -175,14 +175,14 @@ async function applyRules(state: FocusState): Promise<void> {
     id: 1,
     priority: 1,
     action: {
-      type: chrome.declarativeNetRequest.RuleActionType.REDIRECT,
+      type: "redirect",
       redirect: { extensionPath: "/blocked.html" },
     },
     condition: {
       urlFilter: "*",
       resourceTypes: [
-        chrome.declarativeNetRequest.ResourceType.MAIN_FRAME,
-        chrome.declarativeNetRequest.ResourceType.SUB_FRAME,
+        "main_frame",
+        "sub_frame",
       ],
     },
   };

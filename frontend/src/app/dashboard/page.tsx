@@ -240,8 +240,21 @@ export default function DashboardPage() {
     setLoading(true);
     setError("");
 
-    try {
-      const dashboard = await getDashboardBootstrap();
+    let dashboard = null;
+    let lastError = null;
+
+    // Retry getDashboardBootstrap to handle async client hydration (up to 1.5 seconds)
+    for (let i = 0; i < 15; i++) {
+      try {
+        dashboard = await getDashboardBootstrap();
+        if (dashboard) break;
+      } catch (err) {
+        lastError = err;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    if (dashboard) {
       setUser(dashboard.profile);
       setTasks(dashboard.tasks);
 
@@ -259,13 +272,14 @@ export default function DashboardPage() {
       } catch {
         // ignore
       }
-    } catch (loadError) {
+      setLoading(false);
+    } else {
       const supabase = createClient();
       const { data: sessionData } = await supabase.auth.getSession();
       const sessionUser = sessionData.session?.user;
 
       if (!sessionUser) {
-        const message = loadError instanceof Error ? loadError.message : "Unable to load the dashboard.";
+        const message = lastError instanceof Error ? lastError.message : "Unable to load the dashboard.";
         setError(message);
         router.push("/auth");
         return;
@@ -278,7 +292,6 @@ export default function DashboardPage() {
         fallbackEmail.split("@")[0] ||
         "Student";
 
-      let localTasks: Task[] = [];
       try {
         localStorage.removeItem(LOCAL_TASKS_KEY);
         localStorage.removeItem("userTasks");
@@ -303,7 +316,6 @@ export default function DashboardPage() {
         xpProgressPercent: 0,
       });
       setTasks([]);
-    } finally {
       setLoading(false);
     }
   };
