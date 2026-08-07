@@ -218,10 +218,12 @@ function isDomainBlocked(url, state) {
     return false;
   }
   const allowedList = [...ALLOWED_SYSTEM_DOMAINS, ...state.allowedUrls || []];
-  return !allowedList.some((allowed) => {
+  const blocked = !allowedList.some((allowed) => {
     const clean = normalizeDomain(allowed);
     return clean && (hostname === clean || hostname.endsWith("." + clean));
   });
+  console.log(`[Focusnyx] isDomainBlocked(${hostname}) = ${blocked} | allowedUrls:`, state.allowedUrls);
+  return blocked;
 }
 async function applyRules(state) {
   const removeIds = Array.from({ length: 500 }, (_, i) => i + 1);
