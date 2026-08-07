@@ -117,12 +117,27 @@ var ALWAYS_ALLOWED_DOMAINS = [
   "vavppeevglpvyfoorfje.supabase.co",
   "supabase.co"
 ];
+var DEFAULT_WHITELISTED_DOMAINS = [
+  "github.com",
+  "stackoverflow.com",
+  "wikipedia.org",
+  "kaggle.com",
+  "scholar.google.com",
+  "developer.mozilla.org",
+  "w3schools.com",
+  "coursera.org",
+  "khanacademy.org",
+  "arxiv.org",
+  "docs.google.com",
+  "notion.so",
+  "chatgpt.com"
+];
 var PWA_SEED_URLS = ["localhost", "127.0.0.1", "focusnyx.vercel.app", "focusnyx.com"];
 var _state = {
   active: false,
   sessionId: null,
   blocklist: [],
-  allowedUrls: [...PWA_SEED_URLS],
+  allowedUrls: [...PWA_SEED_URLS, ...DEFAULT_WHITELISTED_DOMAINS],
   userId: null,
   token: null,
   focusStartTime: null,
@@ -130,7 +145,7 @@ var _state = {
   focusPIN: "123456"
 };
 function normalizeDomain(raw) {
-  return raw.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim();
+  return raw.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/:.*$/, "").replace(/\/.*$/, "").trim();
 }
 function isFocusnyxTab(url) {
   try {
@@ -141,14 +156,14 @@ function isFocusnyxTab(url) {
   }
 }
 function buildAllowedList(allowedUrls) {
-  return [...ALWAYS_ALLOWED_DOMAINS, ...allowedUrls].map(normalizeDomain).filter(Boolean);
+  return [...ALWAYS_ALLOWED_DOMAINS, ...DEFAULT_WHITELISTED_DOMAINS, ...allowedUrls].map(normalizeDomain).filter(Boolean);
 }
 function shouldBlock(url) {
   if (!_state.active || !url) return false;
   if (url.startsWith("chrome-extension://") || url.startsWith("chrome://") || url.startsWith("edge://") || url.startsWith("about:") || url.startsWith("file://")) return false;
   let hostname = "";
   try {
-    hostname = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+    hostname = new URL(url).hostname.toLowerCase().replace(/^www\./, "").replace(/:.*$/, "");
   } catch {
     return false;
   }
@@ -166,7 +181,11 @@ async function loadState() {
     chrome.storage.local.get(["focusState", "pin", "userAuth"], (data) => {
       if (data.focusState) {
         _state = { ..._state, ...data.focusState };
-        if (!Array.isArray(_state.allowedUrls)) _state.allowedUrls = [...PWA_SEED_URLS];
+        if (!Array.isArray(_state.allowedUrls) || _state.allowedUrls.length === 0) {
+          _state.allowedUrls = [...PWA_SEED_URLS, ...DEFAULT_WHITELISTED_DOMAINS];
+        } else {
+          _state.allowedUrls = Array.from(/* @__PURE__ */ new Set([..._state.allowedUrls, ...DEFAULT_WHITELISTED_DOMAINS]));
+        }
       }
       if (data.pin) _state.focusPIN = data.pin;
       if (data.userAuth?.token) {
@@ -355,7 +374,7 @@ function handleMessage(request, sender, sendResponse) {
       const incoming = Array.isArray(request.allowedUrls) ? request.allowedUrls : [];
       console.log("[Focusnyx SW] startFocus received. incoming allowedUrls:", incoming);
       const allowedUrls = Array.from(new Set(
-        [...PWA_SEED_URLS, ...incoming].map((v) => normalizeDomain(String(v || ""))).filter(Boolean)
+        [...PWA_SEED_URLS, ...DEFAULT_WHITELISTED_DOMAINS, ...incoming].map((v) => normalizeDomain(String(v || ""))).filter(Boolean)
       ));
       const pin = request.pin || _state.focusPIN || "123456";
       const token = request.token || _state.token;

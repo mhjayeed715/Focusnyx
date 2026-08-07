@@ -35,7 +35,11 @@ if (watch) {
   // Auto-package to the correct ZIP filename used by the landing page
   const { execSync } = await import("child_process");
   const zipTarget = path.join("..", "frontend", "public", "downloads", "Focusnyx-Chrome-Extension.zip");
-  if (fs.existsSync(zipTarget)) fs.unlinkSync(zipTarget);
-  execSync(`powershell -Command "Compress-Archive -Path dist,icons,blocked.html,blocked.js,manifest.json -DestinationPath '${zipTarget}'"`);
-  console.log("Build complete. ZIP updated: Focusnyx-Chrome-Extension.zip");
+  const rootTarget = path.join("..", "extension.zip");
+  const altTarget = path.join("..", "frontend", "public", "downloads", "FocusnyxExtension.zip");
+  try { if (fs.existsSync(zipTarget)) fs.unlinkSync(zipTarget); } catch {}
+  execSync(`powershell -Command "Compress-Archive -Path dist,icons,blocked.html,blocked.js,manifest.json -DestinationPath '${zipTarget}' -Force"`);
+  try { fs.copyFileSync(zipTarget, rootTarget); } catch {}
+  try { fs.copyFileSync(zipTarget, altTarget); } catch {}
+  console.log("Build complete. ZIP updated: Focusnyx-Chrome-Extension.zip & extension.zip");
 }

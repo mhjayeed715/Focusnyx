@@ -5,14 +5,13 @@ a = Analysis(
     ['focusnyx_companion.py'],
     pathex=[],
     binaries=[],
-    datas=[('.env', '.'), ('assets', 'assets')],
-    hiddenimports=['win32gui', 'win32con', 'keyboard', 'pynput', 'psutil', 'flask', 'tkinter'],
+    datas=[('.env.example', '.'), ('assets', 'assets')],
+    hiddenimports=['win32gui', 'win32con', 'win32process', 'keyboard', 'pynput', 'psutil', 'flask', 'tkinter', 'pystray', 'PIL', 'PIL.Image', 'PIL.ImageDraw', 'PIL.ImageTk', 'supabase', 'dotenv'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
     noarchive=False,
-    optimize=0,
 )
 pyz = PYZ(a.pure)
 
