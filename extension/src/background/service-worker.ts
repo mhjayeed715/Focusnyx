@@ -144,10 +144,12 @@ function isDomainBlocked(url: string, state: FocusState): boolean {
   }
 
   const allowedList = [...ALLOWED_SYSTEM_DOMAINS, ...(state.allowedUrls || [])];
-  return !allowedList.some((allowed) => {
+  const blocked = !allowedList.some((allowed) => {
     const clean = normalizeDomain(allowed);
     return clean && (hostname === clean || hostname.endsWith("." + clean));
   });
+  console.log(`[Focusnyx] isDomainBlocked(${hostname}) = ${blocked} | allowedUrls:`, state.allowedUrls);
+  return blocked;
 }
 
 async function applyRules(state: FocusState): Promise<void> {
