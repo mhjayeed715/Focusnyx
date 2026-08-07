@@ -38,8 +38,40 @@ if (watch) {
   const rootTarget = path.join("..", "extension.zip");
   const altTarget = path.join("..", "frontend", "public", "downloads", "FocusnyxExtension.zip");
   try { if (fs.existsSync(zipTarget)) fs.unlinkSync(zipTarget); } catch {}
-  execSync(`powershell -Command "Compress-Archive -Path dist,icons,blocked.html,blocked.js,manifest.json -DestinationPath '${zipTarget}' -Force"`);
-  try { fs.copyFileSync(zipTarget, rootTarget); } catch {}
-  try { fs.copyFileSync(zipTarget, altTarget); } catch {}
-  console.log("Build complete. ZIP updated: Focusnyx-Chrome-Extension.zip & extension.zip");
+
+  const itemsToZip = ["dist", "icons", "blocked.html", "blocked.js", "manifest.json"];
+
+  let zipped = false;
+  // Try python/python3 (available in all OS & GitHub Actions runners)
+  for (const pyCmd of ["python3", "python"]) {
+    try {
+      const pyScript = `import zipfile, os; z = zipfile.ZipFile('${zipTarget.replace(/\\/g, "/")}', 'w', zipfile.ZIP_DEFLATED); items = ['dist', 'icons', 'blocked.html', 'blocked.js', 'manifest.json']; [z.write(item, item) if os.path.isfile(item) else [z.write(os.path.join(r, f), os.path.relpath(os.path.join(r, f), '.')) for r, _, files in os.walk(item) for f in files] for item in items]; z.close()`;
+      execSync(`${pyCmd} -c "${pyScript}"`, { stdio: "ignore" });
+      zipped = true;
+      break;
+    } catch {}
+  }
+
+  // Fallback if python is unavailable
+  if (!zipped) {
+    if (process.platform === "win32") {
+      try {
+        execSync(`powershell -Command "Compress-Archive -Path ${itemsToZip.join(",")} -DestinationPath '${zipTarget}' -Force"`);
+        zipped = true;
+      } catch {}
+    } else {
+      try {
+        execSync(`zip -r "${zipTarget}" ${itemsToZip.join(" ")}`);
+        zipped = true;
+      } catch {}
+    }
+  }
+
+  if (zipped) {
+    try { fs.copyFileSync(zipTarget, rootTarget); } catch {}
+    try { fs.copyFileSync(zipTarget, altTarget); } catch {}
+    console.log("Build complete. ZIP updated: Focusnyx-Chrome-Extension.zip & extension.zip");
+  } else {
+    console.warn("Build complete. (ZIP creation skipped: no zip utility available in current environment)");
+  }
 }
