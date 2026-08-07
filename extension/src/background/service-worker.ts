@@ -231,9 +231,8 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
 chrome.webNavigation?.onBeforeNavigate.addListener(async (details) => {
   if (details.frameId !== 0) return;
-  let state = _stateCache;
-  // Re-hydrate if SW woke from idle with stale inactive cache
-  if (!state.active) state = await getState();
+  // Always read fresh state — _stateCache may be stale if SW just woke or whitelist was updated
+  const state = await getState();
   if (!state.active || !isDomainBlocked(details.url, state)) return;
   const blockedUrl = chrome.runtime.getURL("blocked.html") + "?url=" + encodeURIComponent(details.url);
   chrome.tabs.update(details.tabId, { url: blockedUrl });
@@ -243,15 +242,16 @@ chrome.webNavigation?.onBeforeNavigate.addListener(async (details) => {
 });
 
 chrome.tabs.onCreated.addListener(async (tab) => {
-  let state = _stateCache;
-  if (!state.active) state = await getState();
+  const state = await getState();
   if (!state.active) return;
   setTimeout(async () => {
     try {
       if (!tab.id) return;
       const current = await chrome.tabs.get(tab.id);
       const url = current.url || current.pendingUrl || "";
-      if (!isDomainBlocked(url, _stateCache)) return;
+      // Re-read state inside timeout — whitelist may have updated
+      const freshState = await getState();
+      if (!isDomainBlocked(url, freshState)) return;
       const blockedUrl = chrome.runtime.getURL("blocked.html") + "?url=" + encodeURIComponent(url);
       chrome.tabs.update(tab.id, { url: blockedUrl });
       const focusTab = (await chrome.tabs.query({})).find((t) => t.url && isFocusnyxTab(t.url));
@@ -262,17 +262,16 @@ chrome.tabs.onCreated.addListener(async (tab) => {
 });
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
-  let state = _stateCache;
-  if (!state.active) state = await getState();
-  if (!state.active || !changeInfo.url || !isDomainBlocked(changeInfo.url, state)) return;
+  if (!changeInfo.url) return;
+  const state = await getState();
+  if (!state.active || !isDomainBlocked(changeInfo.url, state)) return;
   const blockedUrl = chrome.runtime.getURL("blocked.html") + "?url=" + encodeURIComponent(changeInfo.url);
   chrome.tabs.update(tabId, { url: blockedUrl });
   logDistraction({ type: "navigation_blocked", url: changeInfo.url });
 });
 
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
-  let state = _stateCache;
-  if (!state.active) state = await getState();
+  const state = await getState();
   if (!state.active) return;
   try {
     const tab = await chrome.tabs.get(activeInfo.tabId);
@@ -370,19 +369,18 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
       const token = request.token || currentState.token;
       const sessionId = request.sessionId || `session-${Date.now()}`;
       const userId = request.userId || currentState.userId;
-      const reqBlocklist = Array.isArray(request.blocklist) && request.blocklist.length > 0 ? request.blocklist : null;
-      const fetched = token ? await fetchBlocklist(token) : null;
-      const blocklist = reqBlocklist || (fetched?.length ? fetched : null) || (currentState.blocklist?.length ? currentState.blocklist : FALLBACK_BLOCKLIST);
-
       chrome.alarms.create("autoUnlockFocus", { when: Date.now() + duration });
       syncCompanionApp(true, Math.round(duration / 60000), pin);
 
       const newState: FocusState = {
-        active: true, sessionId, token, userId, blocklist, allowedUrls,
+        active: true, sessionId, token, userId,
+        blocklist: [],  // unused — blocking is allowedUrls-based only
+        allowedUrls,
         focusStartTime: Date.now(), focusDuration: duration, focusPIN: pin,
       };
+      // Set cache immediately so blocking listeners see the whitelist right away
+      _stateCache = newState;
       await setState(newState);
-      await applyRules(newState);
       sendResponse({ ok: true, success: true, message: "Focus lock active" });
     })();
     return true;
