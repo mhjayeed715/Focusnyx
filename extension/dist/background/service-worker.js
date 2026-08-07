@@ -556,6 +556,7 @@ function handleMessage(request, sender, sendResponse) {
         ...request.allowedUrls.map((d) => normalizeDomain(d)).filter(Boolean)
       ])) : state.allowedUrls;
       const nextState = { ...state, allowedUrls: newAllowed };
+      _stateCache = nextState;
       await chrome.storage.local.set({ focusState: nextState });
       await applyRules(nextState);
       sendResponse({ ok: true, success: true, message: "Whitelist updated" });

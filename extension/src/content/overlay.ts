@@ -440,15 +440,32 @@
     });
   }
 
+  // ── Check if current host is in the allowed/whitelisted list ──
+  function isCurrentSiteAllowed(state: any): boolean {
+    const allowed: string[] = [
+      ...(state.allowedUrls || []),
+      "localhost", "127.0.0.1", "focusnyx.vercel.app", "focusnyx.com",
+      "vavppeevglpvyfoorfje.supabase.co",
+    ];
+    return allowed.some((d) => {
+      const clean = d.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim();
+      return clean && (currentHost === clean || currentHost.endsWith("." + clean));
+    });
+  }
+
   // ── Check focus state and activate/deactivate overlay ──
   function handleFocusState(state: any) {
     if (!state) return;
     const active = Boolean(state.isActive ?? state.active);
+    // Never block whitelisted sites — they are allowed during focus
+    if (active && isCurrentSiteAllowed(state)) {
+      removeBlockOverlay();
+      disableInputBlocking();
+      return;
+    }
     if (active && !isOverlayActive) {
       createBlockOverlay();
       enableInputBlocking();
-
-      // Log this distraction attempt to the service worker
       safeSendMessage({
         action: "blockAttempt",
         type: "site_visit_blocked",

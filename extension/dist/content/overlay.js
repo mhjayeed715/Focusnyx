@@ -410,9 +410,28 @@
       document.removeEventListener(evt, blockAllInput, { capture: true });
     });
   }
+  function isCurrentSiteAllowed(state) {
+    const allowed = [
+      ...state.allowedUrls || [],
+      "localhost",
+      "127.0.0.1",
+      "focusnyx.vercel.app",
+      "focusnyx.com",
+      "vavppeevglpvyfoorfje.supabase.co"
+    ];
+    return allowed.some((d) => {
+      const clean = d.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim();
+      return clean && (currentHost === clean || currentHost.endsWith("." + clean));
+    });
+  }
   function handleFocusState(state) {
     if (!state) return;
     const active = Boolean(state.isActive ?? state.active);
+    if (active && isCurrentSiteAllowed(state)) {
+      removeBlockOverlay();
+      disableInputBlocking();
+      return;
+    }
     if (active && !isOverlayActive) {
       createBlockOverlay();
       enableInputBlocking();
