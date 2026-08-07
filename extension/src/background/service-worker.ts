@@ -148,7 +148,10 @@ function isDomainBlocked(url: string, state: FocusState): boolean {
     const clean = normalizeDomain(allowed);
     return clean && (hostname === clean || hostname.endsWith("." + clean));
   });
-  console.log(`[Focusnyx] isDomainBlocked(${hostname}) = ${blocked} | allowedUrls:`, state.allowedUrls);
+  // Persist last block decision to storage for post-hoc debugging (readable via Extensions storage inspector)
+  chrome.storage.local.set({
+    _dbg_last_block: { hostname, blocked, allowedUrls: state.allowedUrls, ts: Date.now() }
+  });
   return blocked;
 }
 
@@ -363,8 +366,12 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
       let duration = request.duration || (request.durationMinutes ? request.durationMinutes * 60 * 1000 : 25 * 60 * 1000);
       if (duration > 0 && duration <= 1440) duration = duration * 60 * 1000;
 
+      // Always prefer request.allowedUrls; only fall back to currentState if truly absent
+      const incomingAllowed = Array.isArray(request.allowedUrls) && request.allowedUrls.length > 0
+        ? request.allowedUrls
+        : (currentState.allowedUrls || []);
       const allowedUrls = Array.from(new Set(
-        [...PWA_SEED_URLS, ...(Array.isArray(request.allowedUrls) ? request.allowedUrls : (currentState.allowedUrls || []))]
+        [...PWA_SEED_URLS, ...incomingAllowed]
           .map((v) => normalizeDomain(String(v || ""))).filter(Boolean)
       ));
       const pin = request.pin || currentState.focusPIN || "123456";
@@ -382,7 +389,10 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
       };
       // Set cache immediately so blocking listeners see the whitelist right away
       _stateCache = newState;
-      await setState(newState);
+      // Write directly to storage before setState to avoid any race in getState() merge
+      await chrome.storage.local.set({ focusState: newState });
+      applyRules(newState);
+      notifyAllTabs(true);
       sendResponse({ ok: true, success: true, message: "Focus lock active" });
     })();
     return true;

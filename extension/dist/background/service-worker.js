@@ -222,7 +222,9 @@ function isDomainBlocked(url, state) {
     const clean = normalizeDomain(allowed);
     return clean && (hostname === clean || hostname.endsWith("." + clean));
   });
-  console.log(`[Focusnyx] isDomainBlocked(${hostname}) = ${blocked} | allowedUrls:`, state.allowedUrls);
+  chrome.storage.local.set({
+    _dbg_last_block: { hostname, blocked, allowedUrls: state.allowedUrls, ts: Date.now() }
+  });
   return blocked;
 }
 async function applyRules(state) {
@@ -430,8 +432,9 @@ function handleMessage(request, sender, sendResponse) {
       const currentState = await getState();
       let duration = request.duration || (request.durationMinutes ? request.durationMinutes * 60 * 1e3 : 25 * 60 * 1e3);
       if (duration > 0 && duration <= 1440) duration = duration * 60 * 1e3;
+      const incomingAllowed = Array.isArray(request.allowedUrls) && request.allowedUrls.length > 0 ? request.allowedUrls : currentState.allowedUrls || [];
       const allowedUrls = Array.from(new Set(
-        [...PWA_SEED_URLS, ...Array.isArray(request.allowedUrls) ? request.allowedUrls : currentState.allowedUrls || []].map((v) => normalizeDomain(String(v || ""))).filter(Boolean)
+        [...PWA_SEED_URLS, ...incomingAllowed].map((v) => normalizeDomain(String(v || ""))).filter(Boolean)
       ));
       const pin = request.pin || currentState.focusPIN || "123456";
       const token = request.token || currentState.token;
@@ -452,7 +455,9 @@ function handleMessage(request, sender, sendResponse) {
         focusPIN: pin
       };
       _stateCache = newState;
-      await setState(newState);
+      await chrome.storage.local.set({ focusState: newState });
+      applyRules(newState);
+      notifyAllTabs(true);
       sendResponse({ ok: true, success: true, message: "Focus lock active" });
     })();
     return true;
