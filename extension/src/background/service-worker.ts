@@ -466,8 +466,8 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
             ...request.allowedUrls.map((d: string) => normalizeDomain(d)).filter(Boolean)
           ]))
         : state.allowedUrls;
-      // Always persist and apply — even if focus is not active yet (prepares for next session)
       const nextState = { ...state, allowedUrls: newAllowed };
+      _stateCache = nextState;
       await chrome.storage.local.set({ focusState: nextState });
       await applyRules(nextState);
       sendResponse({ ok: true, success: true, message: "Whitelist updated" });
