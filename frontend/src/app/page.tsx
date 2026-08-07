@@ -216,14 +216,18 @@ function IconCircle({ icon: Icon, tone }: { icon: LucideIcon; tone: Tone }) {
 export default function HomePage() {
   const { lang } = useLanguage();
   const [isContactOpen, setIsContactOpen] = useState(false);
+  const [checking, setChecking] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) router.replace("/dashboard");
+      else setChecking(false);
     });
   }, [router]);
+
+  if (checking) return null;
 
   const copy = localizedCopy[lang];
   const localizedFeatures: Feature[] = lang === "bn"
