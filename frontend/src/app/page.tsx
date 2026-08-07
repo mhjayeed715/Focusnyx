@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ContactModal } from "@/components/ui/ContactModal";
 import { Footer } from "@/components/ui/Footer";
@@ -40,6 +41,7 @@ import {
 
 import { useLanguage } from "@/components/layout/language-context";
 import { LanguageToggle } from "@/components/layout/LanguageToggle";
+import { createClient } from "@/lib/supabase/client";
 
 type Tone = "violet" | "pink" | "amber" | "emerald";
 
@@ -214,6 +216,14 @@ function IconCircle({ icon: Icon, tone }: { icon: LucideIcon; tone: Tone }) {
 export default function HomePage() {
   const { lang } = useLanguage();
   const [isContactOpen, setIsContactOpen] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) router.replace("/dashboard");
+    });
+  }, [router]);
 
   const copy = localizedCopy[lang];
   const localizedFeatures: Feature[] = lang === "bn"
