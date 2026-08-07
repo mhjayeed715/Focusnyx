@@ -96,11 +96,9 @@ async function loadState(): Promise<void> {
     chrome.storage.local.get(["focusState", "pin", "userAuth"], (data) => {
       if (data.focusState) {
         _state = { ..._state, ...data.focusState };
-        // Ensure allowedUrls is always an array containing defaults
-        if (!Array.isArray(_state.allowedUrls) || _state.allowedUrls.length === 0) {
+        // Ensure allowedUrls is always an array
+        if (!Array.isArray(_state.allowedUrls)) {
           _state.allowedUrls = [...PWA_SEED_URLS, ...DEFAULT_WHITELISTED_DOMAINS];
-        } else {
-          _state.allowedUrls = Array.from(new Set([..._state.allowedUrls, ...DEFAULT_WHITELISTED_DOMAINS]));
         }
       }
       if (data.pin) _state.focusPIN = data.pin;
@@ -390,7 +388,7 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
       _state.allowedUrls = Array.from(new Set(
         [...PWA_SEED_URLS, ...incoming].map((d) => normalizeDomain(d)).filter(Boolean)
       ));
-      await chrome.storage.local.set({ focusState: { ..._state } });
+      await persistState();
       sendResponse({ ok: true, success: true });
     })();
     return true;
