@@ -87,10 +87,14 @@ def _is_focusnyx_window():
     # Browser with Focusnyx tab active
     if proc_name in BROWSER_PROCESSES or not proc_name:
         return clean_title in FOCUSNYX_TITLES
-    # Companion app GUI
+    # Non-browser process = outside the app
+    return False
+
+def _is_companion_window():
+    proc_name, title = _get_foreground_proc_and_title()
+    # Companion app GUI (Python process with Focusnyx title)
     if ("python" in proc_name or "focusnyxcompanion" in proc_name) and "focusnyx" in title:
         return True
-    # Non-browser, non-companion process = outside the app
     return False
 
 # User32 types and constants
@@ -180,16 +184,17 @@ class KeyboardBlocker:
                 return 1
             
             is_app = _is_focusnyx_window()
+            is_companion = _is_companion_window()
             
-            if is_app:
-                # Inside the Focusnyx browser tab: only block close shortcuts
+            if is_app or is_companion:
+                # Inside Focusnyx browser tab OR companion GUI: only block close shortcuts
                 if ctrl_pressed and vk_code == VK_W:
                     return 1
                 if alt_pressed and vk_code == VK_F4:
                     return 1
                 if ctrl_pressed and vk_code == VK_F4:
                     return 1
-                # Allow all other typing inside the app
+                # Allow all other typing
             else:
                 # Outside the Focusnyx app: block ALL keys except pure navigation
                 # Navigation keys: Left/Right/Up/Down arrows, PageUp/Down, Home, End

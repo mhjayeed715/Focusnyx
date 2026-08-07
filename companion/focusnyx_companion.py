@@ -517,7 +517,7 @@ def start_gui():
         if not focus_state["is_active"]:
             messagebox.showinfo("Focusnyx", "No active focus session!")
             return
-        pin = simpledialog.askstring("Emergency Exit", "Enter 4-digit Emergency PIN:", show="*")
+        pin = simpledialog.askstring("Emergency Exit", "Enter 6-digit Emergency PIN:", show="*")
         if pin:
             success, msg = stop_focus_session(pin)
             if not success:
