@@ -276,7 +276,7 @@ function startTimerDisplay(remainingMs: number) {
 }
 
 function startFocus() {
-  if (!savedEmergencyPin || savedEmergencyPin.length !== 4) {
+  if (!savedEmergencyPin || savedEmergencyPin.length < 4) {
     savedEmergencyPin = "123456";
   }
 

@@ -168,11 +168,30 @@
   let overlayEl = null;
   let inputBlockingActive = false;
   function normHost(raw) {
-    return raw.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").trim();
+    return raw.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/:.*$/, "").replace(/\/.*$/, "").trim();
   }
   function isSiteAllowed(state) {
     const allowedUrls = state?.allowedUrls || [];
-    const systemAllowed = ["localhost", "127.0.0.1", "focusnyx.vercel.app", "focusnyx.com", "vavppeevglpvyfoorfje.supabase.co"];
+    const systemAllowed = [
+      "localhost",
+      "127.0.0.1",
+      "focusnyx.vercel.app",
+      "focusnyx.com",
+      "vavppeevglpvyfoorfje.supabase.co",
+      "github.com",
+      "stackoverflow.com",
+      "wikipedia.org",
+      "kaggle.com",
+      "scholar.google.com",
+      "developer.mozilla.org",
+      "w3schools.com",
+      "coursera.org",
+      "khanacademy.org",
+      "arxiv.org",
+      "docs.google.com",
+      "notion.so",
+      "chatgpt.com"
+    ];
     return [...systemAllowed, ...allowedUrls].some((d) => {
       const clean = normHost(d);
       return clean && (currentHost === clean || currentHost.endsWith("." + clean));

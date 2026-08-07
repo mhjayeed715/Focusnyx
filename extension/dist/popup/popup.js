@@ -256,7 +256,7 @@ function startTimerDisplay(remainingMs) {
   timerInterval = setInterval(update, 1e3);
 }
 function startFocus() {
-  if (!savedEmergencyPin || savedEmergencyPin.length !== 4) {
+  if (!savedEmergencyPin || savedEmergencyPin.length < 4) {
     savedEmergencyPin = "123456";
   }
   chrome.runtime.sendMessage(

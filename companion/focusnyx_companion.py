@@ -122,9 +122,12 @@ def stop_focus_session(provided_pin=None):
     if not focus_state["is_active"]:
         return False, "No active focus session"
 
-    if provided_pin and provided_pin != focus_state["pin"] and provided_pin != "123456":
-        sync.log_event("unlock_failed", "Incorrect PIN attempt")
-        return False, "Incorrect PIN"
+    if provided_pin:
+        clean_provided = str(provided_pin).strip()
+        clean_stored = str(focus_state.get("pin", "123456")).strip()
+        if clean_provided != clean_stored and clean_provided != "123456":
+            sync.log_event("unlock_failed", f"Incorrect PIN attempt: {clean_provided}")
+            return False, "Incorrect 6-digit PIN"
 
     # Disengage OS protections
     keyboard_blocker.stop_blocking()
@@ -518,8 +521,12 @@ def start_gui():
             messagebox.showinfo("Focusnyx", "No active focus session!")
             return
         pin = simpledialog.askstring("Emergency Exit", "Enter 6-digit Emergency PIN:", show="*")
-        if pin:
-            success, msg = stop_focus_session(pin)
+        if pin is not None:
+            clean_pin = pin.strip()
+            if not clean_pin:
+                messagebox.showwarning("Emergency Exit", "Please enter your 6-digit PIN.")
+                return
+            success, msg = stop_focus_session(clean_pin)
             if not success:
                 messagebox.showerror("Emergency Exit", msg)
             else:

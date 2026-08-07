@@ -10,6 +10,22 @@ const ALWAYS_ALLOWED_DOMAINS = [
   "vavppeevglpvyfoorfje.supabase.co", "supabase.co",
 ];
 
+const DEFAULT_WHITELISTED_DOMAINS = [
+  "github.com",
+  "stackoverflow.com",
+  "wikipedia.org",
+  "kaggle.com",
+  "scholar.google.com",
+  "developer.mozilla.org",
+  "w3schools.com",
+  "coursera.org",
+  "khanacademy.org",
+  "arxiv.org",
+  "docs.google.com",
+  "notion.so",
+  "chatgpt.com",
+];
+
 const PWA_SEED_URLS = ["localhost", "127.0.0.1", "focusnyx.vercel.app", "focusnyx.com"];
 
 // Single source of truth — always kept in sync with chrome.storage.local
@@ -17,7 +33,7 @@ let _state: FocusState = {
   active: false,
   sessionId: null,
   blocklist: [],
-  allowedUrls: [...PWA_SEED_URLS],
+  allowedUrls: [...PWA_SEED_URLS, ...DEFAULT_WHITELISTED_DOMAINS],
   userId: null,
   token: null,
   focusStartTime: null,
@@ -29,6 +45,7 @@ function normalizeDomain(raw: string): string {
   return raw.toLowerCase()
     .replace(/^https?:\/\//, "")
     .replace(/^www\./, "")
+    .replace(/:.*$/, "")
     .replace(/\/.*$/, "")
     .trim();
 }
@@ -42,7 +59,7 @@ function isFocusnyxTab(url: string): boolean {
 
 // Build the full allowed list: system domains + user whitelist
 function buildAllowedList(allowedUrls: string[]): string[] {
-  return [...ALWAYS_ALLOWED_DOMAINS, ...allowedUrls].map(normalizeDomain).filter(Boolean);
+  return [...ALWAYS_ALLOWED_DOMAINS, ...DEFAULT_WHITELISTED_DOMAINS, ...allowedUrls].map(normalizeDomain).filter(Boolean);
 }
 
 // Returns true if this URL should be redirected to blocked.html
@@ -58,7 +75,7 @@ function shouldBlock(url: string): boolean {
 
   let hostname = "";
   try {
-    hostname = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+    hostname = new URL(url).hostname.toLowerCase().replace(/^www\./, "").replace(/:.*$/, "");
   } catch { return false; }
 
   const allowedList = buildAllowedList(_state.allowedUrls || []);
@@ -79,8 +96,12 @@ async function loadState(): Promise<void> {
     chrome.storage.local.get(["focusState", "pin", "userAuth"], (data) => {
       if (data.focusState) {
         _state = { ..._state, ...data.focusState };
-        // Ensure allowedUrls is always an array
-        if (!Array.isArray(_state.allowedUrls)) _state.allowedUrls = [...PWA_SEED_URLS];
+        // Ensure allowedUrls is always an array containing defaults
+        if (!Array.isArray(_state.allowedUrls) || _state.allowedUrls.length === 0) {
+          _state.allowedUrls = [...PWA_SEED_URLS, ...DEFAULT_WHITELISTED_DOMAINS];
+        } else {
+          _state.allowedUrls = Array.from(new Set([..._state.allowedUrls, ...DEFAULT_WHITELISTED_DOMAINS]));
+        }
       }
       if (data.pin) _state.focusPIN = data.pin;
       if (data.userAuth?.token) {
@@ -285,11 +306,11 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
       let duration = request.duration || (request.durationMinutes ? request.durationMinutes * 60 * 1000 : 25 * 60 * 1000);
       if (duration > 0 && duration <= 1440) duration = duration * 60 * 1000;
 
-      // Build allowedUrls: always use what the PWA sends; never fall back to empty
+      // Build allowedUrls: merge default whitelisted domains with PWA/incoming allowed list
       const incoming: string[] = Array.isArray(request.allowedUrls) ? request.allowedUrls : [];
       console.log("[Focusnyx SW] startFocus received. incoming allowedUrls:", incoming);
       const allowedUrls = Array.from(new Set(
-        [...PWA_SEED_URLS, ...incoming].map((v) => normalizeDomain(String(v || ""))).filter(Boolean)
+        [...PWA_SEED_URLS, ...DEFAULT_WHITELISTED_DOMAINS, ...incoming].map((v) => normalizeDomain(String(v || ""))).filter(Boolean)
       ));
 
       const pin = request.pin || _state.focusPIN || "123456";
