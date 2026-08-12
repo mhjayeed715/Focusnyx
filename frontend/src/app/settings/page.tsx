@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { X, CheckCircle2, AlertTriangle, ExternalLink, Eye, EyeOff, Languages } from 'lucide-react';
+import { X, CheckCircle2, AlertTriangle, ExternalLink, Eye, EyeOff, Languages, Zap } from 'lucide-react';
 import GradeScaleSettings from '@/components/modules/settings/GradeScaleSettings';
 import { useRouter } from 'next/navigation';
 import { LogOut } from 'lucide-react';
@@ -21,7 +21,7 @@ const STORAGE_KEY_PIN = 'focusnyxEmergencyPinV1';
 type AiProvider = 'gemini' | 'groq';
 
 export default function SettingsPage() {
-  const { lang } = useLanguage();
+  const { lang, interactionMode, setInteractionMode } = useLanguage();
   const [settingsTab, setSettingsTab] = useState<'general' | 'academic'>('general');
   const [provider, setProvider] = useState<AiProvider>('groq');
   const [geminiApiKey, setGeminiApiKey] = useState('');
@@ -223,6 +223,46 @@ export default function SettingsPage() {
                 </p>
                 <div className="flex items-center gap-3 pt-1">
                   <LanguageToggle />
+                </div>
+              </div>
+
+              {/* Interaction Mode */}
+              <div className="rounded-[16px] border-2 border-[var(--foreground)] bg-[var(--muted)] p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Zap size={18} strokeWidth={2.5} className="text-[#8B5CF6]" />
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--muted-fg)]">
+                      {lang === "bn" ? "ইন্টারেকশন মোড / Interaction Mode" : "Interaction Mode"}
+                    </p>
+                  </div>
+                  <span className="rounded-full border-2 border-[var(--foreground)] bg-white px-3 py-1 text-xs font-black shadow-[2px_2px_0_0_#1E293B]">
+                    {interactionMode === "adhd" ? "⚡ ADHD Mode" : "Standard Mode"}
+                  </span>
+                </div>
+                <p className="text-sm font-semibold text-[var(--muted-fg)]">
+                  {lang === "bn"
+                    ? "ADHD মোডে ভিজ্যুয়াল জটিলতা কমে এবং সিঙ্গেল ফোকাল টাস্কে ফোকাস থাকে। স্ট্যান্ডার্ড মোডে সব উইজেট একসাথে দেখা যায়।"
+                    : "ADHD Mode reduces visual noise and keeps single focal task emphasis. Standard Mode shows full dashboard widgets."}
+                </p>
+                <div className="flex items-center gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setInteractionMode("standard")}
+                    className={`rounded-full border-2 border-[var(--foreground)] px-4 py-2 text-xs font-black shadow-[2px_2px_0_0_#1E293B] transition ${
+                      interactionMode === "standard" ? "bg-[var(--foreground)] text-white" : "bg-white text-[var(--foreground)] hover:bg-gray-100"
+                    }`}
+                  >
+                    Standard Mode
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInteractionMode("adhd")}
+                    className={`flex items-center gap-1 rounded-full border-2 border-[var(--foreground)] px-4 py-2 text-xs font-black shadow-[2px_2px_0_0_#1E293B] transition ${
+                      interactionMode === "adhd" ? "bg-[#8B5CF6] text-white" : "bg-white text-[var(--foreground)] hover:bg-purple-50"
+                    }`}
+                  >
+                    ⚡ ADHD Mode (Default)
+                  </button>
                 </div>
               </div>
 

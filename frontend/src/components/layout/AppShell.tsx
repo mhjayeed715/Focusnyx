@@ -399,9 +399,6 @@ YOUR STRICT DOMAIN BOUNDARIES:
 
         {/* Bottom actions */}
         <div className={`shrink-0 border-t-2 border-[var(--foreground)] px-3 py-4 space-y-2 ${collapsed ? "flex flex-col items-center" : ""}`}>
-          <div className="w-full">
-            <ModeTogglePill compact={collapsed} />
-          </div>
           <Link
             href="/settings"
             prefetch={true}
