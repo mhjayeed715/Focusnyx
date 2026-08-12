@@ -63,9 +63,7 @@ body::-webkit-scrollbar-thumb {
   font-size: 20px;
   font-weight: 700;
   margin-bottom: 2px;
-  background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #ffffff;
 }
 
 .header p {
@@ -135,8 +133,8 @@ body::-webkit-scrollbar-thumb {
 }
 
 .status-dot.active {
-  background: #22c55e;
-  box-shadow: 0 0 8px #22c55e;
+  background: #6366f1;
+  box-shadow: 0 0 6px rgba(99, 102, 241, 0.6);
 }
 
 /* Timer Display */
@@ -156,6 +154,18 @@ body::-webkit-scrollbar-thumb {
   justify-content: center;
   margin: 0 auto 8px;
   box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+  animation: indigoPulse 2.5s infinite ease-in-out;
+}
+
+@keyframes indigoPulse {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.25);
+    border-color: #6366f1;
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(99, 102, 241, 0.55);
+    border-color: #818cf8;
+  }
 }
 
 #timerText {
@@ -302,13 +312,13 @@ body::-webkit-scrollbar-thumb {
 
 .focus-btn,
 .primary-btn {
-  background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+  background: #6366f1;
   color: white;
 }
 
 .focus-btn:hover,
 .primary-btn:hover {
-  opacity: 0.95;
+  background: #4f46e5;
 }
 
 .end-focus-btn {
@@ -345,5 +355,5 @@ body::-webkit-scrollbar-thumb {
   display: block;
   font-size: 16px;
   font-weight: 700;
-  color: #a855f7;
+  color: #6366f1;
 }

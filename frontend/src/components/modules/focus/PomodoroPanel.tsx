@@ -1683,7 +1683,7 @@ export function PomodoroPanel() {
                         className={`inline-flex items-center gap-1.5 rounded-full border border-[var(--foreground)] px-2.5 py-1 text-[11px] font-bold transition ${
                           isAdded
                             ? "bg-slate-100 text-slate-400 cursor-not-allowed border-slate-300"
-                            : "bg-[#FFF7D6] text-[var(--foreground)] hover:bg-[#8B5CF6] hover:text-white shadow-[1px_1px_0_0_#1E293B]"
+                            : "bg-[#FFF7D6] text-[var(--foreground)] hover:opacity-90 hover:shadow-[2px_2px_0_0_#1E293B] shadow-[1px_1px_0_0_#1E293B]"
                         }`}
                       >
                         <img

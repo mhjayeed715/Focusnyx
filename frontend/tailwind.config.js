@@ -19,6 +19,8 @@ module.exports = {
         quaternary: "var(--quaternary)",
         border: "var(--border)",
         card: "var(--card)",
+        "card-tinted": "var(--card-tinted)",
+        "neutral-action": "var(--neutral-action)",
         primary: "var(--accent)",
         "on-background": "var(--foreground)",
         "on-surface": "var(--foreground)",

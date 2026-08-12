@@ -11,8 +11,10 @@
   --secondary: #f472b6;
   --tertiary: #fbbf24;
   --quaternary: #34d399;
+  --neutral-action: #a8a9c6;
   --border: #e2e8f0;
   --card: #ffffff;
+  --card-tinted: #fefcf7;
   --font-display: "Outfit", sans-serif;
   --font-body: "Plus Jakarta Sans", sans-serif;
 }
@@ -96,15 +98,20 @@ a {
 }
 
 .secondary-button {
-  background: transparent;
-  color: var(--foreground);
-  box-shadow: 4px 4px 0 0 transparent;
+  background: var(--neutral-action);
+  color: #1e293b;
+  font-weight: 700;
+  box-shadow: 4px 4px 0 0 var(--foreground);
 }
 
 .secondary-button:hover {
-  background: var(--tertiary);
+  opacity: 0.92;
   transform: translate(-2px, -2px);
   box-shadow: 6px 6px 0 0 var(--foreground);
+}
+
+.card-tinted {
+  background: var(--card-tinted);
 }
 
 .pill-button {
