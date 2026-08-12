@@ -308,8 +308,7 @@ function parseMicrotasks(text: string): string[] {
 
 function extractYouTubeId(url: string): string | null {
   const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
-    /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
     /^([a-zA-Z0-9_-]{11})$/,
   ];
   for (const pattern of patterns) {
@@ -319,9 +318,16 @@ function extractYouTubeId(url: string): string | null {
   return null;
 }
 
+function getYouTubeWatchUrl(url: string): string {
+  const videoId = extractYouTubeId(url);
+  return videoId ? `https://www.youtube.com/watch?v=${videoId}` : url;
+}
+
 function getYouTubeEmbedUrl(url: string): string {
   const videoId = extractYouTubeId(url);
-  return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
+  if (!videoId) return url;
+  const origin = typeof window !== "undefined" && window.location.origin ? encodeURIComponent(window.location.origin) : "";
+  return `https://www.youtube-nocookie.com/embed/${videoId}?rel=0&enablejsapi=1${origin ? `&origin=${origin}` : ""}`;
 }
 
 export function PomodoroPanel() {
@@ -755,18 +761,22 @@ export function PomodoroPanel() {
 
   const addResource = () => {
     if (!resourceLink.trim()) return;
+    const isYoutube = resourceType === "youtube" || Boolean(extractYouTubeId(resourceLink.trim()));
+    const finalType: StudyResourceType = isYoutube ? "youtube" : resourceType;
+    const watchUrl = isYoutube ? getYouTubeWatchUrl(resourceLink.trim()) : resourceLink.trim();
+
     const nextResource: StudyResource = {
       id: `resource-${Date.now()}`,
-      type: resourceType,
-      title: resourceTitle.trim() || (resourceType === "youtube" ? "YouTube Video" : "Online Resource"),
-      link: resourceLink.trim(),
+      type: finalType,
+      title: resourceTitle.trim() || (isYoutube ? "YouTube Video" : "Online Resource"),
+      link: watchUrl,
       source: "link",
-      mimeType: resourceType === "youtube" ? "video/youtube" : resourceType === "pdf" ? "application/pdf" : "image/",
+      mimeType: isYoutube ? "video/youtube" : finalType === "pdf" ? "application/pdf" : "image/",
     };
     setResources((current) => [nextResource, ...current]);
     setSelectedResourceIndex(0);
     setSelectedFileName(nextResource.title);
-    setSelectedFileUrl(resourceType === "youtube" ? getYouTubeEmbedUrl(nextResource.link) : nextResource.link);
+    setSelectedFileUrl(watchUrl);
     setSelectedMimeType(nextResource.mimeType || "application/octet-stream");
     setResourceTitle("");
     setResourceLink("");
@@ -795,7 +805,7 @@ export function PomodoroPanel() {
     const res = resources[nextIndex];
     setSelectedResourceIndex(nextIndex);
     setSelectedFileName(res.title);
-    setSelectedFileUrl(res.type === "youtube" ? getYouTubeEmbedUrl(res.link) : res.link);
+    setSelectedFileUrl(res.type === "youtube" ? getYouTubeWatchUrl(res.link) : res.link);
     setSelectedMimeType(res.type === "youtube" ? "video/youtube" : res.type === "pdf" ? "application/pdf" : res.mimeType || "image/");
   };
 
@@ -1221,7 +1231,7 @@ export function PomodoroPanel() {
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <a
-                          href={selectedFileUrl}
+                          href={selectedMimeType === "video/youtube" ? getYouTubeWatchUrl(selectedFileUrl) : selectedFileUrl}
                           target="_blank"
                           rel="noreferrer"
                           className="flex items-center gap-1 rounded-full border border-slate-600 bg-slate-700 px-3 py-1 text-[11px] font-bold text-slate-200 hover:bg-slate-600"
@@ -1242,9 +1252,10 @@ export function PomodoroPanel() {
                     {selectedMimeType === "video/youtube" ? (
                       <iframe
                         title={selectedFileName || "YouTube"}
-                        src={selectedFileUrl}
+                        src={getYouTubeEmbedUrl(selectedFileUrl)}
                         className="w-full h-[480px] bg-black"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        referrerPolicy="strict-origin-when-cross-origin"
                         allowFullScreen
                       />
                     ) : selectedMimeType.startsWith("image/") ? (
@@ -1620,7 +1631,7 @@ export function PomodoroPanel() {
                   </div>
                   <div className="flex items-center gap-3">
                     <a
-                      href={selectedFileUrl}
+                      href={selectedMimeType === "video/youtube" ? getYouTubeWatchUrl(selectedFileUrl) : selectedFileUrl}
                       target="_blank"
                       rel="noreferrer"
                       className="flex items-center gap-1.5 rounded-full border border-purple-400 bg-purple-900/80 px-4 py-2 text-xs font-black text-purple-200 hover:bg-purple-800"
@@ -1640,9 +1651,10 @@ export function PomodoroPanel() {
                   {selectedMimeType === "video/youtube" ? (
                     <iframe
                       title={selectedFileName || "YouTube"}
-                      src={selectedFileUrl}
+                      src={getYouTubeEmbedUrl(selectedFileUrl)}
                       className="w-full h-full bg-black rounded-[16px]"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      referrerPolicy="strict-origin-when-cross-origin"
                       allowFullScreen
                     />
                   ) : selectedMimeType.startsWith("image/") ? (
