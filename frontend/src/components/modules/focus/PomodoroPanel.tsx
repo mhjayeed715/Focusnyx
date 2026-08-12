@@ -460,6 +460,7 @@ export function PomodoroPanel() {
   const [newTaskSubject, setNewTaskSubject] = useState("Focus");
   const [newTaskEstimate, setNewTaskEstimate] = useState("25");
   const [newTaskMicrotasks, setNewTaskMicrotasks] = useState("");
+  const [newTaskAttachFocus, setNewTaskAttachFocus] = useState(false);
   const [totalXp, setTotalXp] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [focusSound, setFocusSound] = useState<"none" | "rain" | "white" | "lofi">("rain");
@@ -678,10 +679,60 @@ export function PomodoroPanel() {
     }
   };
 
+  const handleStartEditTask = (task: FocusTask) => {
+    setEditingTaskId(task.id);
+    setEditTaskTitle(task.title);
+    setEditTaskSubject(task.subject);
+    setEditTaskEstimate(task.minutes ? String(task.minutes) : "");
+    setEditTaskMicrotasks(task.subtasks.map((s) => s.title).join("\n"));
+  };
+
+  const handleSaveEditTask = async () => {
+    if (!editingTaskId || !editTaskTitle.trim()) return;
+    const estimatedMinutes = Math.max(0, Number(editTaskEstimate) || 0);
+    const subtasksText = parseMicrotasks(editTaskMicrotasks);
+
+    updateTasks((current) =>
+      current.map((t) => {
+        if (t.id !== editingTaskId) return t;
+        return {
+          ...t,
+          title: editTaskTitle.trim(),
+          subject: editTaskSubject.trim() || "Focus",
+          minutes: estimatedMinutes,
+          xp: estimatedMinutes > 0 ? Math.max(20, estimatedMinutes * 4) : 20,
+          subtasks: subtasksText.map((st, idx) => ({
+            id: t.subtasks[idx]?.id || `sub-edit-${Date.now()}-${idx}`,
+            title: st,
+            completed: t.subtasks[idx]?.completed || false,
+          })),
+        };
+      })
+    );
+
+    if (!editingTaskId.startsWith("focus-local-") && !editingTaskId.startsWith("starter-")) {
+      try {
+        await updateTask(editingTaskId, {
+          title: editTaskTitle.trim(),
+          subject: editTaskSubject.trim() || "Focus",
+          estimate: estimatedMinutes,
+          subtasks: subtasksText,
+        });
+        toast.success("Task updated!");
+      } catch {
+        toast.error("Saved edit locally.");
+      }
+    } else {
+      toast.success("Task updated!");
+    }
+
+    setEditingTaskId(null);
+  };
+
   const handleAddTask = async () => {
     if (!newTaskTitle.trim()) return;
 
-    const estimatedMinutes = Math.max(5, Number(newTaskEstimate) || 25);
+    const estimatedMinutes = Math.max(0, Number(newTaskEstimate) || (isAdhd ? 25 : 0));
     const subtasks = parseMicrotasks(newTaskMicrotasks);
     const optimisticId = `focus-local-${Date.now()}`;
     const optimisticTask: FocusTask = {
@@ -689,7 +740,7 @@ export function PomodoroPanel() {
       title: newTaskTitle.trim(),
       subject: newTaskSubject.trim() || "Focus",
       minutes: estimatedMinutes,
-      xp: Math.max(20, estimatedMinutes * 4),
+      xp: estimatedMinutes > 0 ? Math.max(20, estimatedMinutes * 4) : 20,
       status: "ready",
       subtasks: subtasks.map((subtask, index) => ({
         id: `focus-local-${Date.now()}-${index}`,
@@ -699,11 +750,14 @@ export function PomodoroPanel() {
     };
 
     updateTasks((current) => [optimisticTask, ...current]);
-    setActiveTaskId(optimisticTask.id);
+    if (isAdhd || newTaskAttachFocus) {
+      setActiveTaskId(optimisticTask.id);
+    }
     setShowAddTask(false);
     setNewTaskTitle("");
     setNewTaskSubject("Focus");
-    setNewTaskEstimate("25");
+    setNewTaskEstimate(isAdhd ? "25" : "");
+    setNewTaskMicrotasks("");
 
     try {
       const response = await createTask({
@@ -716,7 +770,7 @@ export function PomodoroPanel() {
       if (realTask?.id) {
         updateTasks((current) => current.map((t) => (t.id === optimisticId ? { ...t, id: realTask.id } : t)));
       }
-      toast.success(`Task "${optimisticTask.title}" saved!`);
+      toast.success(`Task "${optimisticTask.title}" created!`);
     } catch {
       toast.error("Saved locally. Will sync when online.");
     }
@@ -1354,26 +1408,78 @@ export function PomodoroPanel() {
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="hard-chip px-2.5 py-1 text-[10px] font-black">+{task.xp} XP</span>
-                      {!isActive && !isDone && (
-                        <button
-                          type="button"
-                          onClick={() => setActiveTaskId(task.id)}
-                          className="rounded-full border-2 border-[var(--foreground)] bg-purple-100 px-2.5 py-1 text-[11px] font-black text-purple-900 shadow-[2px_2px_0_0_#1E293B] hover:bg-purple-200"
-                          title="Attach to Pomodoro Timer"
-                        >
-                          <Target size={12} className="inline mr-1" /> Focus
-                        </button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="hard-chip px-2 py-0.5 text-[10px] font-black">+{task.xp} XP</span>
+
+                      {/* Set / Unset Active Focus Task */}
+                      {!isDone && (
+                        isActive ? (
+                          <button
+                            type="button"
+                            onClick={() => setActiveTaskId(null)}
+                            className="rounded-full border-2 border-purple-600 bg-purple-600 px-2 py-0.5 text-[10px] font-black text-white shadow-[2px_2px_0_0_#1E293B] hover:bg-purple-700"
+                            title="Detach from Pomodoro Timer"
+                          >
+                            <Target size={11} className="inline mr-0.5" /> Unset
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setActiveTaskId(task.id)}
+                            className="rounded-full border-2 border-[var(--foreground)] bg-purple-100 px-2 py-0.5 text-[10px] font-black text-purple-900 shadow-[2px_2px_0_0_#1E293B] hover:bg-purple-200"
+                            title="Attach to Pomodoro Timer"
+                          >
+                            <Target size={11} className="inline mr-0.5" /> Focus
+                          </button>
+                        )
                       )}
+
+                      {/* Edit Task Button */}
                       <button
-                        onClick={() => handleCompleteTask(task.id)}
-                        disabled={isDone}
-                        className={`rounded-full border-2 border-[var(--foreground)] px-3 py-1 text-xs font-black shadow-[2px_2px_0_0_#1E293B] disabled:opacity-50 ${
-                          isDone ? "bg-slate-100 text-slate-400" : "bg-emerald-400 text-black hover:bg-emerald-300"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStartEditTask(task);
+                        }}
+                        className="rounded-full border-2 border-[var(--foreground)] bg-white p-1 text-slate-700 hover:bg-slate-100 shadow-[2px_2px_0_0_#1E293B]"
+                        title="Edit Task"
+                      >
+                        <PenTool size={13} />
+                      </button>
+
+                      {/* Delete Task Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTaskToDeleteId(task.id);
+                        }}
+                        className="rounded-full border-2 border-[var(--foreground)] bg-white p-1 text-red-500 hover:bg-red-50 shadow-[2px_2px_0_0_#1E293B]"
+                        title="Delete Task"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+
+                      {/* Complete Task Button */}
+                      <button
+                        onClick={() => {
+                          if (isActive) {
+                            toast.error("Focus Task auto-completes when focus timer finishes!");
+                            return;
+                          }
+                          handleCompleteTask(task.id);
+                        }}
+                        disabled={isDone || isActive}
+                        title={isActive ? "Focus task auto-completes when timer finishes" : "Mark task done"}
+                        className={`rounded-full border-2 border-[var(--foreground)] px-2.5 py-0.5 text-xs font-black shadow-[2px_2px_0_0_#1E293B] ${
+                          isDone
+                            ? "bg-slate-100 text-slate-400 opacity-60"
+                            : isActive
+                            ? "bg-amber-100 text-amber-900 border-amber-500 cursor-not-allowed opacity-80"
+                            : "bg-emerald-400 text-black hover:bg-emerald-300"
                         }`}
                       >
-                        {isDone ? copy.done : copy.complete}
+                        {isDone ? copy.done : isActive ? "Timer Task" : copy.complete}
                       </button>
                     </div>
                   </div>
@@ -1729,6 +1835,83 @@ export function PomodoroPanel() {
           )
         : null}
 
+      {/* Edit Task Modal */}
+      {editingTaskId ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.94, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="w-full max-w-lg rounded-[28px] border-2 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B]"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="font-display text-2xl font-black">Edit Task</h3>
+              <button onClick={() => setEditingTaskId(null)} className="rounded-full border-2 border-[var(--foreground)] p-2">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              <div>
+                <label className="text-xs font-bold uppercase text-[var(--muted-fg)]">Task Title</label>
+                <input
+                  value={editTaskTitle}
+                  onChange={(e) => setEditTaskTitle(e.target.value)}
+                  placeholder="Task title"
+                  className="w-full rounded-[18px] border-2 border-[var(--foreground)] bg-white px-4 py-3 shadow-[4px_4px_0_0_#1E293B] outline-none mt-1 font-bold text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase text-[var(--muted-fg)]">Subject / Category</label>
+                <input
+                  value={editTaskSubject}
+                  onChange={(e) => setEditTaskSubject(e.target.value)}
+                  placeholder="Subject (e.g. Math, Coding)"
+                  className="w-full rounded-[18px] border-2 border-[var(--foreground)] bg-white px-4 py-3 shadow-[4px_4px_0_0_#1E293B] outline-none mt-1 font-bold text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase text-[var(--muted-fg)]">
+                  {isAdhd ? "Estimated Focus Minutes" : "Estimated Minutes (Optional)"}
+                </label>
+                <input
+                  value={editTaskEstimate}
+                  onChange={(e) => setEditTaskEstimate(e.target.value)}
+                  type="number"
+                  min="0"
+                  placeholder={isAdhd ? "25" : "25 (Optional)"}
+                  className="w-full rounded-[18px] border-2 border-[var(--foreground)] bg-white px-4 py-3 shadow-[4px_4px_0_0_#1E293B] outline-none mt-1 font-bold text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase text-[var(--muted-fg)]">Microtasks / Subtasks (One per line)</label>
+                <textarea
+                  value={editTaskMicrotasks}
+                  onChange={(e) => setEditTaskMicrotasks(e.target.value)}
+                  rows={4}
+                  placeholder="Define the goal&#10;Break into steps"
+                  className="w-full rounded-[18px] border-2 border-[var(--foreground)] bg-white px-4 py-3 shadow-[4px_4px_0_0_#1E293B] outline-none mt-1 text-sm font-medium"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setEditingTaskId(null)}
+                  className="secondary-button flex-1 rounded-[18px] border-2 border-[var(--foreground)] px-4 py-3 font-bold text-sm"
+                >
+                  Cancel
+                </button>
+                <button onClick={handleSaveEditTask} className="candy-button flex-1 rounded-[18px] border-2 border-[var(--foreground)] px-4 py-3 font-bold text-sm">
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      ) : null}
+
       {/* Add Task Modal */}
       {showAddTask ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
@@ -1749,22 +1932,35 @@ export function PomodoroPanel() {
                 value={newTaskTitle}
                 onChange={(event) => setNewTaskTitle(event.target.value)}
                 placeholder={copy.taskTitle}
-                className="w-full rounded-[18px] border-2 border-[var(--foreground)] bg-white px-4 py-3.5 shadow-[4px_4px_0_0_#1E293B] outline-none"
+                className="w-full rounded-[18px] border-2 border-[var(--foreground)] bg-white px-4 py-3.5 shadow-[4px_4px_0_0_#1E293B] outline-none font-bold text-sm"
               />
               <input
                 value={newTaskSubject}
                 onChange={(event) => setNewTaskSubject(event.target.value)}
                 placeholder={copy.subject}
-                className="w-full rounded-[18px] border-2 border-[var(--foreground)] bg-white px-4 py-3.5 shadow-[4px_4px_0_0_#1E293B] outline-none"
+                className="w-full rounded-[18px] border-2 border-[var(--foreground)] bg-white px-4 py-3.5 shadow-[4px_4px_0_0_#1E293B] outline-none font-bold text-sm"
               />
               <input
                 value={newTaskEstimate}
                 onChange={(event) => setNewTaskEstimate(event.target.value)}
                 type="number"
-                min="5"
-                placeholder={copy.minutes}
-                className="w-full rounded-[18px] border-2 border-[var(--foreground)] bg-white px-4 py-3.5 shadow-[4px_4px_0_0_#1E293B] outline-none"
+                min="0"
+                placeholder={isAdhd ? "Estimated Focus Minutes (Default: 25)" : "Estimated Minutes (Optional)"}
+                className="w-full rounded-[18px] border-2 border-[var(--foreground)] bg-white px-4 py-3.5 shadow-[4px_4px_0_0_#1E293B] outline-none font-bold text-sm"
               />
+
+              {!isAdhd && (
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-[var(--foreground)]">
+                  <input
+                    type="checkbox"
+                    checked={newTaskAttachFocus}
+                    onChange={(e) => setNewTaskAttachFocus(e.target.checked)}
+                    className="h-4 w-4 rounded border-2 border-[var(--foreground)] accent-purple-600"
+                  />
+                  <span>Attach to Focus Timer (Auto-completes on Timer Finish)</span>
+                </label>
+              )}
+
               <textarea
                 value={newTaskMicrotasks}
                 onChange={(event) => setNewTaskMicrotasks(event.target.value)}
