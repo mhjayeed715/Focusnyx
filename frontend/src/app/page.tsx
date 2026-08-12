@@ -309,7 +309,7 @@ export default function HomePage() {
           <span className="float-slower absolute right-20 top-28 hidden h-16 w-16 rounded-full bg-[#34D399] lg:block" />
           <span className="absolute right-8 bottom-12 hidden h-10 w-10 rotate-12 rounded-md border-2 border-[var(--foreground)] bg-white lg:block" />
 
-          <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1fr_0.92fr] lg:px-8 lg:py-22 xl:grid-cols-[1.02fr_0.98fr]">
+          <div className="relative mx-auto grid max-w-7xl gap-10 px-4 pt-12 pb-24 sm:px-6 sm:pt-16 sm:pb-32 lg:grid-cols-[1fr_0.92fr] lg:px-8 lg:pt-20 lg:pb-36 xl:grid-cols-[1.02fr_0.98fr] xl:pb-40">
             <motion.div
               initial={{ opacity: 0, y: 24, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -359,9 +359,9 @@ export default function HomePage() {
               initial={{ opacity: 0, y: 30, scale: 0.92 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ delay: 0.12, duration: 0.75, ease: [0.34, 1.56, 0.64, 1] }}
-              className="relative min-h-[26rem] lg:min-h-[38rem] xl:min-h-[42rem]"
+              className="relative min-h-[30rem] sm:min-h-[34rem] lg:min-h-[42rem] xl:min-h-[46rem]"
             >
-              <div className="absolute inset-y-10 left-1/2 hidden w-60 -translate-x-1/2 rounded-full bg-[#FBBF24] lg:block" />
+              <div className="absolute inset-y-6 left-1/2 hidden w-60 -translate-x-1/2 rounded-full bg-[#FBBF24] lg:block" />
               <div className="memphis-dots absolute inset-0 rounded-[32px] border-2 border-[var(--foreground)] bg-[rgba(255,255,255,0.35)] opacity-80" />
 
               <span className="absolute left-5 top-8 h-4 w-4 rotate-45 rounded-sm bg-[#F472B6]" aria-hidden="true" />
@@ -370,7 +370,7 @@ export default function HomePage() {
               <span className="absolute right-8 bottom-8 h-4 w-4 rounded-full border-2 border-[var(--foreground)] bg-white" aria-hidden="true" />
 
               <motion.div
-                className="absolute left-1/2 top-1/2 z-10 w-[78%] -translate-x-1/2 -translate-y-1/2 rounded-[28px] border-2 border-[var(--foreground)] bg-white p-5 shadow-[8px_8px_0_0_#F472B6] sm:w-[72%]"
+                className="absolute left-1/2 top-1/2 z-10 w-[88%] -translate-x-1/2 -translate-y-1/2 rounded-[28px] border-2 border-[var(--foreground)] bg-white p-5 shadow-[8px_8px_0_0_#F472B6] sm:w-[80%] lg:w-[84%] xl:w-[78%]"
                 animate={{ y: [0, -10, 0] }}
                 transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}
               >

@@ -14,7 +14,11 @@ const copy = {
     subtitle: "Join Focusnyx — create a password, then verify with a one-time code.",
     fullName: "Full name",
     email: "Email",
-    password: "Password",
+    password: "Password (min. 6 characters)",
+    passwordHint: "Must be at least 6 characters long.",
+    passwordTooShort: "Password must be at least 6 characters long.",
+    invalidEmail: "Please enter a valid email address.",
+    userExistsVerified: "An account with this email already exists and is verified. Please log in instead.",
     submit: "Create account",
     helper: "Your account is created with a password, then we verify your email with a 6-digit code.",
     switchText: "Already have an account?",
@@ -27,7 +31,11 @@ const copy = {
     subtitle: "Focusnyx-এ যোগ দিন — পাসওয়ার্ড তৈরি করুন, তারপর OTP দিয়ে যাচাই করুন।",
     fullName: "পুরো নাম",
     email: "ইমেইল",
-    password: "পাসওয়ার্ড",
+    password: "পাসওয়ার্ড (কমপক্ষে ৬টি অক্ষর)",
+    passwordHint: "পাসওয়ার্ড কমপক্ষে ৬টি অক্ষরের হতে হবে।",
+    passwordTooShort: "পাসওয়ার্ড কমপক্ষে ৬টি অক্ষরের হতে হবে।",
+    invalidEmail: "একটি বৈধ ইমেইল ঠিকানা লিখুন।",
+    userExistsVerified: "এই ইমেইল দিয়ে একটি যাচাইকৃত অ্যাকাউন্ট রয়েছে। অনুগ্রহ করে লগইন করুন।",
     submit: "অ্যাকাউন্ট তৈরি করুন",
     helper: "আপনার অ্যাকাউন্ট পাসওয়ার্ড দিয়ে তৈরি হবে, তারপর আমরা ৬ অঙ্কের কোড দিয়ে ইমেইল যাচাই করব।",
     switchText: "ইতিমধ্যে অ্যাকাউন্ট আছে?",
@@ -63,22 +71,67 @@ export default function SignupPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !trimmedEmail.includes("@")) {
+      setError(t.invalidEmail as string);
+      return;
+    }
+
+    if (password.length < 6) {
+      setError(t.passwordTooShort as string);
+      return;
+    }
+
     setSubmitting(true);
 
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.signUp({
-        email,
+      const { data, error: signUpErr } = await supabase.auth.signUp({
+        email: trimmedEmail,
         password,
-        options: { data: { full_name: name || undefined } },
+        options: { data: { full_name: name.trim() || undefined } },
       });
 
-      if (error) {
-        setError(error.message);
+      if (signUpErr) {
+        const msg = signUpErr.message.toLowerCase();
+        // If user already exists in auth.users (verified or unverified)
+        if (msg.includes("already registered") || msg.includes("already exists") || msg.includes("user_already_exists")) {
+          // Attempt to resend OTP for unverified user
+          const { error: resendErr } = await supabase.auth.resend({
+            type: "signup",
+            email: trimmedEmail,
+          });
+
+          if (!resendErr) {
+            router.push(`/signup/verify?email=${encodeURIComponent(trimmedEmail)}&registered=1&unverified=1`);
+            return;
+          } else {
+            setError(t.userExistsVerified as string);
+            return;
+          }
+        }
+        setError(signUpErr.message);
         return;
       }
 
-      router.push(`/signup/verify?email=${encodeURIComponent(email)}&registered=1`);
+      // Supabase JS returns identities: [] if account already exists
+      if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        const { error: resendErr } = await supabase.auth.resend({
+          type: "signup",
+          email: trimmedEmail,
+        });
+
+        if (!resendErr) {
+          router.push(`/signup/verify?email=${encodeURIComponent(trimmedEmail)}&registered=1&unverified=1`);
+          return;
+        } else {
+          setError(t.userExistsVerified as string);
+          return;
+        }
+      }
+
+      router.push(`/signup/verify?email=${encodeURIComponent(trimmedEmail)}&registered=1`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to start verification.");
     } finally {
@@ -141,14 +194,23 @@ export default function SignupPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-2 block text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">{t.password as string}</label>
+                  <div className="mb-2 flex items-center justify-between">
+                    <label className="block text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">{t.password as string}</label>
+                    <span className={`text-xs font-bold ${password.length >= 6 ? "text-emerald-600" : password.length > 0 ? "text-amber-600" : "text-slate-400"}`}>
+                      {password.length >= 6
+                        ? (lang === "bn" ? "✓ পর্যাপ্ত দৈর্ঘ্য" : "✓ Min length met")
+                        : (lang === "bn" ? "কমপক্ষে ৬টি অক্ষর" : "Min. 6 characters required")}
+                    </span>
+                  </div>
                   <div className="relative">
                     <input
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
-                      className="w-full rounded-[18px] border-2 border-[var(--foreground)] bg-white px-4 py-3.5 pr-24 text-base shadow-[4px_4px_0_0_#1E293B] outline-none transition placeholder:text-slate-400 focus:translate-y-[-1px]"
+                      className={`w-full rounded-[18px] border-2 bg-white px-4 py-3.5 pr-24 text-base shadow-[4px_4px_0_0_#1E293B] outline-none transition placeholder:text-slate-400 focus:translate-y-[-1px] ${
+                        password.length > 0 && password.length < 6 ? "border-amber-400" : "border-[var(--foreground)]"
+                      }`}
                     />
                     <button
                       type="button"
@@ -158,11 +220,23 @@ export default function SignupPage() {
                       {showPassword ? "Hide" : "Show"}
                     </button>
                   </div>
+                  <p className="mt-1.5 text-xs text-[var(--muted-fg)] font-medium">
+                    🔒 {t.passwordHint as string}
+                  </p>
                 </div>
-                {error && <p className="rounded-2xl border-2 border-red-500 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p>}
+                {error && (
+                  <div className="rounded-2xl border-2 border-red-500 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 space-y-2">
+                    <p>{error}</p>
+                    {error.includes(t.userExistsVerified as string) && (
+                      <Link href="/auth" className="inline-block rounded-xl border-2 border-red-700 bg-white px-3 py-1.5 text-xs font-black text-red-700 shadow-[2px_2px_0_0_#7F1D1D]">
+                        {t.switchLink as string} →
+                      </Link>
+                    )}
+                  </div>
+                )}
 
                 <button disabled={submitting} type="submit" className="candy-button flex h-14 w-full items-center justify-center text-base font-black disabled:cursor-not-allowed disabled:opacity-70">
-                  {t.submit as string}
+                  {submitting ? (lang === "bn" ? "প্রসেস করা হচ্ছে..." : "Processing...") : (t.submit as string)}
                 </button>
               </form>
 
@@ -197,8 +271,8 @@ export default function SignupPage() {
             </div>
             <div className="relative space-y-3 text-sm font-semibold text-white/85">
               <p>• Personal tasks and streaks</p>
-              <p>• Future Supabase auth integration ready</p>
-              <p>• Designed for a polished onboarding feel</p>
+              <p>• Secure authentication with password requirement (min 6 chars)</p>
+              <p>• Instant verification & resend code support</p>
             </div>
           </aside>
         </div>

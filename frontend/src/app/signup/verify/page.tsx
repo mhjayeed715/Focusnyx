@@ -14,19 +14,45 @@ export default function SignupVerifyPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
 
+  const [resending, setResending] = useState(false);
+
   useEffect(() => {
     try {
       const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
       if (params) {
         setEmailQuery(params.get("email") || "");
-          if (params.get("registered") === "1") {
-            setSuccess("Verification code sent to your email.");
-          }
+        if (params.get("unverified") === "1") {
+          setSuccess("An unverified account with this email exists. We've sent a new verification code to your email!");
+        } else if (params.get("registered") === "1") {
+          setSuccess("Verification code sent to your email.");
+        }
       }
     } catch (e) {
       // ignore
     }
   }, []);
+
+  async function handleResendCode() {
+    if (!emailQuery) return setError("Missing email address.");
+    setError("");
+    setResending(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: emailQuery,
+      });
+      if (error) {
+        setError(error.message);
+      } else {
+        setSuccess("A new 6-digit code has been sent to your email!");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to resend code.");
+    } finally {
+      setResending(false);
+    }
+  }
 
   async function handleVerify(e: React.FormEvent) {
     e.preventDefault();
@@ -44,7 +70,7 @@ export default function SignupVerifyPage() {
       });
 
       if (error) {
-          setError(error.message);
+        setError(error.message);
         return;
       }
 
@@ -100,7 +126,7 @@ export default function SignupVerifyPage() {
                   key={index}
                   type="text"
                   inputMode="numeric"
-                    maxLength={1}
+                  maxLength={1}
                   value={code[index] || ""}
                   onChange={(e) => {
                     const newCode = code.split("");
@@ -122,10 +148,17 @@ export default function SignupVerifyPage() {
                 />
               ))}
             </div>
-            {error && <div className="text-center text-sm text-red-600">{error}</div>}
-            <div className="flex items-center gap-3">
-              <button disabled={loading} type="submit" className="candy-button flex h-12 items-center justify-center px-6 text-base font-black">Verify Code</button>
-              <button type="button" onClick={() => router.push('/signup')} className="secondary-button h-12 px-4">Start over</button>
+            {error && <div className="text-center text-sm text-red-600 font-medium">{error}</div>}
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button disabled={loading} type="submit" className="candy-button flex h-12 items-center justify-center px-6 text-base font-black disabled:opacity-70">
+                {loading ? "Verifying..." : "Verify Code"}
+              </button>
+              <button disabled={resending} type="button" onClick={handleResendCode} className="secondary-button h-12 px-4 font-bold disabled:opacity-70">
+                {resending ? "Resending..." : "Resend Code"}
+              </button>
+              <button type="button" onClick={() => router.push('/signup')} className="secondary-button h-12 px-4 font-bold text-[var(--muted-fg)]">
+                Start over
+              </button>
             </div>
           </form>
         </div>
