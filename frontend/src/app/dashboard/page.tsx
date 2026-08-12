@@ -12,7 +12,6 @@ import { createClient } from "@/lib/supabase/client";
 import { cumulativeXpForLevel, getXpState, maxLevel } from "@/lib/xp";
 import { useLanguage } from "@/components/layout/language-context";
 import { AppShell } from "@/components/layout/AppShell";
-import { LanguageToggle } from "@/components/layout/LanguageToggle";
 import { DashboardSkeleton } from "@/components/ui/PageSkeleton";
 
 

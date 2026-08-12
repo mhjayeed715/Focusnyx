@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { X, CheckCircle2, AlertTriangle, ExternalLink, Eye, EyeOff } from 'lucide-react';
+import { X, CheckCircle2, AlertTriangle, ExternalLink, Eye, EyeOff, Languages } from 'lucide-react';
 import GradeScaleSettings from '@/components/modules/settings/GradeScaleSettings';
 import { useRouter } from 'next/navigation';
 import { LogOut } from 'lucide-react';
@@ -10,6 +10,8 @@ import { APP_ROUTES } from '@/lib/constants/routes';
 import { AppShell } from '@/components/layout/AppShell';
 import { getGroqUsage } from '@/lib/ai/groq';
 import { SettingsSkeleton } from '@/components/ui/PageSkeleton';
+import { useLanguage } from '@/components/layout/language-context';
+import { LanguageToggle } from '@/components/layout/LanguageToggle';
 
 const STORAGE_KEY_GEMINI = 'academicAiKeyGeminiV1';
 const STORAGE_KEY_GROQ = 'academicAiKeyGroqV1';
@@ -19,6 +21,7 @@ const STORAGE_KEY_PIN = 'focusnyxEmergencyPinV1';
 type AiProvider = 'gemini' | 'groq';
 
 export default function SettingsPage() {
+  const { lang } = useLanguage();
   const [settingsTab, setSettingsTab] = useState<'general' | 'academic'>('general');
   const [provider, setProvider] = useState<AiProvider>('groq');
   const [geminiApiKey, setGeminiApiKey] = useState('');
@@ -201,11 +204,26 @@ export default function SettingsPage() {
           {settingsTab === 'general' && (
             <>
               {/* Language */}
-              <div className="rounded-[16px] border-2 border-[var(--foreground)] bg-[var(--muted)] p-4">
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--muted-fg)]">Language</p>
-                <p className="mt-1 text-sm font-semibold text-[var(--muted-fg)]">
-                  Use the EN / BN toggle at the top-right of the screen.
+              <div className="rounded-[16px] border-2 border-[var(--foreground)] bg-[var(--muted)] p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Languages size={18} strokeWidth={2.5} className="text-[var(--accent)]" />
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--muted-fg)]">
+                      {lang === "bn" ? "অ্যাপ ভাষা / App Language" : "App Language"}
+                    </p>
+                  </div>
+                  <span className="rounded-full border-2 border-[var(--foreground)] bg-white px-3 py-1 text-xs font-black shadow-[2px_2px_0_0_#1E293B]">
+                    {lang === "bn" ? "বাংলা (BN)" : "English (EN)"}
+                  </span>
+                </div>
+                <p className="text-sm font-semibold text-[var(--muted-fg)]">
+                  {lang === "bn"
+                    ? "সম্পূর্ণ অ্যাপ জুড়ে প্রদর্শনের ভাষা নির্বাচন করুন (বাংলা এবং ইংরেজি)।"
+                    : "Select the display language across the entire web app (English and Bangla)."}
                 </p>
+                <div className="flex items-center gap-3 pt-1">
+                  <LanguageToggle />
+                </div>
               </div>
 
               {/* Emergency PIN */}

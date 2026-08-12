@@ -27,7 +27,6 @@ import {
 } from "lucide-react";
 import { APP_ROUTES } from "@/lib/constants/routes";
 import { createClient } from "@/lib/supabase/client";
-import { LanguageToggle } from "./LanguageToggle";
 import { useLanguage } from "./language-context";
 import { useFocusContext } from "@/context/FocusContext";
 import { translations } from "@/lib/translations";
@@ -430,7 +429,6 @@ YOUR STRICT DOMAIN BOUNDARIES:
               <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">Focusnyx</p>
               <h1 className="mt-1 font-display text-3xl font-black sm:text-4xl">{displayTitle}</h1>
             </div>
-            <LanguageToggle />
           </header>
           {loading && skeleton ? skeleton : children}
 
