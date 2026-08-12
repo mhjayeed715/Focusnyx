@@ -664,6 +664,11 @@ export function PomodoroPanel() {
     const task = tasks.find((entry) => entry.id === taskId);
     if (!task) return;
 
+    if (taskId === activeTaskId) {
+      toast.error("Focus tasks auto-complete when the focus timer finishes! Manual completion is disabled.");
+      return;
+    }
+
     updateTasks((current) => current.map((entry) => (entry.id === taskId ? { ...entry, status: "done" } : entry)));
     setTotalXp((current) => current + task.xp);
 
@@ -1411,8 +1416,8 @@ export function PomodoroPanel() {
                     <div className="flex items-center gap-1.5 shrink-0">
                       <span className="hard-chip px-2 py-0.5 text-[10px] font-black">+{task.xp} XP</span>
 
-                      {/* Set / Unset Active Focus Task */}
-                      {!isDone && (
+                      {/* Set / Unset Active Focus Task in Standard Mode */}
+                      {!isDone && !isAdhd && (
                         isActive ? (
                           <button
                             type="button"
@@ -1460,27 +1465,26 @@ export function PomodoroPanel() {
                         <Trash2 size={13} />
                       </button>
 
-                      {/* Complete Task Button */}
-                      <button
-                        onClick={() => {
-                          if (isActive) {
-                            toast.error("Focus Task auto-completes when focus timer finishes!");
-                            return;
-                          }
-                          handleCompleteTask(task.id);
-                        }}
-                        disabled={isDone || isActive}
-                        title={isActive ? "Focus task auto-completes when timer finishes" : "Mark task done"}
-                        className={`rounded-full border-2 border-[var(--foreground)] px-2.5 py-0.5 text-xs font-black shadow-[2px_2px_0_0_#1E293B] ${
-                          isDone
-                            ? "bg-slate-100 text-slate-400 opacity-60"
-                            : isActive
-                            ? "bg-amber-100 text-amber-900 border-amber-500 cursor-not-allowed opacity-80"
-                            : "bg-emerald-400 text-black hover:bg-emerald-300"
-                        }`}
-                      >
-                        {isDone ? copy.done : isActive ? "Timer Task" : copy.complete}
-                      </button>
+                      {/* Complete Task Button for Normal Tasks / Locked for Focus Tasks */}
+                      {isActive && !isDone ? (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full border-2 border-purple-500 bg-purple-100 px-2.5 py-0.5 text-xs font-black text-purple-950 shadow-[2px_2px_0_0_#1E293B]"
+                          title="Focus tasks auto-complete when the timer finishes. Cannot be manually completed."
+                        >
+                          <Lock size={12} className="text-purple-700" /> Focus Task
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleCompleteTask(task.id)}
+                          disabled={isDone}
+                          title={isDone ? "Task Completed" : "Mark normal task done"}
+                          className={`rounded-full border-2 border-[var(--foreground)] px-3 py-0.5 text-xs font-black shadow-[2px_2px_0_0_#1E293B] ${
+                            isDone ? "bg-slate-100 text-slate-400 opacity-60" : "bg-emerald-400 text-black hover:bg-emerald-300"
+                          }`}
+                        >
+                          {isDone ? copy.done : copy.complete}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1949,7 +1953,13 @@ export function PomodoroPanel() {
                 className="w-full rounded-[18px] border-2 border-[var(--foreground)] bg-white px-4 py-3.5 shadow-[4px_4px_0_0_#1E293B] outline-none font-bold text-sm"
               />
 
-              {!isAdhd && (
+              {isAdhd ? (
+                <div className="flex items-center gap-2.5 rounded-[16px] border-2 border-[var(--foreground)] bg-[#F3E8FF] p-3 text-xs font-black text-purple-950 shadow-[2px_2px_0_0_#1E293B]">
+                  <input type="checkbox" checked disabled className="h-4 w-4 rounded accent-purple-600 cursor-not-allowed" />
+                  <span className="flex-1">Attach to Focus Timer (Auto-completes on Timer Finish — Always ON in ADHD Mode)</span>
+                  <Lock size={14} className="text-purple-700 shrink-0" />
+                </div>
+              ) : (
                 <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-[var(--foreground)]">
                   <input
                     type="checkbox"
