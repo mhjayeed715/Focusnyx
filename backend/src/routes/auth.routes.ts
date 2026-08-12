@@ -36,6 +36,7 @@ async function getOrCreateDashboardUser(userId: string, email: string, fullName:
     totalFocusTime: existingProfile?.total_focus_time,
     sessionsCompleted: existingProfile?.sessions_completed,
     emergencyPin: existingProfile?.emergency_pin,
+    interactionMode: existingProfile?.interaction_mode ?? "adhd",
   });
 
   const profilePayload = {
@@ -43,6 +44,7 @@ async function getOrCreateDashboardUser(userId: string, email: string, fullName:
     university_email: email,
     display_name: fullName,
     preferred_language: existingProfile?.preferred_language ?? "en",
+    interaction_mode: existingProfile?.interaction_mode ?? "adhd",
     level: baseProfile.level,
     total_xp: baseProfile.totalXp,
     today_xp: baseProfile.todayXp,

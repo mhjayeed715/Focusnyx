@@ -399,6 +399,9 @@ YOUR STRICT DOMAIN BOUNDARIES:
 
         {/* Bottom actions */}
         <div className={`shrink-0 border-t-2 border-[var(--foreground)] px-3 py-4 space-y-2 ${collapsed ? "flex flex-col items-center" : ""}`}>
+          <div className="w-full">
+            <ModeTogglePill compact={collapsed} />
+          </div>
           <Link
             href="/settings"
             prefetch={true}
@@ -429,6 +432,7 @@ YOUR STRICT DOMAIN BOUNDARIES:
               <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">Focusnyx</p>
               <h1 className="mt-1 font-display text-3xl font-black sm:text-4xl">{displayTitle}</h1>
             </div>
+            <ModeTogglePill />
           </header>
           {loading && skeleton ? skeleton : children}
 
@@ -570,6 +574,52 @@ YOUR STRICT DOMAIN BOUNDARIES:
       </div>
 
       <ContactModal isOpen={isContactOpen} onClose={() => setIsContactOpen(false)} />
+    </div>
+  );
+}
+
+function ModeTogglePill({ compact = false }: { compact?: boolean }) {
+  const { interactionMode, setInteractionMode } = useLanguage();
+  const isAdhd = interactionMode === "adhd";
+
+  if (compact) {
+    return (
+      <button
+        onClick={() => setInteractionMode(isAdhd ? "standard" : "adhd")}
+        className={`flex w-full items-center justify-center gap-1 rounded-[12px] border-2 border-[var(--foreground)] px-2 py-2 text-xs font-black shadow-[3px_3px_0_0_#1E293B] transition hover:translate-y-[-1px] ${
+          isAdhd ? "bg-[#8B5CF6] text-white" : "bg-white text-[var(--foreground)]"
+        }`}
+        title={`Current mode: ${isAdhd ? "ADHD Mode" : "Standard Mode"}. Click to switch.`}
+      >
+        {isAdhd ? "⚡ ADHD" : "Standard"}
+      </button>
+    );
+  }
+
+  return (
+    <div className="inline-flex items-center rounded-full border-2 border-[var(--foreground)] bg-[#F8FAFC] p-1 shadow-[3px_3px_0_0_#1E293B]">
+      <button
+        type="button"
+        onClick={() => setInteractionMode("standard")}
+        className={`rounded-full px-3 py-1.5 text-xs font-black transition-all duration-200 ${
+          !isAdhd
+            ? "bg-[var(--foreground)] text-white shadow-sm"
+            : "text-[var(--muted-fg)] hover:text-gray-900"
+        }`}
+      >
+        Standard
+      </button>
+      <button
+        type="button"
+        onClick={() => setInteractionMode("adhd")}
+        className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-black transition-all duration-200 ${
+          isAdhd
+            ? "bg-[#8B5CF6] text-white shadow-sm"
+            : "text-[var(--muted-fg)] hover:text-purple-700"
+        }`}
+      >
+        ⚡ ADHD
+      </button>
     </div>
   );
 }

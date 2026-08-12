@@ -210,7 +210,9 @@ function getSubjectTone(subject: string) {
 
 
 export default function DashboardPage() {
-  const { lang } = useLanguage();
+  const { lang, interactionMode } = useLanguage();
+  const isAdhd = interactionMode === "adhd";
+  const [showEverything, setShowEverything] = useState(false);
   const copy = dashboardCopy[lang];
   const [quoteIndex] = useState(() => Math.floor(Math.random() * motivationalQuotes.length));
   const activeQuote = motivationalQuotes[quoteIndex];
@@ -233,6 +235,12 @@ export default function DashboardPage() {
   const [newTaskEstimate, setNewTaskEstimate] = useState("25");
   const [newTaskMicrotasks, setNewTaskMicrotasks] = useState("Define the goal\nBreak into steps\nStart the first step");
   const [localProgress, setLocalProgress] = useState<LocalProgress>(initialLocalProgress);
+
+  const focalTask = useMemo(() => {
+    const incomplete = tasks.filter((t) => !t.completed);
+    if (incomplete.length === 0) return null;
+    return incomplete[0];
+  }, [tasks]);
 
 
   const loadDashboard = async () => {
@@ -620,376 +628,529 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
-      <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <article className="sticker-card bg-[#F3E8FF] p-5 shadow-[8px_8px_0_0_#D6BCFA]">
-          <span className="mb-2 inline-grid h-9 w-9 place-items-center rounded-full border-2 border-[var(--foreground)] bg-white">
-            <Clock3 size={16} strokeWidth={2.5} />
-          </span>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--muted-fg)]">{copy.focusTime}</p>
-          <p className="mt-2 font-display text-3xl font-black">{focusHours}:{focusMinutePart}</p>
-        </article>
-        <article className="sticker-card bg-[#FDF2F8] p-5 shadow-[8px_8px_0_0_#F9A8D4]">
-          <span className="mb-2 inline-grid h-9 w-9 place-items-center rounded-full border-2 border-[var(--foreground)] bg-white">
-            <CheckCircle2 size={16} strokeWidth={2.5} />
-          </span>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--muted-fg)]">{copy.tasksDone}</p>
-          <p className="mt-2 font-display text-3xl font-black">{mergedCompletedToday}</p>
-        </article>
-        <article className="sticker-card bg-[#FFF7D6] p-5 shadow-[8px_8px_0_0_#FCD34D]">
-          <span className="mb-2 inline-grid h-9 w-9 place-items-center rounded-full border-2 border-[var(--foreground)] bg-white">
-            <Flame size={16} strokeWidth={2.5} />
-          </span>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--muted-fg)]">{copy.streak}</p>
-          <p className="mt-2 font-display text-3xl font-black">{Math.max(1, user.streak)}</p>
-        </article>
-        <article className="sticker-card bg-[#ECFDF5] p-5 shadow-[8px_8px_0_0_#6EE7B7]">
-          <span className="mb-2 inline-grid h-9 w-9 place-items-center rounded-full border-2 border-[var(--foreground)] bg-white">
-            <Sparkles size={16} strokeWidth={2.5} />
-          </span>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--muted-fg)]">{copy.totalXp}</p>
-          <p className="mt-2 font-display text-3xl font-black">{mergedTotalXp}</p>
-        </article>
-      </section>
-
-      <section className="mt-6 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
-        <div className="flex flex-col gap-6">
-          <motion.aside
-            initial={{ opacity: 0, y: 16 }}
+      {isAdhd && !showEverything ? (
+        <div className="mt-6 space-y-6">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.05 }}
-            className="sticker-card self-start w-full bg-white p-6 shadow-[8px_8px_0_0_#F9A8D4]"
+            className="sticker-card bg-white p-6 shadow-[8px_8px_0_0_#8B5CF6] sm:p-7"
           >
-          <div 
-            className="flex items-center justify-between gap-3 cursor-pointer select-none"
-            onClick={() => setIsTaskListOpen(!isTaskListOpen)}
-          >
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">{copy.todaysTasks}</p>
-              <div className="flex items-center gap-2 mt-2">
-                <h2 className="font-display text-2xl font-black">{copy.taskList}</h2>
-                <ChevronDown size={20} className={`transition-transform ${isTaskListOpen ? 'rotate-180' : ''}`} />
+            <div className="flex items-center justify-between gap-3 border-b-2 border-[var(--border)] pb-4">
+              <div>
+                <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-[var(--foreground)] bg-[#F3E8FF] px-3 py-1 text-xs font-black text-[#6D28D9]">
+                  🎯 YOUR SINGLE FOCAL TASK
+                </span>
+                <p className="mt-1.5 text-xs font-bold text-[var(--muted-fg)]">
+                  Focus on one task at a time. Reduce noise, build momentum.
+                </p>
               </div>
+              {focalTask ? (
+                <span className="rounded-full border-2 border-[var(--foreground)] bg-white px-3 py-1 text-xs font-black">
+                  +{focalTask.xp} XP
+                </span>
+              ) : null}
             </div>
-            <span className="grid h-10 w-10 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#FDF2F8]">
-              <ClipboardList size={16} strokeWidth={2.5} />
-            </span>
-          </div>
 
-          {isTaskListOpen && (
-            <>
-              <div className="mt-5 max-h-[560px] space-y-3 overflow-y-auto pr-1">
-                {tasks.length === 0 ? (
-                  <div className="rounded-[16px] border-2 border-dashed border-[var(--foreground)] bg-white px-4 py-8 text-center">
-                    <p className="text-sm text-[var(--muted-fg)]">{copy.noTasks}</p>
-                  </div>
-                ) : (
-              tasks.map((task) => (
-                <div key={task.id}>
-                  <div
-                    onClick={() => setExpandedTaskId((value) => (value === task.id ? null : task.id))}
-                    className={`w-full rounded-[16px] border-2 border-[var(--foreground)] px-4 py-3 text-left transition ${task.completed ? "bg-[#ECFDF5]" : "bg-white"}`}
+            {focalTask ? (
+              <div className="mt-5 space-y-4">
+                <div className="flex items-start gap-3">
+                  <button
+                    onClick={() => void toggleTask(focalTask)}
+                    className="mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#FDF2F8]"
                   >
-                    <div className="flex items-start gap-3">
-                      <button
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void toggleTask(task);
-                        }}
-                        className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 border-[var(--foreground)] ${task.completed ? "bg-[#34D399]" : "bg-[#FDF2F8]"}`}
+                    <span className="h-3 w-3 rounded-full bg-[#8B5CF6]" />
+                  </button>
+                  <div>
+                    <h2 className="font-display text-2xl font-black">{focalTask.title}</h2>
+                    <p className="mt-1 text-xs font-semibold text-[var(--muted-fg)]">
+                      {focalTask.subject} · {focalTask.estimate} min estimate
+                    </p>
+                  </div>
+                </div>
+
+                {focalTask.subtasks && focalTask.subtasks.length > 0 ? (
+                  <div className="rounded-[16px] border-2 border-[var(--foreground)] bg-[#F8FAFC] p-4 space-y-2">
+                    <p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--muted-fg)]">Subtasks Checklist</p>
+                    {focalTask.subtasks.map((st) => (
+                      <div
+                        key={st.id}
+                        onClick={() => void toggleSubtask(focalTask, st)}
+                        className="cursor-pointer flex items-center gap-2 text-sm font-semibold hover:text-purple-700"
                       >
-                        {task.completed ? <CheckCircle2 size={14} strokeWidth={2.5} className="text-white" /> : <span className="h-2.5 w-2.5 rounded-full bg-[#8B5CF6]" />}
-                      </button>
+                        <span className={`grid h-4 w-4 shrink-0 place-items-center rounded-full border-2 border-[var(--foreground)] ${st.completed ? "bg-[#34D399]" : "bg-white"}`}>
+                          {st.completed ? <CheckCircle2 size={10} strokeWidth={3} className="text-white" /> : null}
+                        </span>
+                        <span className={st.completed ? "line-through text-[var(--muted-fg)]" : ""}>{st.title}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
 
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className={`font-bold leading-6 ${task.completed ? "line-through text-[var(--muted-fg)]" : ""}`}>{task.title}</p>
-                            <p className="mt-0.5 text-xs font-semibold text-[var(--muted-fg)]">{task.subject} • {task.estimate}m</p>
+                <div className="flex flex-wrap items-center gap-3 pt-2">
+                  <Link
+                    href="/focus"
+                    className="candy-button inline-flex h-12 flex-1 items-center justify-center gap-2 px-6 text-sm font-black leading-none"
+                  >
+                    Start Focus Session
+                    <ArrowRight size={16} strokeWidth={2.5} />
+                  </Link>
+                  <button
+                    onClick={() => setShowAddTask(true)}
+                    className="secondary-button inline-flex h-12 items-center justify-center px-5 text-sm font-bold leading-none"
+                  >
+                    + New Task
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-6 text-center py-8">
+                <p className="font-display text-xl font-black">🎉 All tasks completed for today!</p>
+                <p className="mt-2 text-sm text-[var(--muted-fg)]">Take a well-deserved break or add a new task to keep building momentum.</p>
+                <button
+                  onClick={() => setShowAddTask(true)}
+                  className="candy-button mt-4 inline-flex h-11 items-center justify-center px-6 text-sm font-black"
+                >
+                  + Add New Task
+                </button>
+              </div>
+            )}
+          </motion.div>
+
+          <div className="text-center py-2">
+            <button
+              onClick={() => setShowEverything(true)}
+              className="inline-flex items-center gap-2 rounded-full border-2 border-[var(--foreground)] bg-white px-5 py-2.5 text-xs font-black text-[var(--muted-fg)] shadow-[3px_3px_0_0_#1E293B] transition hover:translate-y-[-1px] hover:text-purple-700"
+            >
+              <span>Show everything (stats, charts, full list)</span>
+              <ChevronDown size={16} />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          {isAdhd && showEverything ? (
+            <div className="mt-4 flex justify-center">
+              <button
+                onClick={() => setShowEverything(false)}
+                className="inline-flex items-center gap-2 rounded-full border-2 border-[var(--foreground)] bg-white px-5 py-2.5 text-xs font-black text-[var(--muted-fg)] shadow-[3px_3px_0_0_#1E293B] transition hover:translate-y-[-1px] hover:text-purple-700"
+              >
+                <span>Collapse overview to single focal task</span>
+                <ChevronDown size={16} className="rotate-180" />
+              </button>
+            </div>
+          ) : null}
+
+          <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <article className="sticker-card bg-[#F3E8FF] p-5 shadow-[8px_8px_0_0_#D6BCFA]">
+              <span className="mb-2 inline-grid h-9 w-9 place-items-center rounded-full border-2 border-[var(--foreground)] bg-white">
+                <Clock3 size={16} strokeWidth={2.5} />
+              </span>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--muted-fg)]">{copy.focusTime}</p>
+              <p className="mt-2 font-display text-3xl font-black">{focusHours}:{focusMinutePart}</p>
+            </article>
+            <article className="sticker-card bg-[#FDF2F8] p-5 shadow-[8px_8px_0_0_#F9A8D4]">
+              <span className="mb-2 inline-grid h-9 w-9 place-items-center rounded-full border-2 border-[var(--foreground)] bg-white">
+                <CheckCircle2 size={16} strokeWidth={2.5} />
+              </span>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--muted-fg)]">{copy.tasksDone}</p>
+              <p className="mt-2 font-display text-3xl font-black">{mergedCompletedToday}</p>
+            </article>
+            <article className="sticker-card bg-[#FFF7D6] p-5 shadow-[8px_8px_0_0_#FCD34D]">
+              <span className="mb-2 inline-grid h-9 w-9 place-items-center rounded-full border-2 border-[var(--foreground)] bg-white">
+                <Flame size={16} strokeWidth={2.5} />
+              </span>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--muted-fg)]">{copy.streak}</p>
+              <p className="mt-2 font-display text-3xl font-black">{Math.max(1, user.streak)}</p>
+            </article>
+            <article className="sticker-card bg-[#ECFDF5] p-5 shadow-[8px_8px_0_0_#6EE7B7]">
+              <span className="mb-2 inline-grid h-9 w-9 place-items-center rounded-full border-2 border-[var(--foreground)] bg-white">
+                <Sparkles size={16} strokeWidth={2.5} />
+              </span>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--muted-fg)]">{copy.totalXp}</p>
+              <p className="mt-2 font-display text-3xl font-black">{mergedTotalXp}</p>
+            </article>
+          </section>
+
+          <section className="mt-6 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
+            <div className="flex flex-col gap-6">
+              <motion.aside
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, delay: 0.05 }}
+                className="sticker-card self-start w-full bg-white p-6 shadow-[8px_8px_0_0_#F9A8D4]"
+              >
+              <div 
+                className="flex items-center justify-between gap-3 cursor-pointer select-none"
+                onClick={() => setIsTaskListOpen(!isTaskListOpen)}
+              >
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">{copy.todaysTasks}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <h2 className="font-display text-2xl font-black">{copy.taskList}</h2>
+                    <ChevronDown size={20} className={`transition-transform ${isTaskListOpen ? 'rotate-180' : ''}`} />
+                  </div>
+                </div>
+                <span className="grid h-10 w-10 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#FDF2F8]">
+                  <ClipboardList size={16} strokeWidth={2.5} />
+                </span>
+              </div>
+
+              {isTaskListOpen && (
+                <>
+                  <div className="mt-5 max-h-[560px] space-y-3 overflow-y-auto pr-1">
+                    {tasks.length === 0 ? (
+                      <div className="rounded-[16px] border-2 border-dashed border-[var(--foreground)] bg-white px-4 py-8 text-center">
+                        <p className="text-sm text-[var(--muted-fg)]">{copy.noTasks}</p>
+                      </div>
+                    ) : (
+                  tasks.map((task) => {
+                    const isExpanded = expandedTaskId === task.id;
+                    return (
+                    <div key={task.id}>
+                      <div
+                        onClick={() => setExpandedTaskId((value) => (value === task.id ? null : task.id))}
+                        className={`w-full rounded-[16px] border-2 border-[var(--foreground)] px-4 py-3 text-left transition cursor-pointer ${task.completed ? "bg-[#ECFDF5]" : "bg-white"}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <button
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void toggleTask(task);
+                            }}
+                            className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 border-[var(--foreground)] ${task.completed ? "bg-[#34D399]" : "bg-[#FDF2F8]"}`}
+                          >
+                            {task.completed ? <CheckCircle2 size={14} strokeWidth={2.5} className="text-white" /> : <span className="h-2.5 w-2.5 rounded-full bg-[#8B5CF6]" />}
+                          </button>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className={`font-bold leading-6 ${task.completed ? "line-through text-[var(--muted-fg)]" : ""}`}>{task.title}</p>
+                                <p className="mt-0.5 text-xs font-semibold text-[var(--muted-fg)]">{task.subject} · {task.estimate}m</p>
+                              </div>
+                              <span className="rounded-full border-2 border-[var(--foreground)] bg-white px-2.5 py-1 text-xs font-black">+{task.xp} XP</span>
+                            </div>
+
+                            {(!isAdhd || isExpanded) && (
+                              <div className="mt-2 flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingTaskId(task.id);
+                                      setEditTaskTitle(task.title);
+                                      setEditTaskSubject(task.subject);
+                                      setEditTaskEstimate(task.estimate.toString());
+                                      setEditTaskMicrotasks(task.subtasks.map((st) => st.title).join("\n"));
+                                    }}
+                                    className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-2 py-1"
+                                    aria-label="Edit task"
+                                  >
+                                    <PenTool size={13} strokeWidth={2} />
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setTaskToDeleteId(task.id);
+                                    }}
+                                    className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-2 py-1 hover:bg-red-50"
+                                    aria-label="Delete task"
+                                  >
+                                    <Trash2 size={13} strokeWidth={2} className="text-red-500" />
+                                  </button>
+                                  {editingTaskId === task.id ? (
+                                    <>
+                                      <button
+                                        onClick={async (e) => {
+                                          e.stopPropagation();
+                                          const updatedTask: Task = {
+                                            ...task,
+                                            title: editTaskTitle,
+                                            subject: editTaskSubject,
+                                            estimate: Number(editTaskEstimate),
+                                            subtasks: editTaskMicrotasks
+                                              .split("\n")
+                                              .filter(Boolean)
+                                              .map((title, index) => ({
+                                                id: task.subtasks[index]?.id ?? `sub-${Date.now()}-${index}`,
+                                                title,
+                                                completed: task.subtasks[index]?.completed ?? false,
+                                              })),
+                                          };
+                                          setTasks((prev) => {
+                                            const next = prev.map((t) => (t.id === task.id ? updatedTask : t));
+                                            return next;
+                                          });
+                                          setEditingTaskId(null);
+                                          try {
+                                            await updateTask(task.id, {
+                                              title: updatedTask.title,
+                                              subject: updatedTask.subject,
+                                              estimate: updatedTask.estimate,
+                                              subtasks: updatedTask.subtasks.map((s) => ({
+                                                id: s.id,
+                                                title: s.title,
+                                                completed: s.completed,
+                                              })),
+                                            });
+                                            await loadDashboard();
+                                          } catch {
+                                            toast.error("Could not save task changes.", { duration: 3000 });
+                                          }
+                                        }}
+                                        className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-2.5 py-1 text-xs font-black"
+                                      >
+                                        {copy.save}
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setEditingTaskId(null);
+                                        }}
+                                        className="rounded-[12px] border-2 border-[var(--foreground)] bg-[var(--muted)] px-2.5 py-1 text-xs font-black"
+                                      >
+                                        {copy.cancel}
+                                      </button>
+                                    </>
+                                  ) : null}
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  {!isAdhd ? (
+                                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${getSubjectTone(task.subject)}`}>{task.subject}</span>
+                                  ) : null}
+                                  {task.subtasks.length > 0 ? <ChevronDown size={15} className={`transition ${isExpanded ? "rotate-180" : ""}`} /> : null}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                          <span className="rounded-full border-2 border-[var(--foreground)] bg-white px-2.5 py-1 text-xs font-black">+{task.xp} XP</span>
                         </div>
+                      </div>
 
-                        <div className="mt-2 flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingTaskId(task.id);
-                                setEditTaskTitle(task.title);
-                                setEditTaskSubject(task.subject);
-                                setEditTaskEstimate(task.estimate.toString());
-                                setEditTaskMicrotasks(task.subtasks.map((st) => st.title).join("\n"));
-                              }}
-                              className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-2 py-1"
-                              aria-label="Edit task"
+                      {isExpanded && task.subtasks.length > 0 ? (
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-2 space-y-2 border-l-2 border-[var(--border)] pl-4">
+                          {task.subtasks.map((subtask) => (
+                            <div
+                              key={subtask.id}
+                              onClick={() => void toggleSubtask(task, subtask)}
+                              className="cursor-pointer rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2 text-sm hover:bg-[var(--muted)]"
                             >
-                              <PenTool size={13} strokeWidth={2} />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setTaskToDeleteId(task.id);
-                              }}
-                              className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-2 py-1 hover:bg-red-50"
-                              aria-label="Delete task"
-                            >
-                              <Trash2 size={13} strokeWidth={2} className="text-red-500" />
-                            </button>
-                            {editingTaskId === task.id ? (
-                              <>
-                                <button
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    const updatedTask: Task = {
-                                      ...task,
-                                      title: editTaskTitle,
-                                      subject: editTaskSubject,
-                                      estimate: Number(editTaskEstimate),
-                                      subtasks: editTaskMicrotasks
-                                        .split("\n")
-                                        .filter(Boolean)
-                                        .map((title, index) => ({
-                                          id: task.subtasks[index]?.id ?? `sub-${Date.now()}-${index}`,
-                                          title,
-                                          completed: task.subtasks[index]?.completed ?? false,
-                                        })),
-                                    };
-                                    setTasks((prev) => {
-                                      const next = prev.map((t) => (t.id === task.id ? updatedTask : t));
-                                      return next;
-                                    });
-                                    setEditingTaskId(null);
-                                    try {
-                                      await updateTask(task.id, {
-                                        title: updatedTask.title,
-                                        subject: updatedTask.subject,
-                                        estimate: updatedTask.estimate,
-                                        subtasks: updatedTask.subtasks.map((s) => ({
-                                          id: s.id,
-                                          title: s.title,
-                                          completed: s.completed,
-                                        })),
-                                      });
-                                      await loadDashboard();
-                                    } catch {
-                                      toast.error("Could not save task changes.", { duration: 3000 });
-                                    }
-                                  }}
-                                  className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-2.5 py-1 text-xs font-black"
-                                >
-                                  {copy.save}
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditingTaskId(null);
-                                  }}
-                                  className="rounded-[12px] border-2 border-[var(--foreground)] bg-[var(--muted)] px-2.5 py-1 text-xs font-black"
-                                >
-                                  {copy.cancel}
-                                </button>
-                              </>
-                            ) : null}
-                          </div>
+                              <div className="flex items-center gap-2">
+                                <span className={`grid h-4 w-4 shrink-0 place-items-center rounded-full border-2 border-[var(--foreground)] ${subtask.completed ? "bg-[#34D399]" : "bg-white"}`}>
+                                  {subtask.completed ? <CheckCircle2 size={10} strokeWidth={3} className="text-white" /> : null}
+                                </span>
+                                <span className={subtask.completed ? "line-through text-[var(--muted-fg)]" : ""}>{subtask.title}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </motion.div>
+                      ) : null}
+                    </div>
+                    );
+                  })
+                )}
+              </div>
 
-                          <div className="flex items-center gap-2">
-                            <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${getSubjectTone(task.subject)}`}>{task.subject}</span>
-                            {task.subtasks.length > 0 ? <ChevronDown size={15} className={`transition ${expandedTaskId === task.id ? "rotate-180" : ""}`} /> : null}
-                          </div>
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <button onClick={() => setShowAddTask(true)} className="candy-button inline-flex h-12 items-center justify-center px-5 text-sm leading-none">{copy.addNewTask}</button>
+                    <Link href="/focus" className="secondary-button inline-flex h-12 items-center justify-center px-5 text-sm font-bold leading-none">{copy.openFocus}</Link>
+                  </div>
+                </>
+              )}
+              </motion.aside>
+            </div>
+
+            <div className="flex flex-col gap-6">
+              <motion.aside
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, delay: 0.18 }}
+                className="sticker-card bg-white p-6 shadow-[8px_8px_0_0_#FCD34D]"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">{copy.aiInsights}</p>
+                    <h2 className="mt-1 font-display text-2xl font-black">{copy.simpleRecommendations}</h2>
+                  </div>
+                  <span className="grid h-10 w-10 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#ECFDF5]">
+                    <BrainCircuit size={16} strokeWidth={2.5} />
+                  </span>
+                </div>
+
+                <ul className="mt-4 space-y-2 text-sm text-[var(--muted-fg)]">
+                  <li className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
+                    {copy.insightOne}
+                  </li>
+                  <li className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
+                    {copy.insightTwo}
+                  </li>
+                </ul>
+              </motion.aside>
+
+              <motion.aside
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, delay: 0.12 }}
+                className="sticker-card self-start bg-white p-6 shadow-[8px_8px_0_0_#93C5FD] w-full"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">{copy.focusTrend}</p>
+                    <h2 className="mt-1 font-display text-2xl font-black">{copy.weeklyFocus}</h2>
+                  </div>
+                  <span className="grid h-10 w-10 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#FFF7D6]">
+                    <Target size={16} strokeWidth={2.5} />
+                  </span>
+                </div>
+
+                <div className="mt-4 h-44 rounded-[14px] border-2 border-[var(--foreground)] bg-white p-3">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={weeklyFocusSeries} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="focusTrendFill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.06} />
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="day" tick={{ fill: "#475569", fontSize: 12, fontWeight: 700 }} axisLine={false} tickLine={false} />
+                      <Tooltip
+                        contentStyle={{
+                          borderRadius: "12px",
+                          border: "2px solid #1E293B",
+                          background: "#ffffff",
+                          fontWeight: 700,
+                        }}
+                        cursor={{ stroke: "#8B5CF6", strokeOpacity: 0.35 }}
+                        formatter={(value) => [`${value} score`, "Focus"]}
+                      />
+                      <Area type="monotone" dataKey="value" stroke="#8B5CF6" strokeWidth={3} fill="url(#focusTrendFill)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </motion.aside>
+
+              {isAdhd ? (
+                /* Consolidated Gamification Section in ADHD Mode */
+                <motion.aside
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, delay: 0.14 }}
+                  className="sticker-card bg-white p-5 shadow-[8px_8px_0_0_#86EFAC]"
+                >
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="grid h-10 w-10 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#FFF7D6] font-display text-lg font-black shadow-[2px_2px_0_0_#1E293B]">
+                        {levelState.level}
+                      </span>
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-[0.15em] text-[var(--muted-fg)]">Level {levelState.level}</p>
+                        <p className="text-xs font-bold text-gray-700">{levelState.xpIntoLevel} / {xpToNext || levelState.xpIntoLevel} XP</p>
+                      </div>
+                    </div>
+                    <div className="w-full sm:w-1/2 flex-1">
+                      <div className="h-3.5 overflow-hidden rounded-full border-2 border-[var(--foreground)] bg-[var(--muted)]">
+                        <div className="h-full bg-[#8B5CF6] transition-all duration-300" style={{ width: `${levelProgressPercent}%` }} />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 rounded-full border-2 border-[var(--foreground)] bg-[#FFF7D6] px-3.5 py-1.5 font-display text-sm font-black shadow-[2px_2px_0_0_#1E293B] shrink-0">
+                      <Flame size={16} strokeWidth={2.5} className="text-amber-500 fill-amber-500" />
+                      <span>{Math.max(1, user.streak)} Day Streak</span>
+                    </div>
+                  </div>
+                </motion.aside>
+              ) : (
+                /* Standard Gamification Section */
+                <motion.aside
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, delay: 0.14 }}
+                  className="sticker-card bg-white p-6 shadow-[8px_8px_0_0_#86EFAC]"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">{copy.thisWeek}</p>
+                    <span className="rounded-full border-2 border-[var(--foreground)] bg-[#ECFDF5] px-2.5 py-1 text-xs font-black">{weeklyPercent}% {copy.done}</span>
+                  </div>
+
+                  <div className="mt-4 h-4 overflow-hidden rounded-full border-2 border-[var(--foreground)] bg-[var(--muted)]">
+                    <div className="h-full bg-[#34D399]" style={{ width: `${weeklyPercent}%` }} />
+                  </div>
+
+                  <div className="mt-4 rounded-[14px] border-2 border-[var(--foreground)] bg-[#F8FAFC] px-4 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-[0.15em] text-[var(--muted-fg)]">{copy.level}</p>
+                        <p className="font-display text-2xl font-black">{levelState.level}</p>
+                      </div>
+                      <div className="relative grid h-[108px] w-[108px] place-items-center">
+                        <svg viewBox="0 0 100 100" className="h-[108px] w-[108px] -rotate-90">
+                          <circle cx="50" cy="50" r={levelRingRadius} fill="none" stroke="#E2E8F0" strokeWidth="9" />
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r={levelRingRadius}
+                            fill="none"
+                            stroke="#8B5CF6"
+                            strokeWidth="9"
+                            strokeLinecap="round"
+                            strokeDasharray={levelRingCircumference}
+                            strokeDashoffset={levelRingOffset}
+                          />
+                        </svg>
+                        <div className="absolute inset-0 grid place-items-center text-center">
+                          <p className="text-lg font-black leading-none">{levelProgressPercent}%</p>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--muted-fg)]">{copy.done}</p>
                         </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-[10px] border-2 border-[var(--foreground)] bg-white px-2.5 py-2">
+                        <p className="font-bold text-[var(--muted-fg)]">{copy.nextLevelXp}</p>
+                        <p className="font-black">{levelState.xpIntoLevel}/{xpToNext || levelState.xpIntoLevel}</p>
+                      </div>
+                      <div className="rounded-[10px] border-2 border-[var(--foreground)] bg-white px-2.5 py-2">
+                        <p className="font-bold text-[var(--muted-fg)]">{copy.xpNeeded}</p>
+                        <p className="font-black">{xpRemainingForNextLevel} XP</p>
                       </div>
                     </div>
                   </div>
 
-                  {expandedTaskId === task.id && task.subtasks.length > 0 ? (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-2 space-y-2 border-l-2 border-[var(--border)] pl-4">
-                      {task.subtasks.map((subtask) => (
-                        <div
-                          key={subtask.id}
-                          onClick={() => void toggleSubtask(task, subtask)}
-                          className="cursor-pointer rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2 text-sm hover:bg-[var(--muted)]"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className={`grid h-4 w-4 shrink-0 place-items-center rounded-full border-2 border-[var(--foreground)] ${subtask.completed ? "bg-[#34D399]" : "bg-white"}`}>
-                              {subtask.completed ? <CheckCircle2 size={10} strokeWidth={3} className="text-white" /> : null}
-                            </span>
-                            <span className={subtask.completed ? "line-through text-[var(--muted-fg)]" : ""}>{subtask.title}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </motion.div>
-                  ) : null}
-                </div>
-              ))
-            )}
-          </div>
-
-              <div className="mt-5 flex flex-wrap gap-3">
-                <button onClick={() => setShowAddTask(true)} className="candy-button inline-flex h-12 items-center justify-center px-5 text-sm leading-none">{copy.addNewTask}</button>
-                <Link href="/focus" className="secondary-button inline-flex h-12 items-center justify-center px-5 text-sm font-bold leading-none">{copy.openFocus}</Link>
-              </div>
-            </>
-          )}
-          </motion.aside>
-        </div>
-
-        <div className="flex flex-col gap-6">
-          <motion.aside
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.18 }}
-            className="sticker-card bg-white p-6 shadow-[8px_8px_0_0_#FCD34D]"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">{copy.aiInsights}</p>
-                <h2 className="mt-1 font-display text-2xl font-black">{copy.simpleRecommendations}</h2>
-              </div>
-              <span className="grid h-10 w-10 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#ECFDF5]">
-                <BrainCircuit size={16} strokeWidth={2.5} />
-              </span>
-            </div>
-
-            <ul className="mt-4 space-y-2 text-sm text-[var(--muted-fg)]">
-              <li className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
-                {copy.insightOne}
-              </li>
-              <li className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
-                {copy.insightTwo}
-              </li>
-            </ul>
-          </motion.aside>
-          <motion.aside
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.12 }}
-            className="sticker-card self-start bg-white p-6 shadow-[8px_8px_0_0_#93C5FD] w-full"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">{copy.focusTrend}</p>
-                <h2 className="mt-1 font-display text-2xl font-black">{copy.weeklyFocus}</h2>
-              </div>
-              <span className="grid h-10 w-10 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#FFF7D6]">
-                <Target size={16} strokeWidth={2.5} />
-              </span>
-            </div>
-
-            <div className="mt-4 h-44 rounded-[14px] border-2 border-[var(--foreground)] bg-white p-3">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={weeklyFocusSeries} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="focusTrendFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.06} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="day" tick={{ fill: "#475569", fontSize: 12, fontWeight: 700 }} axisLine={false} tickLine={false} />
-                  <Tooltip
-                    contentStyle={{
-                      borderRadius: "12px",
-                      border: "2px solid #1E293B",
-                      background: "#ffffff",
-                      fontWeight: 700,
-                    }}
-                    cursor={{ stroke: "#8B5CF6", strokeOpacity: 0.35 }}
-                    formatter={(value) => [`${value} score`, "Focus"]}
-                  />
-                  <Area type="monotone" dataKey="value" stroke="#8B5CF6" strokeWidth={3} fill="url(#focusTrendFill)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </motion.aside>
-
-          <motion.aside
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.14 }}
-            className="sticker-card bg-white p-6 shadow-[8px_8px_0_0_#86EFAC]"
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">{copy.thisWeek}</p>
-              <span className="rounded-full border-2 border-[var(--foreground)] bg-[#ECFDF5] px-2.5 py-1 text-xs font-black">{weeklyPercent}% {copy.done}</span>
-            </div>
-
-            <div className="mt-4 h-4 overflow-hidden rounded-full border-2 border-[var(--foreground)] bg-[var(--muted)]">
-              <div className="h-full bg-[#34D399]" style={{ width: `${weeklyPercent}%` }} />
-            </div>
-
-            <div className="mt-4 rounded-[14px] border-2 border-[var(--foreground)] bg-[#F8FAFC] px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.15em] text-[var(--muted-fg)]">{copy.level}</p>
-                  <p className="font-display text-2xl font-black">{levelState.level}</p>
-                </div>
-                <div className="relative grid h-[108px] w-[108px] place-items-center">
-                  <svg viewBox="0 0 100 100" className="h-[108px] w-[108px] -rotate-90">
-                    <circle cx="50" cy="50" r={levelRingRadius} fill="none" stroke="#E2E8F0" strokeWidth="9" />
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r={levelRingRadius}
-                      fill="none"
-                      stroke="#8B5CF6"
-                      strokeWidth="9"
-                      strokeLinecap="round"
-                      strokeDasharray={levelRingCircumference}
-                      strokeDashoffset={levelRingOffset}
-                    />
-                  </svg>
-                  <div className="absolute inset-0 grid place-items-center text-center">
-                    <p className="text-lg font-black leading-none">{levelProgressPercent}%</p>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--muted-fg)]">{copy.done}</p>
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
+                      <span className="mb-1 inline-grid h-7 w-7 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#FFF7D6]">
+                        <ClipboardList size={13} strokeWidth={2.5} />
+                      </span>
+                      <p className="text-[var(--muted-fg)]">{copy.planner}</p>
+                      <p className="font-black">{weeklyCompleted} / {weeklyTotal}</p>
+                    </div>
+                    <div className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
+                      <span className="mb-1 inline-grid h-7 w-7 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#FDF2F8]">
+                        <Award size={13} strokeWidth={2.5} />
+                      </span>
+                      <p className="text-[var(--muted-fg)]">{copy.badges}</p>
+                      <p className="font-black">{unlockedBadges.length}</p>
+                    </div>
+                    <div className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
+                      <span className="mb-1 inline-grid h-7 w-7 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#F3E8FF]">
+                        <Target size={13} strokeWidth={2.5} />
+                      </span>
+                      <p className="text-[var(--muted-fg)]">{copy.level}</p>
+                      <p className="font-black">{levelState.level}</p>
+                    </div>
+                    <div className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
+                      <span className="mb-1 inline-grid h-7 w-7 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#ECFDF5]">
+                        <ArrowRight size={13} strokeWidth={2.5} />
+                      </span>
+                      <p className="text-[var(--muted-fg)]">{copy.nextLevelXp}</p>
+                      <p className="font-black">{levelState.xpIntoLevel}/{xpToNext || levelState.xpIntoLevel}</p>
+                    </div>
                   </div>
-                </div>
-              </div>
-
-              <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                <div className="rounded-[10px] border-2 border-[var(--foreground)] bg-white px-2.5 py-2">
-                  <p className="font-bold text-[var(--muted-fg)]">{copy.nextLevelXp}</p>
-                  <p className="font-black">{levelState.xpIntoLevel}/{xpToNext || levelState.xpIntoLevel}</p>
-                </div>
-                <div className="rounded-[10px] border-2 border-[var(--foreground)] bg-white px-2.5 py-2">
-                  <p className="font-bold text-[var(--muted-fg)]">{copy.xpNeeded}</p>
-                  <p className="font-black">{xpRemainingForNextLevel} XP</p>
-                </div>
-              </div>
+                </motion.aside>
+              )}
             </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-              <div className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
-                <span className="mb-1 inline-grid h-7 w-7 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#FFF7D6]">
-                  <ClipboardList size={13} strokeWidth={2.5} />
-                </span>
-                <p className="text-[var(--muted-fg)]">{copy.planner}</p>
-                <p className="font-black">{weeklyCompleted} / {weeklyTotal}</p>
-              </div>
-              <div className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
-                <span className="mb-1 inline-grid h-7 w-7 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#FDF2F8]">
-                  <Award size={13} strokeWidth={2.5} />
-                </span>
-                <p className="text-[var(--muted-fg)]">{copy.badges}</p>
-                <p className="font-black">{unlockedBadges.length}</p>
-              </div>
-              <div className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
-                <span className="mb-1 inline-grid h-7 w-7 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#F3E8FF]">
-                  <Target size={13} strokeWidth={2.5} />
-                </span>
-                <p className="text-[var(--muted-fg)]">{copy.level}</p>
-                <p className="font-black">{levelState.level}</p>
-              </div>
-              <div className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
-                <span className="mb-1 inline-grid h-7 w-7 place-items-center rounded-full border-2 border-[var(--foreground)] bg-[#ECFDF5]">
-                  <ArrowRight size={13} strokeWidth={2.5} />
-                </span>
-                <p className="text-[var(--muted-fg)]">{copy.nextLevelXp}</p>
-                <p className="font-black">{levelState.xpIntoLevel}/{xpToNext || levelState.xpIntoLevel}</p>
-              </div>
-            </div>
-          </motion.aside>
-        </div>
-      </section>
-      {/* ── Custom Task Delete Confirmation Modal ── */}
+          </section>
+        </>
+      )}      {/* ── Custom Task Delete Confirmation Modal ── */}
       {taskToDeleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm rounded-[28px] border-2 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B]">

@@ -19,6 +19,7 @@ create table if not exists profiles (
   groq_api_key text,
   gemini_api_key text,
   ai_provider text default 'groq',
+  interaction_mode text not null default 'adhd' check (interaction_mode in ('adhd', 'standard')),
   emergency_pin text default '123456',
   last_active_at timestamptz,
   created_at timestamptz not null default now()

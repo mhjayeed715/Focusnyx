@@ -28,6 +28,7 @@ export type DashboardProfile = {
   totalFocusTime: number;
   sessionsCompleted: number;
   emergencyPin?: string;
+  interactionMode?: "adhd" | "standard";
   xpIntoLevel: number;
   xpNeededForNextLevel: number;
   xpProgressPercent: number;
@@ -111,6 +112,7 @@ export function buildProfile(input: {
   totalFocusTime?: number | null;
   sessionsCompleted?: number | null;
   emergencyPin?: string | null;
+  interactionMode?: "adhd" | "standard" | null;
 }): DashboardProfile {
   const totalXp = input.totalXp ?? 0;
   const xpState = getXpState(totalXp);
@@ -128,6 +130,7 @@ export function buildProfile(input: {
     totalFocusTime: input.totalFocusTime ?? 0,
     sessionsCompleted: input.sessionsCompleted ?? 0,
     emergencyPin: input.emergencyPin ?? "123456",
+    interactionMode: input.interactionMode ?? "adhd",
     xpIntoLevel: xpState.xpIntoLevel,
     xpNeededForNextLevel: xpState.xpNeededForNextLevel,
     xpProgressPercent: xpState.xpProgressPercent,

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { BadgeCheck, Clock3, Flame, Edit2, Trash2, CheckSquare, CheckCircle2, ChevronDown } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
+import { useLanguage } from "@/components/layout/language-context";
 
 export type TaskStatus = "ready" | "in-progress" | "done";
 
@@ -24,6 +25,8 @@ type TaskListProps = {
 
 export function TaskList({ tasks, onToggleComplete, onEdit, onDelete, totalXp }: TaskListProps) {
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const { interactionMode } = useLanguage();
+  const isAdhd = interactionMode === "adhd";
 
   if (tasks.length === 0) {
     return (
@@ -63,17 +66,19 @@ export function TaskList({ tasks, onToggleComplete, onEdit, onDelete, totalXp }:
                   <span className="hard-chip shrink-0 px-3 py-1.5 text-xs font-black text-[var(--foreground)]">+{task.xp} XP</span>
                 </div>
 
-                <div className="mt-3 flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">
-                  <span className={`rounded-full px-2 py-1 ${
-                    task.subject.toLowerCase().includes("focus") 
-                      ? "bg-[#F472B6] text-white" 
-                      : task.subject.toLowerCase().includes("finance") 
-                        ? "bg-[#34D399] text-[var(--foreground)]" 
-                        : task.subject.toLowerCase().includes("science") 
-                          ? "bg-[#FBBF24] text-[var(--foreground)]" 
-                          : "bg-[#8B5CF6] text-white"
-                  }`}>{task.subject}</span>
-                </div>
+                {!isAdhd && (
+                  <div className="mt-3 flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.2em] text-[var(--muted-fg)]">
+                    <span className={`rounded-full px-2 py-1 ${
+                      task.subject.toLowerCase().includes("focus") 
+                        ? "bg-[#F472B6] text-white" 
+                        : task.subject.toLowerCase().includes("finance") 
+                          ? "bg-[#34D399] text-[var(--foreground)]" 
+                          : task.subject.toLowerCase().includes("science") 
+                            ? "bg-[#FBBF24] text-[var(--foreground)]" 
+                            : "bg-[#8B5CF6] text-white"
+                    }`}>{task.subject}</span>
+                  </div>
+                )}
               </div>
             </div>
           </button>

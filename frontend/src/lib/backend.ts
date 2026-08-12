@@ -255,6 +255,7 @@ export async function getDashboardBootstrap() {
       xpNeededForNextLevel: levelState.xpNeededForNextLevel,
       xpProgressPercent: levelState.xpProgressPercent,
       emergencyPin: profile?.emergency_pin ?? "123456",
+      interactionMode: (profile?.interaction_mode as "adhd" | "standard") ?? "adhd",
     };
 
     const formattedTasks = (rawTasks ?? []).map((t: any) => ({

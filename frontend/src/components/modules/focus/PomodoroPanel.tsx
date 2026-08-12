@@ -275,7 +275,9 @@ function getYouTubeEmbedUrl(url: string): string {
 }
 
 export function PomodoroPanel() {
-  const { lang } = useLanguage();
+  const { lang, interactionMode } = useLanguage();
+  const isAdhd = interactionMode === "adhd";
+  const [showCustomization, setShowCustomization] = useState(false);
   const copy = lang === "bn"
     ? {
         header: "ফোকাস ইঞ্জিন",
@@ -1248,98 +1250,128 @@ export function PomodoroPanel() {
                   <TimerReset size={20} strokeWidth={2.5} />
                 </span>
               </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {presets.map((preset) => (
-                  <button
-                    key={preset}
-                    onClick={() => {
-                      setDurationMinutes(preset);
-                      setCustomMinutesInput(String(preset));
-                      reset(preset);
-                    }}
-                    className={`rounded-full border-2 border-[var(--foreground)] px-4 py-2 text-sm font-black shadow-[4px_4px_0_0_#1E293B] ${durationMinutes === preset ? "bg-[var(--foreground)] text-white" : "bg-[#FFF7D6]"}`}
-                  >
-                    {preset} min
-                  </button>
-                ))}
-              </div>
-              <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
-                <label className="block">
-                  <span className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">
-                    <Clock3 size={14} strokeWidth={2.5} />
-                    {copy.customDuration}
-                  </span>
-                  <input
-                    value={customMinutesInput}
-                    onChange={(event) => {
-                      const val = event.target.value;
-                      setCustomMinutesInput(val);
-                      const num = parseInt(val, 10);
-                      if (!isNaN(num) && num >= 1 && num <= 180) {
-                        setDurationMinutes(num);
-                      }
-                    }}
-                    onBlur={() => {
-                      const num = parseInt(customMinutesInput, 10);
-                      const nextDuration = !isNaN(num) && num >= 1 ? Math.max(1, Math.min(180, num)) : 25;
-                      setCustomMinutesInput(String(nextDuration));
-                      setDurationMinutes(nextDuration);
-                      reset(nextDuration);
-                    }}
-                    type="number"
-                    min="1"
-                    max="180"
-                    placeholder="25"
-                    className="w-full rounded-[18px] border-2 border-[var(--foreground)] bg-white px-4 py-3.5 text-base shadow-[4px_4px_0_0_#1E293B] outline-none"
-                  />
-                </label>
-                <div className="flex flex-wrap gap-3">
-                  <button onClick={handleStartFocus} disabled={isRunning} className="candy-button flex h-12 items-center gap-2 px-5 text-sm disabled:opacity-60">
-                    <Play size={16} /> {copy.start}
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (isLocked) {
-                        setPinError("");
-                        setEmergencyPinInput("");
-                        setShowPinModal(true);
-                      } else {
-                        handlePauseFocus();
-                      }
-                    }}
-                    disabled={!isRunning}
-                    className="secondary-button flex h-12 items-center gap-2 px-5 text-sm disabled:opacity-60"
-                  >
-                    <Pause size={16} /> {copy.pause}
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (isLocked) {
-                        setPinError("");
-                        setEmergencyPinInput("");
-                        setShowPinModal(true);
-                      } else {
-                        handleResetFocus();
-                      }
-                    }}
-                    className="secondary-button flex h-12 items-center gap-2 px-5 text-sm"
-                  >
-                    <RotateCcw size={16} /> {copy.reset}
-                  </button>
-                  {isLocked && (
-                    <button
-                      onClick={() => {
-                        setPinError("");
-                        setEmergencyPinInput("");
-                        setShowPinModal(true);
-                      }}
-                      className="candy-button flex h-12 items-center gap-2 rounded-full border-2 border-red-500 bg-red-600 px-5 text-sm font-black text-white hover:bg-red-500"
-                    >
-                      <Lock size={16} /> Emergency Exit
+              {isAdhd && !showCustomization ? (
+                <div className="mt-4 flex flex-col items-start gap-3">
+                  <p className="text-xs font-bold text-gray-700">⚡ Pre-filled defaults active: 25m Focus / 5m Break with Distractor Shield</p>
+                  <div className="flex flex-wrap gap-3">
+                    <button onClick={handleStartFocus} disabled={isRunning} className="candy-button flex h-12 items-center gap-2 px-6 text-sm font-black disabled:opacity-60">
+                      <Play size={16} /> {copy.start}
                     </button>
-                  )}
+                    <button
+                      onClick={() => setShowCustomization(true)}
+                      className="secondary-button flex h-12 items-center gap-2 px-4 text-xs font-bold"
+                    >
+                      <Settings size={14} /> Customize timer & distractors
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <>
+                  {isAdhd && showCustomization ? (
+                    <div className="mt-2 text-right">
+                      <button
+                        onClick={() => setShowCustomization(false)}
+                        className="text-xs font-bold text-[var(--muted-fg)] underline hover:text-purple-700"
+                      >
+                        Hide customization (use defaults)
+                      </button>
+                    </div>
+                  ) : null}
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {presets.map((preset) => (
+                      <button
+                        key={preset}
+                        onClick={() => {
+                          setDurationMinutes(preset);
+                          setCustomMinutesInput(String(preset));
+                          reset(preset);
+                        }}
+                        className={`rounded-full border-2 border-[var(--foreground)] px-4 py-2 text-sm font-black shadow-[4px_4px_0_0_#1E293B] ${durationMinutes === preset ? "bg-[var(--foreground)] text-white" : "bg-[#FFF7D6]"}`}
+                      >
+                        {preset} min
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+                    <label className="block">
+                      <span className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.24em] text-[var(--muted-fg)]">
+                        <Clock3 size={14} strokeWidth={2.5} />
+                        {copy.customDuration}
+                      </span>
+                      <input
+                        value={customMinutesInput}
+                        onChange={(event) => {
+                          const val = event.target.value;
+                          setCustomMinutesInput(val);
+                          const num = parseInt(val, 10);
+                          if (!isNaN(num) && num >= 1 && num <= 180) {
+                            setDurationMinutes(num);
+                          }
+                        }}
+                        onBlur={() => {
+                          const num = parseInt(customMinutesInput, 10);
+                          const nextDuration = !isNaN(num) && num >= 1 ? Math.max(1, Math.min(180, num)) : 25;
+                          setCustomMinutesInput(String(nextDuration));
+                          setDurationMinutes(nextDuration);
+                          reset(nextDuration);
+                        }}
+                        type="number"
+                        min="1"
+                        max="180"
+                        placeholder="25"
+                        className="w-full rounded-[18px] border-2 border-[var(--foreground)] bg-white px-4 py-3.5 text-base shadow-[4px_4px_0_0_#1E293B] outline-none"
+                      />
+                    </label>
+                    <div className="flex flex-wrap gap-3">
+                      <button onClick={handleStartFocus} disabled={isRunning} className="candy-button flex h-12 items-center gap-2 px-5 text-sm disabled:opacity-60">
+                        <Play size={16} /> {copy.start}
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (isLocked) {
+                            setPinError("");
+                            setEmergencyPinInput("");
+                            setShowPinModal(true);
+                          } else {
+                            handlePauseFocus();
+                          }
+                        }}
+                        disabled={!isRunning}
+                        className="secondary-button flex h-12 items-center gap-2 px-5 text-sm disabled:opacity-60"
+                      >
+                        <Pause size={16} /> {copy.pause}
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (isLocked) {
+                            setPinError("");
+                            setEmergencyPinInput("");
+                            setShowPinModal(true);
+                          } else {
+                            handleResetFocus();
+                          }
+                        }}
+                        className="secondary-button flex h-12 items-center gap-2 px-5 text-sm"
+                      >
+                        <RotateCcw size={16} /> {copy.reset}
+                      </button>
+                      {isLocked && (
+                        <button
+                          onClick={() => {
+                            setPinError("");
+                            setEmergencyPinInput("");
+                            setShowPinModal(true);
+                          }}
+                          className="candy-button flex h-12 items-center gap-2 rounded-full border-2 border-red-500 bg-red-600 px-5 text-sm font-black text-white hover:bg-red-500"
+                        >
+                          <Lock size={16} /> Emergency Exit
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
             <div className="mt-4 grid place-items-center rounded-[28px] border-2 border-[var(--foreground)] bg-[#FFF7D6] p-8 shadow-[4px_4px_0_0_#1E293B]">
               <div className="relative h-24 w-24">
