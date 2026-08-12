@@ -415,7 +415,7 @@ export function PomodoroPanel() {
         taskList: "Task list",
         currentQueue: "Current queue",
         total: "Total",
-        addTask: "+ Add Task",
+        addTask: "Add Task",
         complete: "Complete",
         done: "Done",
         progress: "Task progress",
@@ -459,7 +459,7 @@ export function PomodoroPanel() {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskSubject, setNewTaskSubject] = useState("Focus");
   const [newTaskEstimate, setNewTaskEstimate] = useState("25");
-  const [newTaskMicrotasks, setNewTaskMicrotasks] = useState("Define the goal\nBreak into steps\nStart the first step");
+  const [newTaskMicrotasks, setNewTaskMicrotasks] = useState("");
   const [totalXp, setTotalXp] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [focusSound, setFocusSound] = useState<"none" | "rain" | "white" | "lofi">("rain");
@@ -560,27 +560,48 @@ export function PomodoroPanel() {
     }
 
     const duration = durationMinutes;
-    const earnedXp = Math.max(60, duration * 4);
-
-    const currentProgress = readLocalProgress();
-    const nextProgress: LocalProgress = {
-      xp: currentProgress.xp + earnedXp,
-      focusMinutes: currentProgress.focusMinutes + duration,
-      sessionsCompleted: currentProgress.sessionsCompleted + 1,
-      completedTasks: currentProgress.completedTasks + (activeTask?.status === "done" ? 1 : 0),
-    };
-
-    writeLocalProgress(nextProgress);
-    setTotalXp((current) => current + earnedXp);
+    const sessionXp = Math.max(60, duration * 4);
+    let totalAwardedXp = sessionXp;
+    let taskWasCompleted = false;
 
     if (activeTask && activeTask.status !== "done") {
-      updateTasks((current) => current.map((entry) => (entry.id === activeTask.id ? { ...entry, status: "done" } : entry)));
+      taskWasCompleted = true;
+      totalAwardedXp += activeTask.xp;
+      updateTasks((current) =>
+        current.map((entry) => {
+          if (entry.id !== activeTask.id) return entry;
+          return {
+            ...entry,
+            status: "done",
+            subtasks: entry.subtasks.map((st) => ({ ...st, completed: true })),
+          };
+        })
+      );
+
       if (!activeTask.id.startsWith("focus-local-") && !activeTask.id.startsWith("starter-")) {
         updateTask(activeTask.id, { completed: true }).catch(() => {});
       }
+
+      toast.success(`Focus session finished! Task "${activeTask.title}" auto-completed! +${totalAwardedXp} XP earned!`);
+    } else {
+      toast.success(`Focus session completed! +${sessionXp} XP earned!`);
     }
 
-    toast.success(`Focus session completed! +${earnedXp} XP earned!`);
+    const currentProgress = readLocalProgress();
+    const nextProgress: LocalProgress = {
+      xp: currentProgress.xp + totalAwardedXp,
+      focusMinutes: currentProgress.focusMinutes + duration,
+      sessionsCompleted: currentProgress.sessionsCompleted + 1,
+      completedTasks: currentProgress.completedTasks + (taskWasCompleted ? 1 : 0),
+    };
+
+    writeLocalProgress(nextProgress);
+    setTotalXp((current) => current + totalAwardedXp);
+
+    const nextReadyTask = tasks.find((t) => t.id !== activeTask?.id && t.status !== "done");
+    if (nextReadyTask) {
+      setActiveTaskId(nextReadyTask.id);
+    }
 
     try {
       await completePomodoro(duration);
@@ -1317,18 +1338,40 @@ export function PomodoroPanel() {
               const isExpanded = expandedTaskId === task.id;
 
               return (
-                <div key={task.id} className={`rounded-[20px] border-2 border-[var(--foreground)] p-3.5 shadow-[3px_3px_0_0_#1E293B] transition ${isActive ? "bg-[#FFF7D6]" : "bg-white"}`}>
+                <div key={task.id} className={`rounded-[20px] border-2 border-[var(--foreground)] p-3.5 shadow-[3px_3px_0_0_#1E293B] transition ${isActive ? "bg-[#FFF7D6] border-purple-600" : "bg-white"}`}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 cursor-pointer" onClick={() => setExpandedTaskId(isExpanded ? null : task.id)}>
-                      <p className={`font-bold text-sm ${isDone ? "line-through text-[var(--muted-fg)]" : ""}`}>{task.title}</p>
-                      <p className="mt-0.5 text-xs font-semibold text-[var(--muted-fg)]">{task.subject} • {task.minutes} min</p>
+                      <div className="flex items-center gap-2">
+                        <p className={`font-bold text-sm ${isDone ? "line-through text-[var(--muted-fg)]" : ""}`}>{task.title}</p>
+                        {isActive && !isDone && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-purple-500 bg-purple-100 px-2 py-0.5 text-[10px] font-black text-purple-900">
+                            <Target size={10} className="text-purple-700" /> Focus Task
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-xs font-semibold text-[var(--muted-fg)]">
+                        {task.subject} • {task.minutes} min {isActive ? "• Auto-completes on timer finish" : "• Normal Task (Manual completion)"}
+                      </p>
                     </div>
-                    <div className="flex items-center gap-2">
+
+                    <div className="flex items-center gap-2 shrink-0">
                       <span className="hard-chip px-2.5 py-1 text-[10px] font-black">+{task.xp} XP</span>
+                      {!isActive && !isDone && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveTaskId(task.id)}
+                          className="rounded-full border-2 border-[var(--foreground)] bg-purple-100 px-2.5 py-1 text-[11px] font-black text-purple-900 shadow-[2px_2px_0_0_#1E293B] hover:bg-purple-200"
+                          title="Attach to Pomodoro Timer"
+                        >
+                          <Target size={12} className="inline mr-1" /> Focus
+                        </button>
+                      )}
                       <button
                         onClick={() => handleCompleteTask(task.id)}
                         disabled={isDone}
-                        className="rounded-full border-2 border-[var(--foreground)] bg-white px-3 py-1 text-xs font-black shadow-[2px_2px_0_0_#1E293B] disabled:opacity-50"
+                        className={`rounded-full border-2 border-[var(--foreground)] px-3 py-1 text-xs font-black shadow-[2px_2px_0_0_#1E293B] disabled:opacity-50 ${
+                          isDone ? "bg-slate-100 text-slate-400" : "bg-emerald-400 text-black hover:bg-emerald-300"
+                        }`}
                       >
                         {isDone ? copy.done : copy.complete}
                       </button>
@@ -1726,8 +1769,8 @@ export function PomodoroPanel() {
                 value={newTaskMicrotasks}
                 onChange={(event) => setNewTaskMicrotasks(event.target.value)}
                 rows={5}
-                placeholder={copy.microtasks}
-                className="w-full rounded-[18px] border-2 border-[var(--foreground)] bg-white px-4 py-3.5 shadow-[4px_4px_0_0_#1E293B] outline-none"
+                placeholder={"Microtasks (one per line, e.g.:\nDefine the goal\nBreak into steps\nStart the first step)"}
+                className="w-full rounded-[18px] border-2 border-[var(--foreground)] bg-white px-4 py-3.5 shadow-[4px_4px_0_0_#1E293B] outline-none placeholder:text-slate-400 font-medium text-sm"
               />
               <p className="text-xs font-semibold text-[var(--muted-fg)]">{copy.xpNote}</p>
               <div className="flex gap-3">
