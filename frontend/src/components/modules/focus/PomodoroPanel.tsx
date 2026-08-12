@@ -35,6 +35,11 @@ import {
   X,
   Youtube,
   UploadCloud,
+  Flame,
+  Laptop,
+  Globe,
+  Zap,
+  XCircle,
 } from "lucide-react";
 import { useLanguage } from "@/components/layout/language-context";
 import { usePomodoro } from "@/hooks/usePomodoro";
@@ -125,10 +130,10 @@ const COMMON_APPS = [
 ];
 
 const SOUND_PRESETS = [
-  { key: "rain", label: "Rain 🌧️", icon: Radio },
-  { key: "lofi", label: "Lofi 🎵", icon: Music2 },
-  { key: "white", label: "White Noise 🌊", icon: Sparkles },
-  { key: "none", label: "Mute 🔇", icon: Volume2 },
+  { key: "rain", label: "Rain", icon: Radio },
+  { key: "lofi", label: "Lofi", icon: Music2 },
+  { key: "white", label: "White Noise", icon: Sparkles },
+  { key: "none", label: "Mute", icon: Volume2 },
 ] as const;
 
 function notifyExtension(type: string, payload?: any) {
@@ -463,6 +468,7 @@ export function PomodoroPanel() {
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [selectedResourceIndex, setSelectedResourceIndex] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [isViewerMaximized, setIsViewerMaximized] = useState(false);
 
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editTaskTitle, setEditTaskTitle] = useState("");
@@ -568,7 +574,7 @@ export function PomodoroPanel() {
       }
     }
 
-    toast.success(`🎉 Focus session completed! +${earnedXp} XP earned!`);
+    toast.success(`Focus session completed! +${earnedXp} XP earned!`);
 
     try {
       await completePomodoro(duration);
@@ -636,12 +642,12 @@ export function PomodoroPanel() {
     if (!taskId.startsWith("focus-local-") && !taskId.startsWith("starter-")) {
       try {
         await updateTask(taskId, { completed: true });
-        toast.success(`✓ "${task.title}" completed! +${task.xp} XP`);
+        toast.success(`Completed "${task.title}"! +${task.xp} XP`);
       } catch {
         toast.error("Could not sync completion to server.");
       }
     } else {
-      toast.success(`✓ "${task.title}" marked done! +${task.xp} XP`);
+      toast.success(`Marked "${task.title}" done! +${task.xp} XP`);
     }
   };
 
@@ -721,7 +727,7 @@ export function PomodoroPanel() {
       setSelectedFileUrl(newResources[0].link);
       setSelectedMimeType(newResources[0].mimeType || fileArray[0].type || "application/octet-stream");
       setResourceType(newResources[0].type);
-      toast.success(`✓ Uploaded ${newResources.length} study material${newResources.length > 1 ? "s" : ""}`);
+      toast.success(`Uploaded ${newResources.length} study material${newResources.length > 1 ? "s" : ""}`);
       setStatusMessage(`Added ${newResources.length} resource${newResources.length > 1 ? "s" : ""} to study materials.`);
     }
   };
@@ -764,7 +770,7 @@ export function PomodoroPanel() {
     setSelectedMimeType(nextResource.mimeType || "application/octet-stream");
     setResourceTitle("");
     setResourceLink("");
-    toast.success(`✓ Link added to study resources.`);
+    toast.success(`Link added to study resources.`);
   };
 
   const removeResource = (resourceId: string) => {
@@ -805,7 +811,7 @@ export function PomodoroPanel() {
     setBlockedSites(nextSites);
     setNewSiteInput("");
     syncBlocklistToAll(nextSites, blockedApps);
-    toast.success(`✓ Added ${clean} to whitelist`);
+    toast.success(`Added ${clean} to whitelist`);
   };
 
   const handleRemoveSite = (site: string) => {
@@ -826,7 +832,7 @@ export function PomodoroPanel() {
     setBlockedApps(nextApps);
     setNewAppInput("");
     syncBlocklistToAll(blockedSites, nextApps);
-    toast.success(`🚫 Added ${exe} to blocked apps`);
+    toast.success(`Added ${exe} to blocked apps`);
   };
 
   const handleRemoveApp = (app: string) => {
@@ -861,8 +867,9 @@ export function PomodoroPanel() {
           </span>
           <div>
             <h2 className="font-display text-2xl font-black">{copy.title}</h2>
-            <p className="text-xs font-bold text-[var(--muted-fg)]">
-              {isAdhd ? "⚡ ADHD Hyperfocus Mode — Reduced Clutter & Pre-filled Defaults" : "Standard Workstation Mode"}
+            <p className="text-xs font-bold text-[var(--muted-fg)] flex items-center gap-1.5 mt-0.5">
+              <Zap size={13} className="text-[#8B5CF6]" />
+              {isAdhd ? "ADHD Hyperfocus Mode — Reduced Clutter & Pre-filled Defaults" : "Standard Workstation Mode"}
             </p>
           </div>
         </div>
@@ -927,8 +934,14 @@ export function PomodoroPanel() {
                   {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
                 </p>
               </div>
-              <p className="mt-3 text-xs font-black uppercase tracking-[0.18em] text-[var(--muted-fg)]">
-                {isRunning ? "🔥 Deep Focus Session Active" : "Ready to Start"}
+              <p className="mt-3 text-xs font-black uppercase tracking-[0.18em] text-[var(--muted-fg)] flex items-center gap-1.5">
+                {isRunning ? (
+                  <>
+                    <Flame size={14} className="text-amber-500 fill-amber-500" /> Deep Focus Session Active
+                  </>
+                ) : (
+                  "Ready to Start"
+                )}
               </p>
               {statusMessage ? <p className="mt-2 text-xs font-bold text-purple-700">{statusMessage}</p> : null}
 
@@ -988,7 +1001,9 @@ export function PomodoroPanel() {
             {/* Preset Customization Toggle */}
             {isAdhd && !showCustomization ? (
               <div className="mt-4 flex items-center justify-between rounded-[18px] border-2 border-[var(--foreground)] bg-[#ECFDF5] px-4 py-2.5 text-xs">
-                <span className="font-bold text-emerald-900">⚡ ADHD Defaults: 25m Focus / 5m Break</span>
+                <span className="font-bold text-emerald-900 flex items-center gap-1.5">
+                  <Zap size={13} className="text-emerald-700" /> ADHD Defaults: 25m Focus / 5m Break
+                </span>
                 <button
                   onClick={() => setShowCustomization(true)}
                   className="font-black text-purple-700 underline hover:text-purple-900"
@@ -1057,7 +1072,7 @@ export function PomodoroPanel() {
                     }`}
                   >
                     <Icon size={16} className="mb-1" />
-                    <span className="truncate w-full text-[11px]">{sound.label}</span>
+                    <span className="truncate w-full text-[11px] font-bold">{sound.label}</span>
                   </button>
                 );
               })}
@@ -1071,7 +1086,7 @@ export function PomodoroPanel() {
             <div className="flex items-center justify-between gap-3 mb-4">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.24em] text-[#8B5CF6]">Study Materials</p>
-                <h3 className="mt-1 font-display text-2xl font-black">Resource Viewer & Attachments</h3>
+                <h3 className="mt-1 font-display text-2xl font-black">Resource Reader & Library</h3>
               </div>
               <LibraryBig size={22} className="text-[#8B5CF6]" />
             </div>
@@ -1191,29 +1206,70 @@ export function PomodoroPanel() {
                   })}
                 </div>
 
-                {/* Live Viewer Window */}
+                {/* Spacious Live Resource Reader Window */}
                 {selectedFileUrl ? (
-                  <div className="mt-3 overflow-hidden rounded-[20px] border-2 border-[var(--foreground)] bg-slate-900 shadow-[4px_4px_0_0_#1E293B]">
+                  <div className="mt-3 overflow-hidden rounded-[22px] border-2 border-[var(--foreground)] bg-slate-900 shadow-[6px_6px_0_0_#1E293B]">
+                    {/* Header Bar with Maximize Reader option */}
+                    <div className="flex items-center justify-between border-b-2 border-slate-700 bg-slate-800 px-4 py-2.5 text-white">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="rounded-full border border-purple-400 bg-purple-900/60 px-2.5 py-0.5 text-[10px] font-black uppercase text-purple-200">
+                          {selectedMimeType === "video/youtube" ? "YouTube" : selectedMimeType?.split("/")[1]?.toUpperCase() || "DOCUMENT"}
+                        </span>
+                        <p className="truncate text-xs font-bold text-slate-200" title={selectedFileName}>
+                          {selectedFileName || "Resource Reader"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <a
+                          href={selectedFileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-1 rounded-full border border-slate-600 bg-slate-700 px-3 py-1 text-[11px] font-bold text-slate-200 hover:bg-slate-600"
+                        >
+                          <Link2 size={12} /> Open Link
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => setIsViewerMaximized(true)}
+                          className="flex items-center gap-1.5 rounded-full border border-purple-500 bg-[#8B5CF6] px-3.5 py-1 text-[11px] font-black text-white hover:bg-purple-600 shadow-[2px_2px_0_0_#000]"
+                        >
+                          <Maximize2 size={12} /> Maximize Reader
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* High-Resolution Viewer Area */}
                     {selectedMimeType === "video/youtube" ? (
                       <iframe
                         title={selectedFileName || "YouTube"}
                         src={selectedFileUrl}
-                        className="w-full h-[320px] bg-black"
+                        className="w-full h-[480px] bg-black"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen
                       />
                     ) : selectedMimeType.startsWith("image/") ? (
-                      <img src={selectedFileUrl} alt={selectedFileName} className="w-full h-[320px] object-contain bg-slate-950" />
+                      <div className="grid place-items-center h-[520px] bg-slate-950 p-4">
+                        <img src={selectedFileUrl} alt={selectedFileName} className="max-h-full max-w-full object-contain" />
+                      </div>
                     ) : selectedMimeType === "application/pdf" ? (
-                      <iframe title={selectedFileName} src={selectedFileUrl} className="w-full h-[380px] bg-white" />
+                      <iframe title={selectedFileName} src={selectedFileUrl} className="w-full h-[620px] bg-white" />
                     ) : (
-                      <div className="p-6 text-center text-white">
-                        <FileText size={32} className="mx-auto mb-2 text-purple-400" />
-                        <p className="font-bold text-sm">{selectedFileName}</p>
-                        <p className="text-xs text-slate-300 mt-1">Resource active. Click to view in new browser tab.</p>
-                        <a href={selectedFileUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#8B5CF6] px-4 py-1.5 text-xs font-black text-white">
-                          <Link2 size={12} /> Open Document
-                        </a>
+                      <div className="p-8 text-center text-white h-[400px] grid place-items-center">
+                        <div>
+                          <FileText size={40} className="mx-auto mb-3 text-purple-400" />
+                          <p className="font-bold text-base">{selectedFileName}</p>
+                          <p className="text-xs text-slate-300 mt-1 max-w-sm mx-auto">
+                            Document loaded. Click Open Link to view or print in full detail.
+                          </p>
+                          <a
+                            href={selectedFileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-4 inline-flex items-center gap-2 rounded-full border-2 border-[var(--foreground)] bg-[#8B5CF6] px-5 py-2 text-xs font-black text-white shadow-[3px_3px_0_0_#1E293B]"
+                          >
+                            <Link2 size={14} /> Open Full Document
+                          </a>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1315,7 +1371,7 @@ export function PomodoroPanel() {
                 <div className="mt-2 flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
                   {blockedSites.map((item) => (
                     <span key={item.site} className="inline-flex items-center gap-1 rounded-full border border-[var(--foreground)] bg-[#ECFDF5] px-2.5 py-0.5 text-xs font-bold">
-                      ✓ {item.site}
+                      <CheckCircle2 size={12} className="text-emerald-600" /> {item.site}
                       <button onClick={() => handleRemoveSite(item.site)} className="text-red-500 hover:text-red-700 ml-1 font-black">×</button>
                     </span>
                   ))}
@@ -1339,7 +1395,7 @@ export function PomodoroPanel() {
                 <div className="mt-2 flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
                   {blockedApps.map((app) => (
                     <span key={app} className="inline-flex items-center gap-1 rounded-full border border-red-300 bg-red-50 px-2.5 py-0.5 text-xs font-bold text-red-800">
-                      🚫 {app}
+                      <ShieldAlert size={12} className="text-red-500" /> {app}
                       <button onClick={() => handleRemoveApp(app)} className="text-red-600 hover:text-red-900 ml-1 font-black">×</button>
                     </span>
                   ))}
@@ -1353,6 +1409,79 @@ export function PomodoroPanel() {
           )}
         </div>
       </div>
+
+      {/* Maximized Reader Modal Overlay */}
+      {isViewerMaximized && selectedFileUrl && typeof document !== "undefined"
+        ? createPortal(
+            <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/85 p-4 backdrop-blur-md">
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="w-[94vw] h-[92vh] max-w-7xl rounded-[28px] border-4 border-[var(--foreground)] bg-slate-900 shadow-[10px_10px_0_0_#1E293B] flex flex-col overflow-hidden"
+              >
+                <div className="flex items-center justify-between border-b-2 border-slate-700 bg-slate-800 px-6 py-4 text-white shrink-0">
+                  <div className="flex items-center gap-3">
+                    <LibraryBig size={22} className="text-purple-400" />
+                    <div>
+                      <p className="font-display text-lg font-black text-white">{selectedFileName || "Document Reader"}</p>
+                      <p className="text-xs text-slate-300">Focused Study Workspace</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <a
+                      href={selectedFileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-1.5 rounded-full border border-purple-400 bg-purple-900/80 px-4 py-2 text-xs font-black text-purple-200 hover:bg-purple-800"
+                    >
+                      <Link2 size={14} /> Open in Browser Tab
+                    </a>
+                    <button
+                      onClick={() => setIsViewerMaximized(false)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-red-500 font-black text-white shadow-[2px_2px_0_0_#000]"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex-1 bg-slate-950 p-2 overflow-hidden">
+                  {selectedMimeType === "video/youtube" ? (
+                    <iframe
+                      title={selectedFileName || "YouTube"}
+                      src={selectedFileUrl}
+                      className="w-full h-full bg-black rounded-[16px]"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : selectedMimeType.startsWith("image/") ? (
+                    <div className="grid place-items-center h-full w-full bg-slate-950 p-4">
+                      <img src={selectedFileUrl} alt={selectedFileName} className="max-h-full max-w-full object-contain" />
+                    </div>
+                  ) : selectedMimeType === "application/pdf" ? (
+                    <iframe title={selectedFileName} src={selectedFileUrl} className="w-full h-full bg-white rounded-[16px]" />
+                  ) : (
+                    <div className="grid place-items-center h-full w-full p-8 text-center text-white">
+                      <div>
+                        <FileText size={56} className="mx-auto mb-4 text-purple-400" />
+                        <p className="font-bold text-xl">{selectedFileName}</p>
+                        <a
+                          href={selectedFileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-4 inline-flex items-center gap-2 rounded-full border-2 border-white bg-[#8B5CF6] px-6 py-3 text-sm font-black text-white"
+                        >
+                          <Link2 size={16} /> Open Document
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </div>,
+            document.body
+          )
+        : null}
 
       {/* Add Task Modal */}
       {showAddTask ? (
@@ -1462,11 +1591,15 @@ export function PomodoroPanel() {
           </div>
           {distractionLogs.length > 0 && (
             <div className="mt-4">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted-fg)] mb-2">💻 Desktop App Blocks</p>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted-fg)] mb-2 flex items-center gap-1.5">
+                <Laptop size={13} className="text-slate-600" /> Desktop App Blocks
+              </p>
               <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
                 {distractionLogs.map((log) => (
                   <div key={log.id} className="flex items-center justify-between rounded-[14px] border-2 border-[var(--foreground)] bg-[#FDF2F8] px-3 py-2 text-xs font-bold">
-                    <span className="text-red-700">💻 Killed: {log.app || log.url || "Distraction Process"}</span>
+                    <span className="text-red-700 flex items-center gap-1.5">
+                      <Laptop size={13} /> Killed: {log.app || log.url || "Distraction Process"}
+                    </span>
                     <span className="text-[var(--muted-fg)]">{log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : "Just now"}</span>
                   </div>
                 ))}
@@ -1475,11 +1608,15 @@ export function PomodoroPanel() {
           )}
           {browserDistractionLogs.length > 0 && (
             <div className="mt-4">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted-fg)] mb-2">🌐 Browser Site Blocks</p>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted-fg)] mb-2 flex items-center gap-1.5">
+                <Globe size={13} className="text-sky-600" /> Browser Site Blocks
+              </p>
               <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
                 {browserDistractionLogs.map((log) => (
                   <div key={log.id} className="flex items-center justify-between rounded-[14px] border-2 border-[var(--foreground)] bg-[#E0F2FE] px-3 py-2 text-xs font-bold">
-                    <span className="text-sky-700">🌐 Blocked: {log.domain}</span>
+                    <span className="text-sky-700 flex items-center gap-1.5">
+                      <Globe size={13} /> Blocked: {log.domain}
+                    </span>
                     <span className="text-[var(--muted-fg)]">{log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : "Just now"}</span>
                   </div>
                 ))}
