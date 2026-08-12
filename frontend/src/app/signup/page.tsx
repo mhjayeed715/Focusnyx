@@ -102,26 +102,14 @@ export default function SignupPage() {
         (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0);
 
       if (isUserAlreadyExists) {
-        // Test if user can sign in with the entered password or if email is unconfirmed
-        const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+        // Test if existing account is unverified
+        const { error: signInErr } = await supabase.auth.signInWithPassword({
           email: trimmedEmail,
           password,
         });
 
-        if (!signInErr && signInData.session) {
-          // Account exists & password matched -> log in & navigate to dashboard directly
-          try {
-            localStorage.setItem("user", trimmedEmail);
-            const fullName = signInData.user?.user_metadata?.full_name || name.trim() || trimmedEmail.split("@")[0];
-            if (fullName) localStorage.setItem("userFullName", fullName);
-          } catch {}
-          try { await syncDashboardProfile(); } catch {}
-          router.push("/dashboard");
-          return;
-        }
-
         const signInMsg = (signInErr?.message || "").toLowerCase();
-        if (signInMsg.includes("email not confirmed") || signInMsg.includes("not confirmed")) {
+        if (signInErr && (signInMsg.includes("email not confirmed") || signInMsg.includes("not confirmed"))) {
           // Unverified account -> resend OTP code and route to verify page
           const { error: resendErr } = await supabase.auth.resend({
             type: "signup",
@@ -133,7 +121,7 @@ export default function SignupPage() {
           }
         }
 
-        // Verified existing account -> show explicit message with Login link
+        // Verified existing account -> ALWAYS throw error & block account creation (never auto-login)
         setError(t.userExistsVerified as string);
         return;
       }
