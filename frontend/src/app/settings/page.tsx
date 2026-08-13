@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { X, CheckCircle2, AlertTriangle, ExternalLink, Eye, EyeOff, Languages, Zap } from 'lucide-react';
+import { X, CheckCircle2, AlertTriangle, ExternalLink, Eye, EyeOff, Languages, Zap, Lock } from 'lucide-react';
 import GradeScaleSettings from '@/components/modules/settings/GradeScaleSettings';
 import { useRouter } from 'next/navigation';
 import { LogOut } from 'lucide-react';
