@@ -158,91 +158,60 @@ function syncBlocklistToAll(sites: DistractionSite[], apps: string[]) {
 }
 
 class AudioEngine {
-  private ctx: AudioContext | null = null;
-  private source: AudioNode | null = null;
+  private currentAudio: HTMLAudioElement | null = null;
+  private currentSoundType: string | null = null;
 
-  startRain(volume: number) {
-    this.stop();
-    try {
-      this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const bufferSize = this.ctx.sampleRate * 2;
-      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-      const output = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        output[i] = Math.random() * 2 - 1;
+  play(soundType: "rain" | "white" | "lofi", volume: number) {
+    const soundMap: Record<string, string> = {
+      rain: "/audios/rain.mp3",
+      white: "/audios/whitesound.mp3",
+      lofi: "/audios/lofi.mp3",
+    };
+
+    const url = soundMap[soundType];
+    if (!url) {
+      this.stop();
+      return;
+    }
+
+    const vol = Math.max(0, Math.min(1, volume / 100));
+
+    if (this.currentAudio && this.currentSoundType === soundType) {
+      this.currentAudio.volume = vol;
+      if (this.currentAudio.paused) {
+        this.currentAudio.play().catch(() => {});
       }
-      const whiteNoise = this.ctx.createBufferSource();
-      whiteNoise.buffer = buffer;
-      whiteNoise.loop = true;
-      const filter = this.ctx.createBiquadFilter();
-      filter.type = "lowpass";
-      filter.frequency.setValueAtTime(800, this.ctx.currentTime);
-      const gain = this.ctx.createGain();
-      gain.gain.setValueAtTime((volume / 100) * 0.15, this.ctx.currentTime);
-      whiteNoise.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.ctx.destination);
-      whiteNoise.start();
-      this.source = whiteNoise;
+      return;
+    }
+
+    this.stop();
+
+    try {
+      const audio = new Audio(url);
+      audio.loop = true;
+      audio.volume = vol;
+      audio.play().catch(() => {});
+      this.currentAudio = audio;
+      this.currentSoundType = soundType;
     } catch {
-      // AudioContext fallback
+      // Audio autoplay fallback
     }
   }
 
-  startWhiteNoise(volume: number) {
-    this.stop();
-    try {
-      this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const bufferSize = this.ctx.sampleRate * 2;
-      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-      const output = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        output[i] = Math.random() * 2 - 1;
-      }
-      const noise = this.ctx.createBufferSource();
-      noise.buffer = buffer;
-      noise.loop = true;
-      const gain = this.ctx.createGain();
-      gain.gain.setValueAtTime((volume / 100) * 0.08, this.ctx.currentTime);
-      noise.connect(gain);
-      gain.connect(this.ctx.destination);
-      noise.start();
-      this.source = noise;
-    } catch {
-      // fallback
-    }
-  }
-
-  startLofi(volume: number) {
-    this.stop();
-    try {
-      this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const osc = this.ctx.createOscillator();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(220, this.ctx.currentTime);
-      const gain = this.ctx.createGain();
-      gain.gain.setValueAtTime((volume / 100) * 0.1, this.ctx.currentTime);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start();
-      this.source = osc;
-    } catch {
-      // fallback
+  setVolume(volume: number) {
+    if (this.currentAudio) {
+      this.currentAudio.volume = Math.max(0, Math.min(1, volume / 100));
     }
   }
 
   stop() {
-    if (this.source) {
+    if (this.currentAudio) {
       try {
-        (this.source as any).stop?.();
+        this.currentAudio.pause();
+        this.currentAudio.currentTime = 0;
       } catch {}
-      this.source = null;
-    }
-    if (this.ctx) {
-      try {
-        this.ctx.close();
-      } catch {}
-      this.ctx = null;
+      this.currentAudio = null;
+      this.currentSoundType = null;
     }
   }
 }
@@ -636,21 +605,15 @@ export function PomodoroPanel() {
     if (!isRunning || focusSound === "none") {
       audioEngineRef.current.stop();
     } else {
-      if (focusSound === "rain") {
-        audioEngineRef.current.startRain(focusVolume);
-      } else if (focusSound === "white") {
-        audioEngineRef.current.startWhiteNoise(focusVolume);
-      } else if (focusSound === "lofi") {
-        audioEngineRef.current.startLofi(focusVolume);
-      }
+      audioEngineRef.current.play(focusSound, focusVolume);
     }
   }, [isRunning, focusSound, focusVolume]);
 
   const handleStartFocus = async () => {
-    // Check if user has set their Emergency PIN
-    const savedPin = profile?.emergencyPin || (profile?.id ? localStorage.getItem(`focusnyxEmergencyPinV1_${profile.id}`) : null) || localStorage.getItem(STORAGE_KEY_PIN);
+    const rawSavedPin = profile?.emergencyPin || (profile?.id ? localStorage.getItem(`focusnyxEmergencyPinV1_${profile.id}`) : null) || localStorage.getItem(STORAGE_KEY_PIN);
+    const savedPin = (rawSavedPin && rawSavedPin.trim() !== "123456" && rawSavedPin.trim().length === 6 && /^\d+$/.test(rawSavedPin.trim())) ? rawSavedPin.trim() : null;
 
-    if (!savedPin || savedPin.trim().length !== 6 || !/^\d+$/.test(savedPin.trim())) {
+    if (!savedPin) {
       setNewPinInput("");
       setSetPinModalError("");
       setShowSetPinModal(true);
