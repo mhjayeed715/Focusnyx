@@ -84,7 +84,26 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     } else {
       setEndTime(null);
     }
-  }, []);
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === "FOCUSNYX_EXTENSION_STATE" && event.data.state) {
+        const { active, remainingTime } = event.data.state;
+        const remainingSecs = Math.max(0, Math.round((remainingTime || 0) / 1000));
+        if (active && remainingSecs > 0) {
+          syncState(remainingSecs, true);
+          setIsLocked(true);
+        } else if (!active) {
+          syncState(defaultMinutes * 60, false);
+          setIsLocked(false);
+        }
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    if (typeof window !== "undefined") {
+      window.postMessage({ type: "FOCUSNYX_WEB_APP_ACTION", action: "getStatus" }, "*");
+    }
+    return () => window.removeEventListener("message", handleMessage);
+  }, [syncState, defaultMinutes]);
 
   return (
     <FocusContext.Provider

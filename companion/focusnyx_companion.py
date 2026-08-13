@@ -278,6 +278,18 @@ def end_focus():
     success, message = stop_focus_session(pin)
     return jsonify({"success": success, "message": message}), (200 if success else 400)
 
+@app.route("/update-pin", methods=["POST", "OPTIONS"])
+def update_pin():
+    if request.method == "OPTIONS":
+        return jsonify({"ok": True}), 200
+    data = request.get_json(silent=True) or {}
+    pin = data.get("pin")
+    if pin:
+        focus_state["pin"] = str(pin).strip()
+        logger.info(f"[Focusnyx Companion] Emergency PIN updated dynamically to {str(pin).strip()}")
+        return jsonify({"success": True, "message": "Emergency PIN updated."}), 200
+    return jsonify({"success": False, "message": "Invalid PIN"}), 400
+
 @app.route("/shutdown", methods=["POST", "GET"])
 def shutdown():
     logger.info("[Focusnyx Companion] Shutdown request received via HTTP.")

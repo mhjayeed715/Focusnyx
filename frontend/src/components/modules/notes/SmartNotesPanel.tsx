@@ -298,10 +298,6 @@ export function SmartNotesPanel() {
   };
 
   const handleOpenQuizConfig = (note: Note) => {
-    if (!groqKey) {
-      showToast("Add Groq API key in Settings to generate quizzes.", "err");
-      return;
-    }
     if (quizMap[note.id]) {
       setQuizMap(prev => { const next = { ...prev }; delete next[note.id]; return next; });
       return;

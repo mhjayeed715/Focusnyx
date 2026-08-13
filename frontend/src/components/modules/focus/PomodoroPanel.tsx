@@ -44,6 +44,7 @@ import {
 import { useLanguage } from "@/components/layout/language-context";
 import { usePomodoro } from "@/hooks/usePomodoro";
 import { completePomodoro, createTask, updateTask, deleteTask, getDashboardBootstrap } from "@/lib/backend";
+import { createClient } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
 
 type FocusSubtask = {
@@ -489,6 +490,12 @@ export function PomodoroPanel() {
   const [emergencyPinInput, setEmergencyPinInput] = useState("");
   const [pinError, setPinError] = useState("");
 
+  // Prompt Set PIN Modal state for new users
+  const [showSetPinModal, setShowSetPinModal] = useState(false);
+  const [newPinInput, setNewPinInput] = useState("");
+  const [setPinModalError, setSetPinModalError] = useState("");
+  const [profile, setProfile] = useState<any>(null);
+
   // Custom Whitelist / Blacklist State
   const [newSiteInput, setNewSiteInput] = useState("");
   const [blockedApps, setBlockedApps] = useState<string[]>([
@@ -514,6 +521,10 @@ export function PomodoroPanel() {
       try {
         const data = await getDashboardBootstrap();
         if (!isSubscribed) return;
+
+        if (data.profile) {
+          setProfile(data.profile);
+        }
 
         if (data.tasks && data.tasks.length > 0) {
           const formattedTasks: FocusTask[] = data.tasks.map((t: any) => ({
@@ -551,9 +562,7 @@ export function PomodoroPanel() {
     return tasks.find((t) => t.id === activeTaskId) || tasks.find((t) => t.status !== "done") || tasks[0] || null;
   }, [tasks, activeTaskId]);
 
-  const [isLocked, setIsLocked] = useState(false);
-
-  const onPomodoroComplete = async () => {
+  const { minutes, seconds, isRunning, isLocked, start, pause, reset, setIsLocked } = usePomodoro(durationMinutes, async () => {
     setIsLocked(false);
     notifyExtension("stopFocus");
     if (document.fullscreenElement) {
@@ -609,11 +618,44 @@ export function PomodoroPanel() {
     } catch {
       // Local sync fallback
     }
-  };
+  });
 
-  const { minutes, seconds, isRunning, start, pause, reset } = usePomodoro(durationMinutes, onPomodoroComplete);
+  // Audio Engine instance ref & playback manager
+  const audioEngineRef = useRef<AudioEngine | null>(null);
+
+  useEffect(() => {
+    audioEngineRef.current = new AudioEngine();
+    return () => {
+      audioEngineRef.current?.stop();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!audioEngineRef.current) return;
+    if (!isRunning || focusSound === "none") {
+      audioEngineRef.current.stop();
+    } else {
+      if (focusSound === "rain") {
+        audioEngineRef.current.startRain(focusVolume);
+      } else if (focusSound === "white") {
+        audioEngineRef.current.startWhiteNoise(focusVolume);
+      } else if (focusSound === "lofi") {
+        audioEngineRef.current.startLofi(focusVolume);
+      }
+    }
+  }, [isRunning, focusSound, focusVolume]);
 
   const handleStartFocus = async () => {
+    // Check if user has set their Emergency PIN
+    const savedPin = profile?.emergencyPin || (profile?.id ? localStorage.getItem(`focusnyxEmergencyPinV1_${profile.id}`) : null) || localStorage.getItem(STORAGE_KEY_PIN);
+
+    if (!savedPin || savedPin.trim().length !== 6 || !/^\d+$/.test(savedPin.trim())) {
+      setNewPinInput("");
+      setSetPinModalError("");
+      setShowSetPinModal(true);
+      return;
+    }
+
     try {
       if (!document.fullscreenElement) {
         await document.documentElement.requestFullscreen().catch(() => {});
@@ -623,7 +665,44 @@ export function PomodoroPanel() {
     }
     setIsLocked(true);
     start();
-    notifyExtension("startFocus", durationMinutes);
+    notifyExtension("startFocus", { durationMinutes, pin: savedPin });
+  };
+
+  const handleSaveAndStartFocus = async () => {
+    const pinVal = newPinInput.trim();
+    if (pinVal.length !== 6 || !/^\d+$/.test(pinVal)) {
+      setSetPinModalError("Please enter a valid 6-digit numeric Emergency PIN.");
+      return;
+    }
+
+    try {
+      localStorage.setItem(STORAGE_KEY_PIN, pinVal);
+      if (profile?.id) {
+        localStorage.setItem(`focusnyxEmergencyPinV1_${profile.id}`, pinVal);
+      }
+      notifyExtension("syncPin", { pin: pinVal });
+
+      const sb = createClient();
+      const { data: { user } } = await sb.auth.getUser();
+      if (user) {
+        await sb.from("profiles").update({ emergency_pin: pinVal }).eq("id", user.id);
+      }
+
+      setProfile((prev: any) => prev ? { ...prev, emergencyPin: pinVal } : { emergencyPin: pinVal });
+      setShowSetPinModal(false);
+      toast.success("Emergency PIN set successfully!");
+
+      try {
+        if (!document.fullscreenElement) {
+          await document.documentElement.requestFullscreen().catch(() => {});
+        }
+      } catch {}
+      setIsLocked(true);
+      start();
+      notifyExtension("startFocus", { durationMinutes, pin: pinVal });
+    } catch {
+      toast.error("Failed to set PIN. Please try again.");
+    }
   };
 
   const handlePauseFocus = () => {
@@ -638,8 +717,8 @@ export function PomodoroPanel() {
   };
 
   const handleVerifyEmergencyPin = () => {
-    const savedPin = localStorage.getItem(STORAGE_KEY_PIN) || "123456";
-    if (emergencyPinInput.trim() === savedPin) {
+    const savedPin = profile?.emergencyPin || (profile?.id ? localStorage.getItem(`focusnyxEmergencyPinV1_${profile.id}`) : null) || localStorage.getItem(STORAGE_KEY_PIN);
+    if (savedPin && emergencyPinInput.trim() === savedPin.trim()) {
       setShowPinModal(false);
       setIsLocked(false);
       handlePauseFocus();
@@ -2024,6 +2103,43 @@ export function PomodoroPanel() {
                   </button>
                   <button onClick={handleVerifyEmergencyPin} className="candy-button flex-1 rounded-[16px] border-2 border-red-600 bg-red-600 py-3 font-bold text-sm text-white">
                     Unlock Session
+                  </button>
+                </div>
+              </motion.div>
+            </div>,
+            document.body
+          )
+        : null}
+
+      {/* Prompt Set Emergency PIN Modal for New Users */}
+      {showSetPinModal && typeof document !== "undefined"
+        ? createPortal(
+            <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-sm rounded-[28px] border-4 border-[var(--foreground)] bg-white p-6 shadow-[8px_8px_0_0_#1E293B]">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-display text-xl font-black text-[var(--foreground)] flex items-center gap-2">
+                    <ShieldCheck size={22} className="text-[#8B5CF6]" /> Set Emergency PIN
+                  </h3>
+                  <button onClick={() => setShowSetPinModal(false)} className="font-black text-gray-400 hover:text-black">✕</button>
+                </div>
+                <p className="text-xs font-semibold text-[var(--muted-fg)] mb-4 leading-relaxed">
+                  Before starting your first Focus Lock session, please set a <strong>6-digit Emergency PIN</strong>. You will need this PIN if you need to disengage focus mode early.
+                </p>
+                <input
+                  type="password"
+                  maxLength={6}
+                  value={newPinInput}
+                  onChange={(e) => setNewPinInput(e.target.value.replace(/\D/g, ""))}
+                  placeholder="e.g. 849201"
+                  className="w-full rounded-[16px] border-2 border-[var(--foreground)] bg-[#F3E8FF] px-4 py-3 text-center text-2xl font-black tracking-widest outline-none mb-3"
+                />
+                {setPinModalError && <p className="text-xs font-bold text-red-500 mb-3 text-center">{setPinModalError}</p>}
+                <div className="flex gap-2">
+                  <button onClick={() => setShowSetPinModal(false)} className="secondary-button flex-1 rounded-[16px] border-2 border-[var(--foreground)] py-3 font-bold text-sm">
+                    Cancel
+                  </button>
+                  <button onClick={handleSaveAndStartFocus} className="candy-button flex-1 rounded-[16px] border-2 border-[var(--foreground)] bg-[#8B5CF6] py-3 font-bold text-sm text-white">
+                    Set & Start Focus
                   </button>
                 </div>
               </motion.div>

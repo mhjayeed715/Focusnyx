@@ -440,6 +440,11 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
       if (request.pin) {
         _state.focusPIN = request.pin;
         await chrome.storage.local.set({ pin: request.pin, focusState: { ..._state } });
+        fetch("http://localhost:5000/update-pin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pin: request.pin }),
+        }).catch(() => {});
       }
       sendResponse({ ok: true });
     })();

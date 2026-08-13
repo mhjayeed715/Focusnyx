@@ -80,7 +80,7 @@ export async function fetchUserProfile() {
         completed_tasks_today: 0,
         total_focus_time: 0,
         sessions_completed: 0,
-        emergency_pin: "123456",
+        emergency_pin: null,
         last_active_at: new Date().toISOString(),
       };
 
@@ -176,7 +176,7 @@ export async function getDashboardBootstrap() {
         completed_tasks_today: 0,
         total_focus_time: 0,
         sessions_completed: 0,
-        emergency_pin: "123456",
+        emergency_pin: null,
       };
     }
 
@@ -254,7 +254,7 @@ export async function getDashboardBootstrap() {
       xpIntoLevel: levelState.xpIntoLevel,
       xpNeededForNextLevel: levelState.xpNeededForNextLevel,
       xpProgressPercent: levelState.xpProgressPercent,
-      emergencyPin: profile?.emergency_pin ?? "123456",
+      emergencyPin: profile?.emergency_pin ?? null,
       interactionMode: (profile?.interaction_mode as "adhd" | "standard") ?? "adhd",
     };
 

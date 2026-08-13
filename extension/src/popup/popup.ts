@@ -100,6 +100,12 @@ function setupEventListeners() {
 
 function loadSavedSettings() {
   chrome.storage.local.get(["focusState", "pin", "userAuth"], (result: any) => {
+    if (result.pin) {
+      savedEmergencyPin = result.pin;
+    } else if (result.focusState?.focusPIN) {
+      savedEmergencyPin = result.focusState.focusPIN;
+    }
+
     if (result.focusState?.allowedUrls && Array.isArray(result.focusState.allowedUrls)) {
       // Merge stored allowed URLs with required app domains
       const stored: string[] = result.focusState.allowedUrls;
@@ -192,6 +198,9 @@ function startStatusPolling() {
 
 // Listen for storage changes from service worker state updates
 chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.pin?.newValue) {
+    savedEmergencyPin = changes.pin.newValue;
+  }
   if (area === "local" && changes.focusState) {
     const newState = changes.focusState.newValue;
     if (newState) {
@@ -276,8 +285,14 @@ function startTimerDisplay(remainingMs: number) {
 }
 
 function startFocus() {
-  if (!savedEmergencyPin || savedEmergencyPin.length < 4) {
-    savedEmergencyPin = "123456";
+  if (!savedEmergencyPin || savedEmergencyPin.trim().length !== 6 || !/^\d+$/.test(savedEmergencyPin.trim())) {
+    const inputPin = prompt("Please set your 6-digit Emergency PIN before starting Focus Lock:");
+    if (!inputPin || inputPin.trim().length !== 6 || !/^\d+$/.test(inputPin.trim())) {
+      alert("Emergency PIN is required to start Focus Lock. Please enter a valid 6-digit numeric PIN.");
+      return;
+    }
+    savedEmergencyPin = inputPin.trim();
+    chrome.runtime.sendMessage({ action: "syncPin", pin: savedEmergencyPin });
   }
 
   chrome.runtime.sendMessage(

@@ -18,15 +18,18 @@ const STORAGE_KEY_GROQ = 'academicAiKeyGroqV1';
 const STORAGE_AI_PROVIDER = 'academicAiProviderV1';
 const STORAGE_KEY_PIN = 'focusnyxEmergencyPinV1';
 
+import { useFocusContext } from '@/context/FocusContext';
+
 type AiProvider = 'gemini' | 'groq';
 
 export default function SettingsPage() {
+  const { isLocked } = useFocusContext();
   const { lang, interactionMode, setInteractionMode } = useLanguage();
   const [settingsTab, setSettingsTab] = useState<'general' | 'academic'>('general');
   const [provider, setProvider] = useState<AiProvider>('groq');
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [groqApiKey, setGroqApiKey] = useState('');
-  const [emergencyPin, setEmergencyPin] = useState('123456');
+  const [emergencyPin, setEmergencyPin] = useState('');
   const [userId, setUserId] = useState<string>('');
   const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -38,7 +41,7 @@ export default function SettingsPage() {
     async function loadKeys() {
       let gKey = "";
       let rKey = "";
-      let pin = "123456";
+      let pin = "";
       let prov: AiProvider = "groq";
 
       try {
@@ -63,15 +66,15 @@ export default function SettingsPage() {
 
           if (profile) {
             setUserId(user.id);
-            if (profile.emergency_pin && profile.emergency_pin !== "123456") {
+            if (profile.emergency_pin) {
               pin = profile.emergency_pin;
               localStorage.setItem(STORAGE_KEY_PIN, pin);
               localStorage.setItem(`focusnyxEmergencyPinV1_${user.id}`, pin);
             } else {
               const userPin = localStorage.getItem(`focusnyxEmergencyPinV1_${user.id}`);
               const globalPin = localStorage.getItem(STORAGE_KEY_PIN);
-              if (userPin && userPin !== "123456") pin = userPin;
-              else if (globalPin && globalPin !== "123456") pin = globalPin;
+              if (userPin) pin = userPin;
+              else if (globalPin) pin = globalPin;
             }
             if (profile.groq_api_key && !rKey) rKey = profile.groq_api_key;
             if (profile.gemini_api_key && !gKey) gKey = profile.gemini_api_key;
@@ -276,18 +279,26 @@ export default function SettingsPage() {
                     </span>
                   )}
                 </div>
+                {isLocked && (
+                  <p className="flex items-center gap-1.5 rounded-[10px] border-2 border-red-500 bg-red-50 p-2 text-xs font-bold text-red-600">
+                    <Lock size={14} className="shrink-0" /> Emergency PIN cannot be changed while Focus Mode is active.
+                  </p>
+                )}
                 <div className="relative">
                   <input
                     type={showKey ? 'text' : 'password'}
                     value={emergencyPin}
+                    disabled={isLocked}
                     onChange={(e) => {
                       const val = e.target.value.replace(/[^0-9]/g, '');
                       setEmergencyPin(val);
                     }}
-                    onBlur={() => void saveToDatabase()}
+                    onBlur={() => !isLocked && void saveToDatabase()}
                     placeholder="Enter 6 digit PIN (e.g., 123456)"
                     maxLength={6}
-                    className="w-full rounded-[10px] border-2 border-[var(--foreground)] bg-white px-3 py-2 pr-10 text-sm font-mono outline-none"
+                    className={`w-full rounded-[10px] border-2 border-[var(--foreground)] px-3 py-2 pr-10 text-sm font-mono outline-none ${
+                      isLocked ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-white"
+                    }`}
                   />
                   <button
                     type="button"
@@ -300,8 +311,11 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between gap-2">
                   <button
                     type="button"
-                    onClick={() => void saveToDatabase()}
-                    className="candy-button rounded-[10px] border-2 border-[var(--foreground)] px-4 py-2 text-xs font-black"
+                    disabled={isLocked}
+                    onClick={() => !isLocked && void saveToDatabase()}
+                    className={`candy-button rounded-[10px] border-2 border-[var(--foreground)] px-4 py-2 text-xs font-black ${
+                      isLocked ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
                   >
                     Save PIN
                   </button>

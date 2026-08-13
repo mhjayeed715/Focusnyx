@@ -96,40 +96,47 @@
     // postMessage bridge
     window.addEventListener("message", (event) => {
       if (!event.data || event.data.type !== "FOCUSNYX_WEB_APP_ACTION") return;
-      const { action, durationMinutes, duration, pin } = event.data;
-      const durationMins = durationMinutes || (duration ? duration / 60000 : 25);
+      const { action } = event.data;
+      const payload = event.data.payload;
+      const durationMins = event.data.durationMinutes || (typeof payload === "number" ? payload : payload?.durationMinutes) || (event.data.duration ? event.data.duration / 60000 : 25);
+      const pin = event.data.pin || (typeof payload === "object" ? payload?.pin : undefined);
+
       if (action === "startFocus") {
         safeSendMessage({
           action: "startFocus",
           duration: durationMins * 60 * 1000,
-          allowedUrls: event.data.allowedUrls || [],
-          pin: pin || "123456",
+          allowedUrls: event.data.allowedUrls || (typeof payload === "object" ? payload?.allowedUrls : []) || [],
+          pin: pin,
         }, (res) => { if (res) safeSendMessage({ action: "getStatus" }, postStateToWebApp); });
-      } else if (action === "endFocus") {
-        safeSendMessage({ action: "endFocus", pin: pin || "123456" },
+      } else if (action === "endFocus" || action === "pauseFocus") {
+        safeSendMessage({ action: "endFocus", pin: pin },
           (res) => { if (res) safeSendMessage({ action: "getStatus" }, postStateToWebApp); });
       } else if (action === "getStatus") {
         safeSendMessage({ action: "getStatus" }, postStateToWebApp);
       } else if (action === "updateWhitelist") {
-        safeSendMessage({ action: "updateWhitelist", allowedUrls: event.data.allowedUrls || [] });
+        safeSendMessage({ action: "updateWhitelist", allowedUrls: event.data.allowedUrls || (typeof payload === "object" ? payload?.allowedUrls : []) || [] });
       } else if (action === "syncPin") {
-        safeSendMessage({ action: "syncPin", pin: event.data.pin });
+        safeSendMessage({ action: "syncPin", pin: pin || event.data.pin });
       }
     });
 
     if (syncChannel) {
       syncChannel.onmessage = (event) => {
         if (!event.data || event.data.type !== "FOCUSNYX_WEB_APP_ACTION") return;
-        const { action, durationMinutes, pin } = event.data;
+        const { action } = event.data;
+        const payload = event.data.payload;
+        const durationMins = event.data.durationMinutes || (typeof payload === "number" ? payload : payload?.durationMinutes) || 25;
+        const pin = event.data.pin || (typeof payload === "object" ? payload?.pin : undefined);
+
         if (action === "startFocus") {
           safeSendMessage({
             action: "startFocus",
-            duration: (durationMinutes || 25) * 60 * 1000,
-            allowedUrls: event.data.allowedUrls || [],
-            pin: pin || "123456",
+            duration: durationMins * 60 * 1000,
+            allowedUrls: event.data.allowedUrls || (typeof payload === "object" ? payload?.allowedUrls : []) || [],
+            pin: pin,
           }, (res) => { if (res) safeSendMessage({ action: "getStatus" }, postStateToWebApp); });
-        } else if (action === "endFocus") {
-          safeSendMessage({ action: "endFocus", pin: pin || "123456" },
+        } else if (action === "endFocus" || action === "pauseFocus") {
+          safeSendMessage({ action: "endFocus", pin: pin },
             (res) => { if (res) safeSendMessage({ action: "getStatus" }, postStateToWebApp); });
         } else if (action === "getStatus") {
           safeSendMessage({ action: "getStatus" }, postStateToWebApp);

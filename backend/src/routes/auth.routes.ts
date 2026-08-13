@@ -53,7 +53,7 @@ async function getOrCreateDashboardUser(userId: string, email: string, fullName:
     completed_tasks_today: baseProfile.completedTasksToday,
     total_focus_time: baseProfile.totalFocusTime,
     sessions_completed: baseProfile.sessionsCompleted,
-    emergency_pin: existingProfile?.emergency_pin ?? "123456",
+    emergency_pin: existingProfile?.emergency_pin ?? null,
     last_active_at: new Date().toISOString(),
   };
 

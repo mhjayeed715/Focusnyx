@@ -20,7 +20,7 @@ create table if not exists profiles (
   gemini_api_key text,
   ai_provider text default 'groq',
   interaction_mode text not null default 'adhd' check (interaction_mode in ('adhd', 'standard')),
-  emergency_pin text default '123456',
+  emergency_pin text,
   last_active_at timestamptz,
   created_at timestamptz not null default now()
 );

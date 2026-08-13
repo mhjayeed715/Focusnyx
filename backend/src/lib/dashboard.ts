@@ -129,7 +129,7 @@ export function buildProfile(input: {
     completedTasksToday: input.completedTasksToday ?? 0,
     totalFocusTime: input.totalFocusTime ?? 0,
     sessionsCompleted: input.sessionsCompleted ?? 0,
-    emergencyPin: input.emergencyPin ?? "123456",
+    emergencyPin: input.emergencyPin ?? undefined,
     interactionMode: input.interactionMode ?? "adhd",
     xpIntoLevel: xpState.xpIntoLevel,
     xpNeededForNextLevel: xpState.xpNeededForNextLevel,

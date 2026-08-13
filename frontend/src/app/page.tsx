@@ -282,6 +282,10 @@ export default function HomePage() {
                 {label}
               </a>
             ))}
+            <Link href="/docs" className="flex items-center gap-1 font-bold text-[#8B5CF6] transition-transform hover:-translate-y-0.5 hover:text-[var(--accent)]">
+              <BookOpen size={16} />
+              {lang === "bn" ? "ডকুমেন্টেশন" : "Docs"}
+            </Link>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
@@ -335,6 +339,10 @@ export default function HomePage() {
                   <span className="grid h-7 w-7 place-items-center rounded-full bg-white text-[var(--foreground)] shadow-[2px_2px_0_0_#1E293B]">
                     <ArrowRight size={16} strokeWidth={2.5} />
                   </span>
+                </Link>
+                <Link href="/docs" className="secondary-button flex h-12 items-center justify-center gap-2 px-5 text-sm sm:h-14 sm:px-6 sm:text-base bg-[#FFF7D6]">
+                  <BookOpen size={18} strokeWidth={2.5} className="text-[#D97706]" />
+                  {lang === "bn" ? "ডকুমেন্টেশন" : "Docs"}
                 </Link>
                 <a href="/downloads/Focusnyx-Chrome-Extension.zip" download target="_blank" rel="noreferrer" className="secondary-button flex h-12 items-center justify-center gap-2 px-5 text-sm sm:h-14 sm:px-6 sm:text-base bg-[#ECFDF5]">
                   <Puzzle size={18} strokeWidth={2.5} className="text-[#059669]" />
