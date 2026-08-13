@@ -258,25 +258,25 @@ export default function HomePage() {
     : analyticsTiers;
 
   return (
-    <div className="min-h-screen overflow-x-visible bg-[var(--background)] text-[var(--foreground)] font-body">
+    <div className="min-h-screen overflow-x-hidden w-full bg-[var(--background)] text-[var(--foreground)] font-body">
       <header className="sticky top-0 z-50 border-b-2 border-[var(--foreground)] bg-white shadow-[0_4px_0_0_#1E293B]">
-        <nav className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-3">
+        <nav className="mx-auto flex w-full max-w-7xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-6 lg:px-8">
+          <Link href="/" className="flex items-center gap-3 shrink-0">
             <Image
               src="/icons/focusnyx.png"
               alt="Focusnyx"
-              width={48}
-              height={48}
-              className="h-12 w-12 rounded-xl border-2 border-[var(--foreground)] bg-white object-cover shadow-[4px_4px_0_0_#1E293B]"
+              width={44}
+              height={44}
+              className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl border-2 border-[var(--foreground)] bg-white object-cover shadow-[3px_3px_0_0_#1E293B]"
               priority
             />
             <div>
-              <p className="font-display text-xl font-black tracking-tight">Focusnyx</p>
-              <p className="text-xs font-semibold text-[var(--muted-fg)]">Student Life OS</p>
+              <p className="font-display text-lg sm:text-xl font-black tracking-tight">Focusnyx</p>
+              <p className="text-[10px] sm:text-xs font-semibold text-[var(--muted-fg)]">Student Life OS</p>
             </div>
           </Link>
 
-          <div className="hidden items-center gap-7 font-semibold lg:flex">
+          <div className="hidden items-center gap-5 font-semibold xl:flex xl:gap-7">
             {copy.nav.map((label, index) => (
               <a key={label} href={[["#features"], ["#analytics"], ["#timeline"], ["#about"]][index][0]} className="transition-transform hover:-translate-y-0.5 hover:text-[var(--accent)]">
                 {label}
@@ -288,17 +288,17 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <div className="shrink-0 flex items-center">
               <LanguageToggle />
             </div>
-            <Link href="/auth" className="secondary-button flex h-12 w-[6.25rem] shrink-0 items-center justify-center px-0 text-sm font-bold sm:w-[6.5rem]">
+            <Link href="/auth" className="secondary-button flex h-10 items-center justify-center px-3.5 text-xs font-bold sm:h-12 sm:px-5 sm:text-sm bg-white">
               Login
             </Link>
-            <Link href="/signup" className="candy-button flex h-12 w-[13.75rem] shrink-0 items-center justify-center gap-3 px-5 text-sm sm:w-[13.5rem] sm:px-6">
+            <Link href="/signup" className="candy-button flex h-10 items-center justify-center gap-2 px-3.5 text-xs font-bold sm:h-12 sm:px-5 sm:text-sm bg-[#8B5CF6] text-white">
               {lang === "bn" ? "ফ্রি শুরু করুন" : "Get Started Free"}
-              <span className="grid h-7 w-7 place-items-center rounded-full bg-white text-[var(--foreground)] shadow-[2px_2px_0_0_#1E293B]">
-                <ArrowRight size={16} strokeWidth={2.5} />
+              <span className="grid h-6 w-6 place-items-center rounded-full bg-white text-[var(--foreground)] shadow-[1px_1px_0_0_#1E293B]">
+                <ArrowRight size={14} strokeWidth={2.5} />
               </span>
             </Link>
           </div>
@@ -313,7 +313,7 @@ export default function HomePage() {
           <span className="float-slower absolute right-20 top-28 hidden h-16 w-16 rounded-full bg-[#34D399] lg:block" />
           <span className="absolute right-8 bottom-12 hidden h-10 w-10 rotate-12 rounded-md border-2 border-[var(--foreground)] bg-white lg:block" />
 
-          <div className="relative mx-auto grid max-w-7xl gap-10 px-4 pt-12 pb-24 sm:px-6 sm:pt-16 sm:pb-32 lg:grid-cols-[1fr_0.92fr] lg:px-8 lg:pt-20 lg:pb-36 xl:grid-cols-[1.02fr_0.98fr] xl:pb-40">
+          <div className="relative mx-auto grid max-w-7xl gap-8 px-4 pt-12 pb-24 sm:px-6 sm:pt-16 sm:pb-32 lg:grid-cols-2 lg:gap-8 lg:px-8 lg:pt-20 lg:pb-36 xl:pb-40">
             <motion.div
               initial={{ opacity: 0, y: 24, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -324,13 +324,13 @@ export default function HomePage() {
                  <Sparkles size={16} strokeWidth={2.5} />
                  {copy.header}
               </div>
-              <h1 className="mt-6 font-display text-5xl font-black leading-[0.95] tracking-tight text-[var(--foreground)] sm:text-6xl lg:text-6xl xl:text-7xl">
+              <h1 className="mt-6 font-display text-4xl font-black leading-[0.95] tracking-tight text-[var(--foreground)] sm:text-6xl lg:text-5xl xl:text-7xl">
                 {lang === "bn" ? "আপনার ছাত্রজীবন," : "Your Student Life,"}
                 <span className="block">
                   {lang === "bn" ? "অবশেষে" : "Finally"} <span className="relative inline-block px-2">{lang === "bn" ? "গোছানো" : "Organized"}<span className="absolute inset-x-0 bottom-0 -z-10 h-4 rounded-full bg-[#FBBF24]" /></span>.
                 </span>
               </h1>
-              <p className="mt-6 max-w-xl text-lg leading-8 text-[var(--muted-fg)] sm:text-xl">
+              <p className="mt-6 max-w-xl text-base leading-7 text-[var(--muted-fg)] sm:text-xl sm:leading-8">
                 {copy.hero}
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -367,9 +367,9 @@ export default function HomePage() {
               initial={{ opacity: 0, y: 30, scale: 0.92 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ delay: 0.12, duration: 0.75, ease: [0.34, 1.56, 0.64, 1] }}
-              className="relative min-h-[30rem] sm:min-h-[34rem] lg:min-h-[42rem] xl:min-h-[46rem]"
+              className="relative min-h-[28rem] sm:min-h-[34rem] lg:min-h-[38rem] xl:min-h-[42rem] w-full overflow-hidden"
             >
-              <div className="absolute inset-y-6 left-1/2 hidden w-60 -translate-x-1/2 rounded-full bg-[#FBBF24] lg:block" />
+              <div className="absolute inset-y-6 left-1/2 hidden w-56 -translate-x-1/2 rounded-full bg-[#FBBF24] lg:block" />
               <div className="memphis-dots absolute inset-0 rounded-[32px] border-2 border-[var(--foreground)] bg-[rgba(255,255,255,0.35)] opacity-80" />
 
               <span className="absolute left-5 top-8 h-4 w-4 rotate-45 rounded-sm bg-[#F472B6]" aria-hidden="true" />
@@ -378,8 +378,8 @@ export default function HomePage() {
               <span className="absolute right-8 bottom-8 h-4 w-4 rounded-full border-2 border-[var(--foreground)] bg-white" aria-hidden="true" />
 
               <motion.div
-                className="absolute left-1/2 top-1/2 z-10 w-[88%] -translate-x-1/2 -translate-y-1/2 rounded-[28px] border-2 border-[var(--foreground)] bg-white p-5 shadow-[8px_8px_0_0_#F472B6] sm:w-[80%] lg:w-[84%] xl:w-[78%]"
-                animate={{ y: [0, -10, 0] }}
+                className="absolute left-1/2 top-1/2 z-10 w-[94%] max-w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-[28px] border-2 border-[var(--foreground)] bg-white p-4 sm:p-5 shadow-[8px_8px_0_0_#F472B6]"
+                animate={{ y: [0, -8, 0] }}
                 transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}
               >
                 <div className="flex items-center justify-between gap-3">
