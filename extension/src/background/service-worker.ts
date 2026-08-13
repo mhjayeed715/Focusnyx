@@ -38,7 +38,7 @@ let _state: FocusState = {
   token: null,
   focusStartTime: null,
   focusDuration: 25 * 60 * 1000,
-  focusPIN: "123456",
+  focusPIN: "",
 };
 
 function normalizeDomain(raw: string): string {
@@ -141,7 +141,7 @@ function notifyAllTabs(isActive: boolean) {
   });
 }
 
-function syncCompanionApp(isStart: boolean, durationMins = 25, pin = "123456") {
+function syncCompanionApp(isStart: boolean, durationMins = 25, pin = "") {
   const endpoint = isStart ? "http://localhost:5000/start-focus" : "http://localhost:5000/end-focus";
   fetch(endpoint, {
     method: "POST",
@@ -331,7 +331,7 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
         [...PWA_SEED_URLS, ...listToSeed].map((v) => normalizeDomain(String(v || ""))).filter(Boolean)
       ));
 
-      const pin = request.pin || _state.focusPIN || "123456";
+      const pin = request.pin || _state.focusPIN || "";
       const token = request.token || _state.token;
       const sessionId = request.sessionId || `session-${Date.now()}`;
       const userId = request.userId || _state.userId;
@@ -364,9 +364,9 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
 
   if (request.action === "endFocus" || request.type === "STOP_SESSION") {
     (async () => {
-      const storedPin = _state.focusPIN || "123456";
+      const storedPin = _state.focusPIN || "";
       const pin = request.pin;
-      if (!pin || pin === storedPin || pin === "123456") {
+      if (!pin || (storedPin && pin === storedPin)) {
         chrome.alarms.clear("autoUnlockFocus");
         syncCompanionApp(false, 0, pin || storedPin);
         _state.active = false;

@@ -80,10 +80,10 @@
             action: "startFocus",
             duration: (durationMinutes || 25) * 60 * 1000,
             allowedUrls: parsed.allowedUrls || [],
-            pin: pin || "123456",
+            pin: pin || "",
           }, (res) => { if (res) safeSendMessage({ action: "getStatus" }, postStateToWebApp); });
         } else if (action === "endFocus") {
-          safeSendMessage({ action: "endFocus", pin: pin || "123456" },
+          safeSendMessage({ action: "endFocus", pin: pin || "" },
             (res) => { if (res) safeSendMessage({ action: "getStatus" }, postStateToWebApp); });
         } else if (action === "updateWhitelist") {
           safeSendMessage({ action: "updateWhitelist", allowedUrls: parsed.allowedUrls || [] });

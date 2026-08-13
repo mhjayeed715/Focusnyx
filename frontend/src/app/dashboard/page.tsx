@@ -269,12 +269,15 @@ export default function DashboardPage() {
         localStorage.setItem("userEmail", dashboard.profile.email);
         localStorage.setItem("userFullName", dashboard.profile.fullName);
         localStorage.setItem("focusnyxUserId", dashboard.profile.id);
-        // Only overwrite PIN if DB has a real custom PIN (not the default)
         const dbPin = dashboard.profile.emergencyPin;
-        if (dbPin && dbPin !== "123456") {
+        if (dbPin && dbPin.trim().length === 6) {
           localStorage.setItem("focusnyxEmergencyPinV1", dbPin);
-        } else if (!localStorage.getItem("focusnyxEmergencyPinV1")) {
-          localStorage.setItem("focusnyxEmergencyPinV1", dbPin || "123456");
+          localStorage.setItem(`focusnyxEmergencyPinV1_${dashboard.profile.id}`, dbPin);
+        } else {
+          localStorage.removeItem("focusnyxEmergencyPinV1");
+          if (dashboard.profile.id) {
+            localStorage.removeItem(`focusnyxEmergencyPinV1_${dashboard.profile.id}`);
+          }
         }
       } catch {
         // ignore

@@ -60,7 +60,7 @@ focus_state = {
     "is_active": False,
     "start_time": None,
     "duration_minutes": 25,
-    "pin": os.getenv("DEFAULT_PIN", "123456"),
+    "pin": os.getenv("DEFAULT_PIN", ""),
     "blocks_count": 0,
 }
 
@@ -124,8 +124,8 @@ def stop_focus_session(provided_pin=None):
 
     if provided_pin:
         clean_provided = str(provided_pin).strip()
-        clean_stored = str(focus_state.get("pin", "123456")).strip()
-        if clean_provided != clean_stored and clean_provided != "123456":
+        clean_stored = str(focus_state.get("pin", "")).strip()
+        if clean_stored and clean_provided != clean_stored:
             sync.log_event("unlock_failed", f"Incorrect PIN attempt: {clean_provided}")
             return False, "Incorrect 6-digit PIN"
 

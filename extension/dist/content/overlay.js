@@ -70,13 +70,13 @@
             action: "startFocus",
             duration: (durationMinutes || 25) * 60 * 1e3,
             allowedUrls: parsed.allowedUrls || [],
-            pin: pin || "123456"
+            pin: pin || ""
           }, (res) => {
             if (res) safeSendMessage({ action: "getStatus" }, postStateToWebApp2);
           });
         } else if (action === "endFocus") {
           safeSendMessage(
-            { action: "endFocus", pin: pin || "123456" },
+            { action: "endFocus", pin: pin || "" },
             (res) => {
               if (res) safeSendMessage({ action: "getStatus" }, postStateToWebApp2);
             }
