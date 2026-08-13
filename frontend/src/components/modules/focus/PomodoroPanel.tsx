@@ -27,6 +27,7 @@ import {
   RotateCcw,
   Settings,
   ShieldAlert,
+  ShieldCheck,
   Sparkles,
   Target,
   TimerReset,
