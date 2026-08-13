@@ -466,6 +466,20 @@ export function PomodoroPanel() {
   const [setPinModalError, setSetPinModalError] = useState("");
   const [profile, setProfile] = useState<any>(null);
 
+  useEffect(() => {
+    if (showSetPinModal) {
+      setNewPinInput("");
+      setSetPinModalError("");
+    }
+  }, [showSetPinModal]);
+
+  useEffect(() => {
+    if (showPinModal) {
+      setEmergencyPinInput("");
+      setPinError("");
+    }
+  }, [showPinModal]);
+
   // Custom Whitelist / Blacklist State
   const [newSiteInput, setNewSiteInput] = useState("");
   const [blockedApps, setBlockedApps] = useState<string[]>([
@@ -2054,6 +2068,14 @@ export function PomodoroPanel() {
                 </p>
                 <input
                   type="password"
+                  name="focusnyx_exit_pin_no_autofill"
+                  id="focusnyx_exit_pin_no_autofill"
+                  autoComplete="one-time-code"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  data-lpignore="true"
+                  data-form-type="other"
                   maxLength={6}
                   value={emergencyPinInput}
                   onChange={(e) => setEmergencyPinInput(e.target.value.replace(/\D/g, ""))}
@@ -2091,6 +2113,14 @@ export function PomodoroPanel() {
                 </p>
                 <input
                   type="password"
+                  name="focusnyx_new_pin_no_autofill"
+                  id="focusnyx_new_pin_no_autofill"
+                  autoComplete="one-time-code"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  data-lpignore="true"
+                  data-form-type="other"
                   maxLength={6}
                   value={newPinInput}
                   onChange={(e) => setNewPinInput(e.target.value.replace(/\D/g, ""))}

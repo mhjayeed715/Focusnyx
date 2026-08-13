@@ -291,6 +291,14 @@ export default function SettingsPage() {
                 <div className="relative">
                   <input
                     type={showKey ? 'text' : 'password'}
+                    name="focusnyx_settings_pin_no_autofill"
+                    id="focusnyx_settings_pin_no_autofill"
+                    autoComplete="one-time-code"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    data-lpignore="true"
+                    data-form-type="other"
                     value={emergencyPin}
                     disabled={isLocked}
                     onChange={(e) => {
@@ -298,7 +306,7 @@ export default function SettingsPage() {
                       setEmergencyPin(val);
                     }}
                     onBlur={() => !isLocked && void saveToDatabase()}
-                    placeholder="Enter 6 digit PIN (e.g., 123456)"
+                    placeholder="Enter 6 digit PIN (e.g., 849201)"
                     maxLength={6}
                     className={`w-full rounded-[10px] border-2 border-[var(--foreground)] px-3 py-2 pr-10 text-sm font-mono outline-none ${
                       isLocked ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-white"
