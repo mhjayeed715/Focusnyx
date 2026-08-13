@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { syncDashboardProfile } from "@/lib/backend";
 import { ArrowLeft } from "lucide-react";
 
 type Lang = "en" | "bn";
