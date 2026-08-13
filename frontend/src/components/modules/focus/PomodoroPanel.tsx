@@ -128,6 +128,8 @@ const COMMON_APPS = [
   { name: "WhatsApp", exe: "whatsapp.exe", iconUrl: "https://www.google.com/s2/favicons?domain=whatsapp.com&sz=64" },
   { name: "Chrome", exe: "chrome.exe", iconUrl: "https://www.google.com/s2/favicons?domain=google.com&sz=64" },
   { name: "Edge", exe: "msedge.exe", iconUrl: "https://www.google.com/s2/favicons?domain=microsoft.com&sz=64" },
+  { name: "Brave Browser", exe: "brave.exe", iconUrl: "https://www.google.com/s2/favicons?domain=brave.com&sz=64" },
+  { name: "Firefox", exe: "firefox.exe", iconUrl: "https://www.google.com/s2/favicons?domain=mozilla.org&sz=64" },
   { name: "VS Code", exe: "code.exe", iconUrl: "https://www.google.com/s2/favicons?domain=code.visualstudio.com&sz=64" },
 ];
 
@@ -508,6 +510,14 @@ export function PomodoroPanel() {
 
         if (data.profile) {
           setProfile(data.profile);
+          if (Array.isArray(data.profile.whitelistedSites) && data.profile.whitelistedSites.length > 0) {
+            setBlockedSites(data.profile.whitelistedSites);
+            try { localStorage.setItem("focusnyxWhitelistedSitesV1", JSON.stringify(data.profile.whitelistedSites)); } catch {}
+          }
+          if (Array.isArray(data.profile.blockedApps) && data.profile.blockedApps.length > 0) {
+            setBlockedApps(data.profile.blockedApps);
+            try { localStorage.setItem("focusnyxBlockedAppsV1", JSON.stringify(data.profile.blockedApps)); } catch {}
+          }
         }
 
         if (data.tasks && data.tasks.length > 0) {
@@ -946,6 +956,28 @@ export function PomodoroPanel() {
     setSelectedMimeType(res.type === "youtube" ? "video/youtube" : res.type === "pdf" ? "application/pdf" : res.mimeType || "image/");
   };
 
+  const persistWhitelistAndApps = async (nextSites: DistractionSite[], nextApps: string[]) => {
+    setBlockedSites(nextSites);
+    setBlockedApps(nextApps);
+    try {
+      localStorage.setItem("focusnyxWhitelistedSitesV1", JSON.stringify(nextSites));
+      localStorage.setItem("focusnyxBlockedAppsV1", JSON.stringify(nextApps));
+    } catch {}
+
+    syncBlocklistToAll(nextSites, nextApps);
+
+    try {
+      const sb = createClient();
+      const { data: { user } } = await sb.auth.getUser();
+      if (user) {
+        await sb.from("profiles").update({
+          whitelisted_sites: nextSites,
+          blocked_apps: nextApps,
+        }).eq("id", user.id);
+      }
+    } catch {}
+  };
+
   const handleAddCustomSite = () => {
     const raw = newSiteInput.trim().toLowerCase();
     if (!raw) return;
@@ -955,16 +987,20 @@ export function PomodoroPanel() {
       return;
     }
     const nextSites = [...blockedSites, { site: clean, enabled: true, blocked: 0 }];
-    setBlockedSites(nextSites);
     setNewSiteInput("");
-    syncBlocklistToAll(nextSites, blockedApps);
+    void persistWhitelistAndApps(nextSites, blockedApps);
     toast.success(`Added ${clean} to whitelist`);
   };
 
   const handleRemoveSite = (site: string) => {
     const nextSites = blockedSites.filter((s) => s.site !== site);
-    setBlockedSites(nextSites);
-    syncBlocklistToAll(nextSites, blockedApps);
+    void persistWhitelistAndApps(nextSites, blockedApps);
+    toast.success(`Removed ${site} from whitelist`);
+  };
+
+  const handleToggleSite = (site: string) => {
+    const nextSites = blockedSites.map((s) => (s.site === site ? { ...s, enabled: !s.enabled } : s));
+    void persistWhitelistAndApps(nextSites, blockedApps);
   };
 
   const handleAddCustomApp = () => {
@@ -976,16 +1012,15 @@ export function PomodoroPanel() {
       return;
     }
     const nextApps = [...blockedApps, exe];
-    setBlockedApps(nextApps);
     setNewAppInput("");
-    syncBlocklistToAll(blockedSites, nextApps);
+    void persistWhitelistAndApps(blockedSites, nextApps);
     toast.success(`Added ${exe} to blocked apps`);
   };
 
   const handleRemoveApp = (app: string) => {
     const nextApps = blockedApps.filter((a) => a !== app);
-    setBlockedApps(nextApps);
-    syncBlocklistToAll(blockedSites, nextApps);
+    void persistWhitelistAndApps(blockedSites, nextApps);
+    toast.success(`Removed ${app} from blocked apps`);
   };
 
   const toggleFullscreen = async () => {

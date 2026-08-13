@@ -33,7 +33,7 @@ let _state: FocusState = {
   active: false,
   sessionId: null,
   blocklist: [],
-  allowedUrls: [...PWA_SEED_URLS, ...DEFAULT_WHITELISTED_DOMAINS],
+  allowedUrls: [],
   userId: null,
   token: null,
   focusStartTime: null,
@@ -98,7 +98,7 @@ async function loadState(): Promise<void> {
         _state = { ..._state, ...data.focusState };
         // Ensure allowedUrls is always an array
         if (!Array.isArray(_state.allowedUrls)) {
-          _state.allowedUrls = [...PWA_SEED_URLS, ...DEFAULT_WHITELISTED_DOMAINS];
+          _state.allowedUrls = [];
         }
       }
       if (data.pin) _state.focusPIN = data.pin;

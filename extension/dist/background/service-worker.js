@@ -137,7 +137,7 @@ var _state = {
   active: false,
   sessionId: null,
   blocklist: [],
-  allowedUrls: [...PWA_SEED_URLS, ...DEFAULT_WHITELISTED_DOMAINS],
+  allowedUrls: [],
   userId: null,
   token: null,
   focusStartTime: null,
@@ -182,7 +182,7 @@ async function loadState() {
       if (data.focusState) {
         _state = { ..._state, ...data.focusState };
         if (!Array.isArray(_state.allowedUrls)) {
-          _state.allowedUrls = [...PWA_SEED_URLS, ...DEFAULT_WHITELISTED_DOMAINS];
+          _state.allowedUrls = [];
         }
       }
       if (data.pin) _state.focusPIN = data.pin;

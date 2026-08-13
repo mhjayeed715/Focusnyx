@@ -21,6 +21,8 @@ create table if not exists profiles (
   ai_provider text default 'groq',
   interaction_mode text not null default 'adhd' check (interaction_mode in ('adhd', 'standard')),
   emergency_pin text,
+  whitelisted_sites jsonb default '[]',
+  blocked_apps jsonb default '[]',
   last_active_at timestamptz,
   created_at timestamptz not null default now()
 );

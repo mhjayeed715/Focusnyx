@@ -255,6 +255,8 @@ export async function getDashboardBootstrap() {
       xpNeededForNextLevel: levelState.xpNeededForNextLevel,
       xpProgressPercent: levelState.xpProgressPercent,
       emergencyPin: profile?.emergency_pin ?? null,
+      whitelistedSites: Array.isArray(profile?.whitelisted_sites) ? profile.whitelisted_sites : [],
+      blockedApps: Array.isArray(profile?.blocked_apps) ? profile.blocked_apps : [],
       interactionMode: (profile?.interaction_mode as "adhd" | "standard") ?? "adhd",
     };
 

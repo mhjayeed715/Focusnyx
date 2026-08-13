@@ -528,29 +528,53 @@ def start_gui():
             return
         start_focus_session(mins)
 
+    def notify_web_and_extension_stop():
+        try:
+            import urllib.request
+            req = urllib.request.Request("http://localhost:38124/api/stop-focus", method="POST")
+            urllib.request.urlopen(req, timeout=2)
+        except Exception:
+            pass
+
     def gui_end():
         if not focus_state["is_active"]:
             messagebox.showinfo("Focusnyx", "No active focus session!")
             return
-        pin = simpledialog.askstring("Emergency Exit", "Enter 6-digit Emergency PIN:", show="*")
-        if pin is not None:
-            clean_pin = pin.strip()
-            if not clean_pin:
-                messagebox.showwarning("Emergency Exit", "Please enter your 6-digit PIN.")
-                return
-            success, msg = stop_focus_session(clean_pin)
-            if not success:
-                messagebox.showerror("Emergency Exit", msg)
-            else:
-                messagebox.showinfo("Emergency Exit", "Focus Lock Released!")
+        was_blocking = keyboard_blocker.is_blocking
+        if was_blocking:
+            keyboard_blocker.stop_blocking()
+        try:
+            pin = simpledialog.askstring("Emergency Exit", "Enter 6-digit Emergency PIN:", show="*")
+            if pin is not None:
+                clean_pin = pin.strip()
+                if not clean_pin:
+                    messagebox.showwarning("Emergency Exit", "Please enter your 6-digit PIN.")
+                    return
+                success, msg = stop_focus_session(clean_pin)
+                if not success:
+                    messagebox.showerror("Emergency Exit", msg)
+                else:
+                    messagebox.showinfo("Emergency Exit", "Focus Lock Released!")
+                    threading.Thread(target=notify_web_and_extension_stop, daemon=True).start()
+        finally:
+            if focus_state["is_active"] and was_blocking:
+                keyboard_blocker.start_blocking()
 
     def gui_force_unlock():
         if not focus_state["is_active"]:
             messagebox.showinfo("Focusnyx", "No active focus session!")
             return
-        if messagebox.askyesno("Force Unlock", "WARNING: This will forcefully terminate the Focus Lock without a PIN. Use only if you are locked out of your browser. Proceed?"):
-            stop_focus_session(focus_state["pin"])
-            messagebox.showinfo("Force Unlock", "System forcefully unlocked.")
+        was_blocking = keyboard_blocker.is_blocking
+        if was_blocking:
+            keyboard_blocker.stop_blocking()
+        try:
+            if messagebox.askyesno("Force Unlock", "WARNING: This will forcefully terminate the Focus Lock without a PIN. Use only if you are locked out of your browser. Proceed?"):
+                stop_focus_session(focus_state["pin"])
+                messagebox.showinfo("Force Unlock", "System forcefully unlocked.")
+                threading.Thread(target=notify_web_and_extension_stop, daemon=True).start()
+        finally:
+            if focus_state["is_active"] and was_blocking:
+                keyboard_blocker.start_blocking()
 
     def gui_open_app():
         webbrowser.open("https://focusnyx.vercel.app/focus")
