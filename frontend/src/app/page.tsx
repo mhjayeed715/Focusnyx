@@ -340,15 +340,15 @@ export default function HomePage() {
                     <ArrowRight size={16} strokeWidth={2.5} />
                   </span>
                 </Link>
-                <Link href="/docs" className="secondary-button flex h-12 items-center justify-center gap-2 px-5 text-sm sm:h-14 sm:px-6 sm:text-base bg-[#FBBF24] hover:bg-[#F59E0B] text-[#1E293B]">
+                <Link href="/docs" className="secondary-button flex h-12 items-center justify-center gap-2 px-5 text-sm sm:h-14 sm:px-6 sm:text-base bg-[#FBBF24] hover:bg-[#FDE68A] text-[#1E293B]">
                   <BookOpen size={18} strokeWidth={2.5} className="text-[#1E293B]" />
                   {lang === "bn" ? "ডকুমেন্টেশন" : "Docs"}
                 </Link>
-                <a href="/downloads/Focusnyx-Chrome-Extension.zip" download target="_blank" rel="noreferrer" className="secondary-button flex h-12 items-center justify-center gap-2 px-5 text-sm sm:h-14 sm:px-6 sm:text-base bg-[#34D399] hover:bg-[#10B981] text-[#1E293B]">
+                <a href="/downloads/Focusnyx-Chrome-Extension.zip" download target="_blank" rel="noreferrer" className="secondary-button flex h-12 items-center justify-center gap-2 px-5 text-sm sm:h-14 sm:px-6 sm:text-base bg-[#34D399] hover:bg-[#A7F3D0] text-[#1E293B]">
                   <Puzzle size={18} strokeWidth={2.5} className="text-[#1E293B]" />
                   {lang === "bn" ? "এক্সটেনশন (ZIP)" : "Extension (ZIP)"}
                 </a>
-                <a href="/downloads/FocusnyxCompanionApp-Windows.zip" download target="_blank" rel="noreferrer" className="secondary-button flex h-12 items-center justify-center gap-2 px-5 text-sm sm:h-14 sm:px-6 sm:text-base bg-[#F472B6] hover:bg-[#EC4899] text-[#1E293B]">
+                <a href="/downloads/FocusnyxCompanionApp-Windows.zip" download target="_blank" rel="noreferrer" className="secondary-button flex h-12 items-center justify-center gap-2 px-5 text-sm sm:h-14 sm:px-6 sm:text-base bg-[#F472B6] hover:bg-[#FBCFE8] text-[#1E293B]">
                   <Laptop size={18} strokeWidth={2.5} className="text-[#1E293B]" />
                   {lang === "bn" ? "কম্প্যানিয়ন (Windows EXE)" : "Companion (Windows)"}
                 </a>
