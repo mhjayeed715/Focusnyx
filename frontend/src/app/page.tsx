@@ -367,19 +367,19 @@ export default function HomePage() {
               initial={{ opacity: 0, y: 30, scale: 0.92 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ delay: 0.12, duration: 0.75, ease: [0.34, 1.56, 0.64, 1] }}
-              className="relative min-h-[28rem] sm:min-h-[34rem] lg:min-h-[38rem] xl:min-h-[42rem] w-full overflow-hidden"
+              className="relative flex items-center justify-center p-3 sm:p-6 w-full min-h-[30rem] sm:min-h-[34rem]"
             >
-              <div className="absolute inset-y-6 left-1/2 hidden w-56 -translate-x-1/2 rounded-full bg-[#FBBF24] lg:block" />
               <div className="memphis-dots absolute inset-0 rounded-[32px] border-2 border-[var(--foreground)] bg-[rgba(255,255,255,0.35)] opacity-80" />
+              <div className="absolute inset-y-6 left-1/2 hidden w-56 -translate-x-1/2 rounded-full bg-[#FBBF24] lg:block" />
 
-              <span className="absolute left-5 top-8 h-4 w-4 rotate-45 rounded-sm bg-[#F472B6]" aria-hidden="true" />
-              <span className="absolute right-5 top-20 h-4 w-4 rounded-full bg-[#34D399]" aria-hidden="true" />
-              <span className="absolute left-8 bottom-16 h-4 w-4 rotate-45 rounded-sm bg-[#FBBF24]" aria-hidden="true" />
-              <span className="absolute right-8 bottom-8 h-4 w-4 rounded-full border-2 border-[var(--foreground)] bg-white" aria-hidden="true" />
+              <span className="absolute left-3 top-4 h-4 w-4 rotate-45 rounded-sm bg-[#F472B6]" aria-hidden="true" />
+              <span className="absolute right-3 top-8 h-4 w-4 rounded-full bg-[#34D399]" aria-hidden="true" />
+              <span className="absolute left-4 bottom-6 h-4 w-4 rotate-45 rounded-sm bg-[#FBBF24]" aria-hidden="true" />
+              <span className="absolute right-4 bottom-4 h-4 w-4 rounded-full border-2 border-[var(--foreground)] bg-white" aria-hidden="true" />
 
               <motion.div
-                className="absolute left-1/2 top-1/2 z-10 w-[94%] max-w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-[28px] border-2 border-[var(--foreground)] bg-white p-4 sm:p-5 shadow-[8px_8px_0_0_#F472B6]"
-                animate={{ y: [0, -8, 0] }}
+                className="relative z-10 w-full max-w-[480px] rounded-[28px] border-2 border-[var(--foreground)] bg-white p-4 sm:p-5 shadow-[8px_8px_0_0_#F472B6]"
+                animate={{ y: [0, -6, 0] }}
                 transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}
               >
                 <div className="flex items-center justify-between gap-3">

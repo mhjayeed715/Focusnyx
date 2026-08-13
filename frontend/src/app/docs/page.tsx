@@ -166,14 +166,14 @@ export default function DocsPage() {
                 <button
                   key={sec.id}
                   onClick={() => scrollToSection(sec.id)}
-                  className={`candy-button flex items-center gap-2 rounded-full border-2 border-[var(--foreground)] px-4 py-2 text-xs font-black transition-all ${
+                  className={`flex items-center gap-2 rounded-full border-2 border-[var(--foreground)] px-4 py-2.5 text-xs font-black transition-all ${
                     isActive
-                      ? "bg-[#8B5CF6] text-white shadow-[4px_4px_0_0_#1E293B]"
-                      : "bg-white text-[var(--foreground)] hover:bg-[#FFF7D6]"
+                      ? "bg-[#8B5CF6] text-white shadow-[4px_4px_0_0_#1E293B] translate-y-[-2px]"
+                      : "bg-white text-[#1E293B] hover:bg-[#F3E8FF] hover:text-[#7C3AED] shadow-[2px_2px_0_0_#1E293B]"
                   }`}
                 >
-                  <Icon size={16} />
-                  {sec.label}
+                  <Icon size={16} className={isActive ? "text-white" : "text-[#8B5CF6]"} />
+                  <span className={isActive ? "text-white" : "text-[#1E293B]"}>{sec.label}</span>
                 </button>
               );
             })}
