@@ -36,7 +36,7 @@ export default function DocsPage() {
 
   const sections = [
     { id: "academic", label: lang === "bn" ? "একাডেমিক ফোর্জ" : "Academic Forge", icon: GraduationCap },
-    { id: "detox", label: lang === "bn" ? "ডোপামিন ডি特ক্স" : "Dopamine Detox", icon: Lock },
+    { id: "detox", label: lang === "bn" ? "ডোপামিন ডিটক্স" : "Dopamine Detox", icon: Lock },
     { id: "notes", label: lang === "bn" ? "স্মার্ট নোটস" : "Smart Notes & AI", icon: NotebookPen },
     { id: "finance", label: lang === "bn" ? "ফাইন্যান্স ট্র্যাকার" : "Finance Tracker", icon: CircleDollarSign },
     { id: "wellness", label: lang === "bn" ? "ওয়েলনেস শিল্ড" : "Wellness Shield", icon: HeartPulse },
@@ -118,7 +118,7 @@ export default function DocsPage() {
 
           <div className="flex items-center gap-2 sm:gap-3">
             <LanguageToggle />
-            <Link href="/auth" className="secondary-button flex h-10 items-center justify-center px-3 text-xs font-bold sm:h-12 sm:px-5 sm:text-sm bg-white">
+            <Link href="/auth" className="secondary-button flex h-10 items-center justify-center px-4 text-xs font-bold sm:h-12 sm:px-5 sm:text-sm bg-white">
               {lang === "bn" ? "লগইন" : "Login"}
             </Link>
             <Link href="/signup" className="candy-button flex h-10 items-center justify-center gap-2 bg-[#8B5CF6] px-4 text-xs font-bold text-white sm:h-12 sm:px-6 sm:text-sm">
@@ -197,7 +197,7 @@ export default function DocsPage() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 mt-6">
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#F3E8FF] p-5">
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-white p-5 shadow-[4px_4px_0_0_#1E293B]">
                 <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
                   <Sparkles size={18} className="text-[#8B5CF6]" />
                   {lang === "bn" ? "CGPA মোমেন্টাম এস্টিমেটর" : "CGPA Momentum Estimator"}
@@ -208,7 +208,7 @@ export default function DocsPage() {
                 </ul>
               </div>
 
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#ECFDF5] p-5">
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-white p-5 shadow-[4px_4px_0_0_#1E293B]">
                 <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
                   <CheckCircle2 size={18} className="text-[#34D399]" />
                   {lang === "bn" ? "মাইক্রো-টাস্ক ও XP রিওয়ার্ড" : "Micro-Task Breakdowns & XP Rewards"}
@@ -236,7 +236,7 @@ export default function DocsPage() {
             </div>
 
             <div className="space-y-4 mt-6">
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#FFF7D6] p-5">
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#FFF7D6] p-5 shadow-[4px_4px_0_0_#1E293B]">
                 <h3 className="font-bold text-lg mb-2 flex items-center gap-2 text-[#D97706]">
                   <Key size={18} />
                   {lang === "bn" ? "ইমার্জেন্সি পিন এনফোর্সমেন্ট (6-Digit Emergency PIN)" : "6-Digit Emergency PIN Rules"}
@@ -249,7 +249,7 @@ export default function DocsPage() {
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#ECFDF5] p-5">
+                <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-white p-5 shadow-[4px_4px_0_0_#1E293B]">
                   <h4 className="font-bold text-base mb-1 flex items-center gap-2 text-[#059669]">
                     <Puzzle size={16} /> Chrome Extension Focus Lock
                   </h4>
@@ -260,7 +260,7 @@ export default function DocsPage() {
                   </p>
                 </div>
 
-                <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#F3E8FF] p-5">
+                <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-white p-5 shadow-[4px_4px_0_0_#1E293B]">
                   <h4 className="font-bold text-base mb-1 flex items-center gap-2 text-[#7C3AED]">
                     <Laptop size={16} /> Windows Companion App (OS Lock)
                   </h4>
@@ -289,7 +289,7 @@ export default function DocsPage() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 mt-6">
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#FFF7D6] p-5">
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-white p-5 shadow-[4px_4px_0_0_#1E293B]">
                 <h3 className="font-bold text-lg mb-2 flex items-center gap-2 text-[#D97706]">
                   <Mic size={18} />
                   {lang === "bn" ? "কন্টিনিউয়াস ভয়েস নোটস (Speech-to-Text)" : "Bilingual Continuous Voice Notes"}
@@ -301,7 +301,7 @@ export default function DocsPage() {
                 </p>
               </div>
 
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#FCE7F3] p-5">
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-white p-5 shadow-[4px_4px_0_0_#1E293B]">
                 <h3 className="font-bold text-lg mb-2 flex items-center gap-2 text-[#DB2777]">
                   <BrainCircuit size={18} />
                   {lang === "bn" ? "AI কুইজ জেনারেটর (MCQ / Short Q&A / Essay)" : "AI Active Recall Quizzes"}
@@ -330,21 +330,21 @@ export default function DocsPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-3 mt-6">
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#ECFDF5] p-4">
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-white p-4 shadow-[4px_4px_0_0_#1E293B]">
                 <h3 className="font-bold text-base mb-1 text-[#059669]">{lang === "bn" ? "আয়-ব্যয় হিসাব" : "Income & Expense Ledger"}</h3>
                 <p className="text-xs text-[var(--muted-fg)] leading-relaxed font-medium">
                   {lang === "bn" ? "bKash, Nagad ও ক্যাশ খরচের ক্যাটাগরিভিত্তিক হিসাব রাখুন।" : "Log allowance, food, transport, and tuition expenses with bKash/Nagad tags."}
                 </p>
               </div>
 
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#FFF7D6] p-4">
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-white p-4 shadow-[4px_4px_0_0_#1E293B]">
                 <h3 className="font-bold text-base mb-1 text-[#D97706]">{lang === "bn" ? "ধার/কর্জ ট্র্যাকার" : "Peer Debts Tracker"}</h3>
                 <p className="text-xs text-[var(--muted-fg)] leading-relaxed font-medium">
                   {lang === "bn" ? "বন্ধুদের পাওনা বা ধারের টাকা ট্র্যাক করে রাখুন।" : "Keep track of lent or borrowed money with friends until settled."}
                 </p>
               </div>
 
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#F3E8FF] p-4">
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-white p-4 shadow-[4px_4px_0_0_#1E293B]">
                 <h3 className="font-bold text-base mb-1 text-[#7C3AED]">{lang === "bn" ? "সেভিংস গোলস" : "Savings Goals"}</h3>
                 <p className="text-xs text-[var(--muted-fg)] leading-relaxed font-medium">
                   {lang === "bn" ? "বই, কোর্স বা ডিভাইসের জন্য সঞ্চয়ের লক্ষ্য তৈরি করুন।" : "Track savings progress for books, courses, or gadgets with target dates."}
@@ -368,7 +368,7 @@ export default function DocsPage() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 mt-6">
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#FCE7F3] p-5">
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-white p-5 shadow-[4px_4px_0_0_#1E293B]">
                 <h3 className="font-bold text-lg mb-2 flex items-center gap-2 text-[#DB2777]">
                   <HeartPulse size={18} />
                   {lang === "bn" ? "ঘুম ও মুড ট্র্যাকার" : "Sleep & Mood Logging"}
@@ -380,7 +380,7 @@ export default function DocsPage() {
                 </p>
               </div>
 
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#ECFDF5] p-5">
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-white p-5 shadow-[4px_4px_0_0_#1E293B]">
                 <h3 className="font-bold text-lg mb-2 flex items-center gap-2 text-[#059669]">
                   <ShieldCheck size={18} />
                   {lang === "bn" ? "বার্নআউট প্রিভেনশন স্কোর" : "Burnout Prevention Index"}
@@ -408,7 +408,7 @@ export default function DocsPage() {
               </div>
             </div>
 
-            <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#ECFDF5] p-5 mt-4 space-y-3">
+            <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#ECFDF5] p-5 mt-4 space-y-3 shadow-[4px_4px_0_0_#1E293B]">
               <h3 className="font-bold text-lg flex items-center gap-2 text-[#059669]">
                 <Sparkles size={18} />
                 {lang === "bn" ? "দৈনিক ৫টি ফ্রি AI কোয়েরি কোটা" : "5 Free Daily AI Queries Quota"}
@@ -418,7 +418,7 @@ export default function DocsPage() {
                   ? "নিজের API Key না থাকলে প্রতিটি ইউজার প্রতিদিন ৫টি AI কোয়েরি (ফ্লোটিং চ্যাটবট ও কুইজ) বিনামূল্যে পাবেন। এটি প্রতিদিন রাত ১২:০০ টায় (12:00 AM BDT) রিসেট হয়।"
                   : "Users without a custom API key get 5 free AI queries daily (floating chatbot, active recall quizzes). The quota resets automatically at 12:00 AM BDT (6:00 PM UTC)."}
               </p>
-              <div className="rounded-[12px] border-2 border-[var(--foreground)] bg-white p-3 text-xs font-semibold text-[var(--muted-fg)]">
+              <div className="rounded-[12px] border-2 border-[var(--foreground)] bg-white p-3 text-xs font-semibold text-[var(--muted-fg)] shadow-[2px_2px_0_0_#1E293B]">
                 💡 <strong>{lang === "bn" ? "আনলিমিটেড ব্যবহারের জন্য:" : "For Unlimited AI Queries:"}</strong> {lang === "bn" ? "Settings পেজে আপনার নিজস্ব Groq বা Gemini API Key বসান।" : "Enter your custom Groq or Gemini API key in Settings for unlimited requests."}
               </div>
             </div>
@@ -439,21 +439,21 @@ export default function DocsPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-3 mt-6">
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#FFF7D6] p-4">
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-white p-4 shadow-[4px_4px_0_0_#1E293B]">
                 <h3 className="font-bold text-base mb-1 text-[#D97706]">{lang === "bn" ? "১. দৈনিক ড্যাশবোর্ড" : "Tier 1: Daily View"}</h3>
                 <p className="text-xs text-[var(--muted-fg)] leading-relaxed font-medium">
                   {lang === "bn" ? "আজকের অর্জন, ফোকাস সময় এবং সম্পন্ন টাস্ক।" : "Today's XP gains, completed tasks, and active study minutes."}
                 </p>
               </div>
 
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#FCE7F3] p-4">
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-white p-4 shadow-[4px_4px_0_0_#1E293B]">
                 <h3 className="font-bold text-base mb-1 text-[#DB2777]">{lang === "bn" ? "২. সাপ্তাহিক বিশ্লেষণ" : "Tier 2: Weekly Trends"}</h3>
                 <p className="text-xs text-[var(--muted-fg)] leading-relaxed font-medium">
                   {lang === "bn" ? "সপ্তাহের ডিস্ট্র্যাকশন প্যাটার্ন এবং অভ্যাস।" : "Distraction log patterns, blocked sites count, and habit consistency."}
                 </p>
               </div>
 
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#F3E8FF] p-4">
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-white p-4 shadow-[4px_4px_0_0_#1E293B]">
                 <h3 className="font-bold text-base mb-1 text-[#7C3AED]">{lang === "bn" ? "৩. মাসিক মোমেন্টাম" : "Tier 3: Macro Patterns"}</h3>
                 <p className="text-xs text-[var(--muted-fg)] leading-relaxed font-medium">
                   {lang === "bn" ? "সিজিপিএ মোমেন্টাম ও ঘুমের প্রভাবের সম্পর্ক।" : "Correlates hours slept against academic SGPA & focus duration."}
@@ -478,7 +478,7 @@ export default function DocsPage() {
 
             <div className="grid gap-6 md:grid-cols-2 mt-6">
               {/* Chrome Extension Instructions */}
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#ECFDF5] p-5">
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#ECFDF5] p-5 shadow-[4px_4px_0_0_#1E293B]">
                 <h3 className="font-bold text-lg mb-3 flex items-center gap-2 text-[#059669]">
                   <Puzzle size={20} />
                   {lang === "bn" ? "ক্রোম এক্সটেনশন ইনস্টলেশন" : "Chrome Extension Installation"}
@@ -507,7 +507,7 @@ export default function DocsPage() {
               </div>
 
               {/* Windows Companion Instructions */}
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#F3E8FF] p-5">
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#F3E8FF] p-5 shadow-[4px_4px_0_0_#1E293B]">
                 <h3 className="font-bold text-lg mb-3 flex items-center gap-2 text-[#7C3AED]">
                   <Laptop size={20} />
                   {lang === "bn" ? "উইন্ডোজ কম্প্যানিয়ন (.exe) ইনস্টলেশন" : "Windows Companion (.exe) Installation"}
@@ -557,11 +557,11 @@ export default function DocsPage() {
                 return (
                   <div
                     key={idx}
-                    className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#FFF7D6] overflow-hidden transition-all"
+                    className="rounded-[20px] border-2 border-[var(--foreground)] bg-white overflow-hidden shadow-[4px_4px_0_0_#1E293B] transition-all"
                   >
                     <button
                       onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
-                      className="w-full flex items-center justify-between p-4 text-left font-bold text-sm sm:text-base text-[var(--foreground)]"
+                      className="w-full flex items-center justify-between p-4 text-left font-bold text-sm sm:text-base text-[var(--foreground)] hover:bg-[#FFF7D6]"
                     >
                       <span className="flex items-center gap-2">{faq.q}</span>
                       <ChevronDown
@@ -570,7 +570,7 @@ export default function DocsPage() {
                       />
                     </button>
                     {isOpen && (
-                      <div className="px-4 pb-4 text-xs sm:text-sm leading-relaxed text-[var(--muted-fg)] border-t border-[var(--foreground)]/10 pt-3 bg-white/80 font-medium">
+                      <div className="px-4 pb-4 text-xs sm:text-sm leading-relaxed text-[var(--muted-fg)] border-t border-[var(--foreground)]/10 pt-3 bg-white font-medium">
                         {faq.a}
                       </div>
                     )}

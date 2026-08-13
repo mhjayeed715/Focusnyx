@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { syncDashboardProfile } from "@/lib/backend";
+import { ArrowLeft } from "lucide-react";
 
 type Lang = "en" | "bn";
 
@@ -145,7 +145,8 @@ export default function AuthPage() {
 
           <section className="p-6 sm:p-8 lg:p-10">
             <div className="mb-8 flex items-center justify-between gap-4">
-              <Link href="/" className="text-sm font-bold text-[var(--muted-fg)] transition hover:text-[var(--foreground)]">
+              <Link href="/" className="candy-button flex h-10 items-center justify-center gap-2 px-4 text-xs font-bold sm:text-sm">
+                <ArrowLeft size={16} strokeWidth={2.5} />
                 {t.back}
               </Link>
               <div className="inline-flex h-11 min-w-[8.5rem] items-center rounded-full border-2 border-[var(--foreground)] bg-white p-1 shadow-[4px_4px_0_0_#1E293B]">
@@ -164,10 +165,10 @@ export default function AuthPage() {
                   {registeredMessage.text}
                 </div>
               ) : null}
-              <div className="inline-flex items-center gap-2 rounded-full border-2 border-[var(--foreground)] bg-[#FFF7D6] px-4 py-2 text-sm font-black shadow-[4px_4px_0_0_#1E293B]">
-                ✦ {t.title}
+              <div className="inline-flex items-center gap-2 rounded-full border-2 border-[var(--foreground)] bg-[#FFF7D6] px-4 py-1.5 text-xs font-black uppercase tracking-wider shadow-[3px_3px_0_0_#1E293B]">
+                ✦ Focusnyx Account Login
               </div>
-              <h2 className="mt-5 font-display text-3xl font-black tracking-tight sm:text-4xl">{t.title}</h2>
+              <h2 className="mt-4 font-display text-3xl font-black tracking-tight sm:text-4xl">{t.title}</h2>
               <p className="mt-3 text-base leading-7 text-[var(--muted-fg)]">{t.subtitle}</p>
 
               <form onSubmit={handleSubmit} className="mt-8 space-y-4">

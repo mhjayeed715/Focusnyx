@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { syncDashboardProfile } from "@/lib/backend";
+import { ArrowLeft } from "lucide-react";
 
 type Lang = "en" | "bn";
 
@@ -145,8 +146,9 @@ export default function SignupPage() {
         <div className="grid w-full overflow-hidden rounded-[32px] border-2 border-[var(--foreground)] bg-white shadow-[10px_10px_0_0_#1E293B] lg:grid-cols-[1.05fr_0.95fr]">
           <section className="p-6 sm:p-8 lg:p-10">
             <div className="mb-8 flex items-center justify-between gap-4">
-              <Link href="/" className="text-sm font-bold text-[var(--muted-fg)] transition hover:text-[var(--foreground)]">
-                {t.back}
+              <Link href="/" className="candy-button flex h-10 items-center justify-center gap-2 px-4 text-xs font-bold sm:text-sm">
+                <ArrowLeft size={16} strokeWidth={2.5} />
+                {t.back as string}
               </Link>
               <div className="inline-flex h-11 min-w-[8.5rem] items-center rounded-full border-2 border-[var(--foreground)] bg-white p-1 shadow-[4px_4px_0_0_#1E293B]">
                 <button onClick={() => setLang("en")} aria-pressed={lang === "en"} className={`nav-pill flex h-8 min-w-[4rem] items-center justify-center px-3 text-xs font-black ${lang === "en" ? "bg-[var(--foreground)] text-white" : ""}`}>
@@ -159,10 +161,10 @@ export default function SignupPage() {
             </div>
 
             <div className="max-w-lg">
-              <div className="inline-flex items-center gap-2 rounded-full border-2 border-[var(--foreground)] bg-[#FFF7D6] px-4 py-2 text-sm font-black shadow-[4px_4px_0_0_#1E293B]">
-                ✦ {t.title as string}
+              <div className="inline-flex items-center gap-2 rounded-full border-2 border-[var(--foreground)] bg-[#FFF7D6] px-4 py-1.5 text-xs font-black uppercase tracking-wider shadow-[3px_3px_0_0_#1E293B]">
+                ✦ New Account Registration
               </div>
-              <h2 className="mt-5 font-display text-3xl font-black tracking-tight sm:text-4xl">{t.title as string}</h2>
+              <h2 className="mt-4 font-display text-3xl font-black tracking-tight sm:text-4xl">{t.title as string}</h2>
               <p className="mt-3 text-base leading-7 text-[var(--muted-fg)]">{t.subtitle as string}</p>
 
               <div className="mt-6 flex flex-wrap gap-3">
