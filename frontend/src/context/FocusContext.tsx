@@ -84,6 +84,8 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     } else {
       setEndTime(null);
     }
+  }, []);
+
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data && event.data.type === "FOCUSNYX_EXTENSION_STATE" && event.data.state) {
