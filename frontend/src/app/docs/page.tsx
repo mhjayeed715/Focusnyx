@@ -6,6 +6,7 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
+  ArrowRight,
   BookOpen,
   GraduationCap,
   Lock,
@@ -35,7 +36,7 @@ export default function DocsPage() {
 
   const sections = [
     { id: "academic", label: lang === "bn" ? "একাডেমিক ফোর্জ" : "Academic Forge", icon: GraduationCap },
-    { id: "detox", label: lang === "bn" ? "ডোপামিন ডিটক্স" : "Dopamine Detox", icon: Lock },
+    { id: "detox", label: lang === "bn" ? "ডোপামিন ডি特ক্স" : "Dopamine Detox", icon: Lock },
     { id: "notes", label: lang === "bn" ? "স্মার্ট নোটস" : "Smart Notes & AI", icon: NotebookPen },
     { id: "finance", label: lang === "bn" ? "ফাইন্যান্স ট্র্যাকার" : "Finance Tracker", icon: CircleDollarSign },
     { id: "wellness", label: lang === "bn" ? "ওয়েলনেস শিল্ড" : "Wellness Shield", icon: HeartPulse },
@@ -115,11 +116,16 @@ export default function DocsPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <LanguageToggle />
-            <Link href="/dashboard" className="candy-button flex h-10 items-center justify-center gap-2 bg-[#8B5CF6] px-4 text-xs font-bold text-white sm:h-12 sm:px-6 sm:text-sm">
-              <Zap size={16} />
-              {lang === "bn" ? "ড্যাশবোর্ড খুলুন" : "Open Dashboard"}
+            <Link href="/auth" className="secondary-button flex h-10 items-center justify-center px-3 text-xs font-bold sm:h-12 sm:px-5 sm:text-sm bg-white">
+              {lang === "bn" ? "লগইন" : "Login"}
+            </Link>
+            <Link href="/signup" className="candy-button flex h-10 items-center justify-center gap-2 bg-[#8B5CF6] px-4 text-xs font-bold text-white sm:h-12 sm:px-6 sm:text-sm">
+              {lang === "bn" ? "ফ্রি শুরু করুন" : "Get Started Free"}
+              <span className="grid h-6 w-6 place-items-center rounded-full bg-white text-[var(--foreground)] shadow-[1px_1px_0_0_#1E293B]">
+                <ArrowRight size={14} strokeWidth={2.5} />
+              </span>
             </Link>
           </div>
         </nav>
@@ -163,7 +169,7 @@ export default function DocsPage() {
                   className={`candy-button flex items-center gap-2 rounded-full border-2 border-[var(--foreground)] px-4 py-2 text-xs font-black transition-all ${
                     isActive
                       ? "bg-[#8B5CF6] text-white shadow-[4px_4px_0_0_#1E293B]"
-                      : "bg-white text-[var(--foreground)] hover:bg-[var(--muted)]"
+                      : "bg-white text-[var(--foreground)] hover:bg-[#FFF7D6]"
                   }`}
                 >
                   <Icon size={16} />
@@ -191,23 +197,23 @@ export default function DocsPage() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 mt-6">
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[var(--muted)] p-5">
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#F3E8FF] p-5">
                 <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
                   <Sparkles size={18} className="text-[#8B5CF6]" />
                   {lang === "bn" ? "CGPA মোমেন্টাম এস্টিমেটর" : "CGPA Momentum Estimator"}
                 </h3>
-                <ul className="list-disc list-inside text-sm leading-relaxed text-[var(--muted-fg)] space-y-1.5">
+                <ul className="list-disc list-inside text-sm leading-relaxed text-[var(--muted-fg)] space-y-1.5 font-medium">
                   <li><strong>{lang === "bn" ? "গ্রেড প্রেডিকশন:" : "Grade Projection:"}</strong> {lang === "bn" ? "মিডটার্ম ও অ্যাসাইনমেন্টের নম্বর ইনপুট দিয়ে সেমিস্টার SGPA পূর্বাভাস দেখুন।" : "Input mid-term & quiz grades to calculate real-time projected SGPA."}</li>
                   <li><strong>{lang === "bn" ? "দুর্বল কোর্স সনাক্তকরণ:" : "Early Warning:"}</strong> {lang === "bn" ? "ফাইনাল পরীক্ষার আগেই কোন কোর্সে বেশি মনোযোগ দরকার তা জানুন।" : "Spot slipping course grades before final exam week."}</li>
                 </ul>
               </div>
 
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[var(--muted)] p-5">
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#ECFDF5] p-5">
                 <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
                   <CheckCircle2 size={18} className="text-[#34D399]" />
                   {lang === "bn" ? "মাইক্রো-টাস্ক ও XP রিওয়ার্ড" : "Micro-Task Breakdowns & XP Rewards"}
                 </h3>
-                <ul className="list-disc list-inside text-sm leading-relaxed text-[var(--muted-fg)] space-y-1.5">
+                <ul className="list-disc list-inside text-sm leading-relaxed text-[var(--muted-fg)] space-y-1.5 font-medium">
                   <li><strong>{lang === "bn" ? "ছোট সাব-টাস্ক:" : "Micro Breakdowns:"}</strong> {lang === "bn" ? "বড় অ্যাসাইনমেন্টকে ছোট ছোট টাস্কে ভাগ করে চাপ কমান।" : "Break overwhelming assignments into manageable sub-tasks."}</li>
                   <li><strong>{lang === "bn" ? "XP ও স্ট্রিক:" : "XP & Streaks:"}</strong> {lang === "bn" ? "টাস্ক শেষ করে লেভেল আপ করুন এবং স্ট্রিক ধরে রাখুন।" : "Earn XP points upon completing tasks and level up your profile."}</li>
                 </ul>
@@ -235,7 +241,7 @@ export default function DocsPage() {
                   <Key size={18} />
                   {lang === "bn" ? "ইমার্জেন্সি পিন এনফোর্সমেন্ট (6-Digit Emergency PIN)" : "6-Digit Emergency PIN Rules"}
                 </h3>
-                <ul className="list-disc list-inside text-sm leading-relaxed text-[var(--muted-fg)] space-y-1.5">
+                <ul className="list-disc list-inside text-sm leading-relaxed text-[var(--muted-fg)] space-y-1.5 font-medium">
                   <li><strong>{lang === "bn" ? "নতুন অ্যাকাউন্টের জন্য:" : "New Accounts:"}</strong> {lang === "bn" ? "প্রথমবার ফোকাস মোড চালু করার সময় ৬ সংখ্যার নিজস্ব পিন সেট করতে হবে।" : "Prompted to set a 6-digit Emergency PIN on your first focus session."}</li>
                   <li><strong>{lang === "bn" ? "ফোকাস চলাকালীন লক:" : "Locked During Focus:"}</strong> {lang === "bn" ? "সেশন চলাকালে সেটিংস পেজ থেকে পিন পরিবর্তন সম্পূর্ণ বন্ধ থাকে।" : "Emergency PIN editing is strictly disabled in Settings while focusing."}</li>
                   <li><strong>{lang === "bn" ? "ইনস্ট্যান্ট সিঙ্ক:" : "Instant Synchronization:"}</strong> {lang === "bn" ? "পিন পরিবর্তন সাথে সাথে ওয়েব, এক্সটেনশন ও পিসি অ্যাপে সিঙ্ক হয়।" : "PIN changes automatically sync across Web, Extension, and Companion."}</li>
@@ -243,22 +249,22 @@ export default function DocsPage() {
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[var(--muted)] p-5">
-                  <h4 className="font-bold text-base mb-1 flex items-center gap-2">
-                    <Puzzle size={16} className="text-[#059669]" /> Chrome Extension Focus Lock
+                <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#ECFDF5] p-5">
+                  <h4 className="font-bold text-base mb-1 flex items-center gap-2 text-[#059669]">
+                    <Puzzle size={16} /> Chrome Extension Focus Lock
                   </h4>
-                  <p className="text-xs text-[var(--muted-fg)] leading-relaxed">
+                  <p className="text-xs text-[var(--muted-fg)] leading-relaxed font-medium">
                     {lang === "bn"
                       ? "সোশ্যাল মিডিয়া বা ব্লকড ওয়েবসাইটে ঢুকতে গেলে এক্সটেনশন সাথে সাথে নেভিগেশন আটকে ব্লকিং স্ক্রিন দেখায়।"
                       : "Intercepts tab navigation to social media and distracting websites, forcing browser focus."}
                   </p>
                 </div>
 
-                <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[var(--muted)] p-5">
-                  <h4 className="font-bold text-base mb-1 flex items-center gap-2">
-                    <Laptop size={16} className="text-[#7C3AED]" /> Windows Companion App (OS Lock)
+                <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#F3E8FF] p-5">
+                  <h4 className="font-bold text-base mb-1 flex items-center gap-2 text-[#7C3AED]">
+                    <Laptop size={16} /> Windows Companion App (OS Lock)
                   </h4>
-                  <p className="text-xs text-[var(--muted-fg)] leading-relaxed">
+                  <p className="text-xs text-[var(--muted-fg)] leading-relaxed font-medium">
                     {lang === "bn"
                       ? "পিসির Alt+Tab, Windows Key শর্টকাট ডিসেবল করে এবং ডিস্ট্র্যাক্টিং গেমস বা অ্যাপ জোরপূর্বক মিনিমাইজ করে।"
                       : "Disables shortcuts (Alt+Tab, Win Key), blocks Task Manager, and minimizes non-allowed desktop apps."}
@@ -283,24 +289,24 @@ export default function DocsPage() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 mt-6">
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[var(--muted)] p-5">
-                <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
-                  <Mic size={18} className="text-[#FBBF24]" />
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#FFF7D6] p-5">
+                <h3 className="font-bold text-lg mb-2 flex items-center gap-2 text-[#D97706]">
+                  <Mic size={18} />
                   {lang === "bn" ? "কন্টিনিউয়াস ভয়েস নোটস (Speech-to-Text)" : "Bilingual Continuous Voice Notes"}
                 </h3>
-                <p className="text-sm leading-relaxed text-[var(--muted-fg)]">
+                <p className="text-sm leading-relaxed text-[var(--muted-fg)] font-medium">
                   {lang === "bn"
                     ? "বাংলা (BD) এবং ইংরেজি (US) দুই ভাষাতেই স্পিচ-টু-টেক্সট সমর্থন করে। অডিও ইঞ্জিন লুপ এড়িয়ে রিয়েল-টাইমে পড়াশোনার ভয়েস নোট রেকর্ড করে।"
                     : "Capture hands-free lecture notes in English (US) or Bangla (BD) with speech recognition loop protection."}
                 </p>
               </div>
 
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[var(--muted)] p-5">
-                <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
-                  <BrainCircuit size={18} className="text-[#F472B6]" />
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#FCE7F3] p-5">
+                <h3 className="font-bold text-lg mb-2 flex items-center gap-2 text-[#DB2777]">
+                  <BrainCircuit size={18} />
                   {lang === "bn" ? "AI কুইজ জেনারেটর (MCQ / Short Q&A / Essay)" : "AI Active Recall Quizzes"}
                 </h3>
-                <p className="text-sm leading-relaxed text-[var(--muted-fg)]">
+                <p className="text-sm leading-relaxed text-[var(--muted-fg)] font-medium">
                   {lang === "bn"
                     ? "নোট থেকে স্বয়ংক্রিয়ভাবে MCQ কুইজ, শর্ট প্রশ্ন এবং রচনা-শৈলীর উত্তর তৈরি করুন। পরীক্ষার রিভিশন দেওয়ার দ্রুততম উপায়।"
                     : "Generate MCQs with instant explanations, short flashcards, or comprehensive essay model answers from study notes."}
@@ -324,23 +330,23 @@ export default function DocsPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-3 mt-6">
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[var(--muted)] p-4">
-                <h3 className="font-bold text-base mb-1">{lang === "bn" ? "আয়-ব্যয় হিসাব" : "Income & Expense Ledger"}</h3>
-                <p className="text-xs text-[var(--muted-fg)] leading-relaxed">
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#ECFDF5] p-4">
+                <h3 className="font-bold text-base mb-1 text-[#059669]">{lang === "bn" ? "আয়-ব্যয় হিসাব" : "Income & Expense Ledger"}</h3>
+                <p className="text-xs text-[var(--muted-fg)] leading-relaxed font-medium">
                   {lang === "bn" ? "bKash, Nagad ও ক্যাশ খরচের ক্যাটাগরিভিত্তিক হিসাব রাখুন।" : "Log allowance, food, transport, and tuition expenses with bKash/Nagad tags."}
                 </p>
               </div>
 
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[var(--muted)] p-4">
-                <h3 className="font-bold text-base mb-1">{lang === "bn" ? "ধার/কর্জ ট্র্যাকার" : "Peer Debts Tracker"}</h3>
-                <p className="text-xs text-[var(--muted-fg)] leading-relaxed">
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#FFF7D6] p-4">
+                <h3 className="font-bold text-base mb-1 text-[#D97706]">{lang === "bn" ? "ধার/কর্জ ট্র্যাকার" : "Peer Debts Tracker"}</h3>
+                <p className="text-xs text-[var(--muted-fg)] leading-relaxed font-medium">
                   {lang === "bn" ? "বন্ধুদের পাওনা বা ধারের টাকা ট্র্যাক করে রাখুন।" : "Keep track of lent or borrowed money with friends until settled."}
                 </p>
               </div>
 
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[var(--muted)] p-4">
-                <h3 className="font-bold text-base mb-1">{lang === "bn" ? "সেভিংস গোলস" : "Savings Goals"}</h3>
-                <p className="text-xs text-[var(--muted-fg)] leading-relaxed">
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#F3E8FF] p-4">
+                <h3 className="font-bold text-base mb-1 text-[#7C3AED]">{lang === "bn" ? "সেভিংস গোলস" : "Savings Goals"}</h3>
+                <p className="text-xs text-[var(--muted-fg)] leading-relaxed font-medium">
                   {lang === "bn" ? "বই, কোর্স বা ডিভাইসের জন্য সঞ্চয়ের লক্ষ্য তৈরি করুন।" : "Track savings progress for books, courses, or gadgets with target dates."}
                 </p>
               </div>
@@ -362,24 +368,24 @@ export default function DocsPage() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 mt-6">
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[var(--muted)] p-5">
-                <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
-                  <HeartPulse size={18} className="text-[#EC4899]" />
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#FCE7F3] p-5">
+                <h3 className="font-bold text-lg mb-2 flex items-center gap-2 text-[#DB2777]">
+                  <HeartPulse size={18} />
                   {lang === "bn" ? "ঘুম ও মুড ট্র্যাকার" : "Sleep & Mood Logging"}
                 </h3>
-                <p className="text-sm leading-relaxed text-[var(--muted-fg)]">
+                <p className="text-sm leading-relaxed text-[var(--muted-fg)] font-medium">
                   {lang === "bn"
                     ? "দৈনিক ঘুমের সময় এবং মেজাজ (Mood) রেকর্ড করুন। ঘুম কম হলে ফোকাস স্কোরের ওপর প্রভাব পর্যবেক্ষণ করুন।"
                     : "Log sleep hours and subjective moods daily to observe how rest levels impact focus efficiency."}
                 </p>
               </div>
 
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[var(--muted)] p-5">
-                <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
-                  <ShieldCheck size={18} className="text-[#34D399]" />
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#ECFDF5] p-5">
+                <h3 className="font-bold text-lg mb-2 flex items-center gap-2 text-[#059669]">
+                  <ShieldCheck size={18} />
                   {lang === "bn" ? "বার্নআউট প্রিভেনশন স্কোর" : "Burnout Prevention Index"}
                 </h3>
-                <p className="text-sm leading-relaxed text-[var(--muted-fg)]">
+                <p className="text-sm leading-relaxed text-[var(--muted-fg)] font-medium">
                   {lang === "bn"
                     ? "পড়াশোনা এবং বিশ্রামের অনুপাত বিশ্লেষণ করে অতিরিক্ত ক্লান্তির ঝুঁকি আগে থেকেই জানিয়ে দেয়।"
                     : "Monitors study-to-rest ratios and alerts you when high study duration threatens mental exhaustion."}
@@ -407,7 +413,7 @@ export default function DocsPage() {
                 <Sparkles size={18} />
                 {lang === "bn" ? "দৈনিক ৫টি ফ্রি AI কোয়েরি কোটা" : "5 Free Daily AI Queries Quota"}
               </h3>
-              <p className="text-sm leading-relaxed text-[var(--muted-fg)]">
+              <p className="text-sm leading-relaxed text-[var(--muted-fg)] font-medium">
                 {lang === "bn"
                   ? "নিজের API Key না থাকলে প্রতিটি ইউজার প্রতিদিন ৫টি AI কোয়েরি (ফ্লোটিং চ্যাটবট ও কুইজ) বিনামূল্যে পাবেন। এটি প্রতিদিন রাত ১২:০০ টায় (12:00 AM BDT) রিসেট হয়।"
                   : "Users without a custom API key get 5 free AI queries daily (floating chatbot, active recall quizzes). The quota resets automatically at 12:00 AM BDT (6:00 PM UTC)."}
@@ -433,23 +439,23 @@ export default function DocsPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-3 mt-6">
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[var(--muted)] p-4">
-                <h3 className="font-bold text-base mb-1">{lang === "bn" ? "১. দৈনিক ড্যাশবোর্ড" : "Tier 1: Daily View"}</h3>
-                <p className="text-xs text-[var(--muted-fg)] leading-relaxed">
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#FFF7D6] p-4">
+                <h3 className="font-bold text-base mb-1 text-[#D97706]">{lang === "bn" ? "১. দৈনিক ড্যাশবোর্ড" : "Tier 1: Daily View"}</h3>
+                <p className="text-xs text-[var(--muted-fg)] leading-relaxed font-medium">
                   {lang === "bn" ? "আজকের অর্জন, ফোকাস সময় এবং সম্পন্ন টাস্ক।" : "Today's XP gains, completed tasks, and active study minutes."}
                 </p>
               </div>
 
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[var(--muted)] p-4">
-                <h3 className="font-bold text-base mb-1">{lang === "bn" ? "২. সাপ্তাহিক বিশ্লেষণ" : "Tier 2: Weekly Trends"}</h3>
-                <p className="text-xs text-[var(--muted-fg)] leading-relaxed">
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#FCE7F3] p-4">
+                <h3 className="font-bold text-base mb-1 text-[#DB2777]">{lang === "bn" ? "২. সাপ্তাহিক বিশ্লেষণ" : "Tier 2: Weekly Trends"}</h3>
+                <p className="text-xs text-[var(--muted-fg)] leading-relaxed font-medium">
                   {lang === "bn" ? "সপ্তাহের ডিস্ট্র্যাকশন প্যাটার্ন এবং অভ্যাস।" : "Distraction log patterns, blocked sites count, and habit consistency."}
                 </p>
               </div>
 
-              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[var(--muted)] p-4">
-                <h3 className="font-bold text-base mb-1">{lang === "bn" ? "৩. মাসিক মোমেন্টাম" : "Tier 3: Macro Patterns"}</h3>
-                <p className="text-xs text-[var(--muted-fg)] leading-relaxed">
+              <div className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#F3E8FF] p-4">
+                <h3 className="font-bold text-base mb-1 text-[#7C3AED]">{lang === "bn" ? "৩. মাসিক মোমেন্টাম" : "Tier 3: Macro Patterns"}</h3>
+                <p className="text-xs text-[var(--muted-fg)] leading-relaxed font-medium">
                   {lang === "bn" ? "সিজিপিএ মোমেন্টাম ও ঘুমের প্রভাবের সম্পর্ক।" : "Correlates hours slept against academic SGPA & focus duration."}
                 </p>
               </div>
@@ -477,7 +483,7 @@ export default function DocsPage() {
                   <Puzzle size={20} />
                   {lang === "bn" ? "ক্রোম এক্সটেনশন ইনস্টলেশন" : "Chrome Extension Installation"}
                 </h3>
-                <ol className="list-decimal list-inside text-xs leading-relaxed text-[var(--muted-fg)] space-y-2 font-medium">
+                <ol className="list-decimal list-inside text-xs leading-relaxed text-[var(--muted-fg)] space-y-2 font-semibold">
                   {lang === "bn" ? (
                     <>
                       <li>ল্যান্ডিং পেজের <strong>Extension (ZIP)</strong> বোতামে ক্লিক করে ফাইল ডাউনলোড করুন।</li>
@@ -506,7 +512,7 @@ export default function DocsPage() {
                   <Laptop size={20} />
                   {lang === "bn" ? "উইন্ডোজ কম্প্যানিয়ন (.exe) ইনস্টলেশন" : "Windows Companion (.exe) Installation"}
                 </h3>
-                <ol className="list-decimal list-inside text-xs leading-relaxed text-[var(--muted-fg)] space-y-2 font-medium">
+                <ol className="list-decimal list-inside text-xs leading-relaxed text-[var(--muted-fg)] space-y-2 font-semibold">
                   {lang === "bn" ? (
                     <>
                       <li>ল্যান্ডিং পেজের <strong>Companion (Windows EXE)</strong> বোতাম থেকে ফাইল ডাউনলোড করুন।</li>
@@ -551,7 +557,7 @@ export default function DocsPage() {
                 return (
                   <div
                     key={idx}
-                    className="rounded-[20px] border-2 border-[var(--foreground)] bg-[var(--muted)] overflow-hidden transition-all"
+                    className="rounded-[20px] border-2 border-[var(--foreground)] bg-[#FFF7D6] overflow-hidden transition-all"
                   >
                     <button
                       onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
@@ -564,7 +570,7 @@ export default function DocsPage() {
                       />
                     </button>
                     {isOpen && (
-                      <div className="px-4 pb-4 text-xs sm:text-sm leading-relaxed text-[var(--muted-fg)] border-t border-[var(--foreground)]/10 pt-3 bg-white/60">
+                      <div className="px-4 pb-4 text-xs sm:text-sm leading-relaxed text-[var(--muted-fg)] border-t border-[var(--foreground)]/10 pt-3 bg-white/80 font-medium">
                         {faq.a}
                       </div>
                     )}
