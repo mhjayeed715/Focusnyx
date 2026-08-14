@@ -121,16 +121,19 @@ const WHITELIST_SUGGESTIONS = [
 ];
 
 const COMMON_APPS = [
-  { name: "Discord", exe: "discord.exe", iconUrl: "https://www.google.com/s2/favicons?domain=discord.com&sz=64" },
-  { name: "Spotify", exe: "spotify.exe", iconUrl: "https://www.google.com/s2/favicons?domain=spotify.com&sz=64" },
-  { name: "Steam", exe: "steam.exe", iconUrl: "https://www.google.com/s2/favicons?domain=steampowered.com&sz=64" },
-  { name: "Telegram", exe: "telegram.exe", iconUrl: "https://www.google.com/s2/favicons?domain=telegram.org&sz=64" },
-  { name: "WhatsApp", exe: "whatsapp.exe", iconUrl: "https://www.google.com/s2/favicons?domain=whatsapp.com&sz=64" },
-  { name: "Chrome", exe: "chrome.exe", iconUrl: "https://www.google.com/s2/favicons?domain=google.com&sz=64" },
-  { name: "Edge", exe: "msedge.exe", iconUrl: "https://www.google.com/s2/favicons?domain=microsoft.com&sz=64" },
-  { name: "Brave Browser", exe: "brave.exe", iconUrl: "https://www.google.com/s2/favicons?domain=brave.com&sz=64" },
-  { name: "Firefox", exe: "firefox.exe", iconUrl: "https://www.google.com/s2/favicons?domain=mozilla.org&sz=64" },
-  { name: "VS Code", exe: "code.exe", iconUrl: "https://www.google.com/s2/favicons?domain=code.visualstudio.com&sz=64" },
+  { name: "Chrome", exe: "chrome.exe", iconUrl: "https://cdn.simpleicons.org/googlechrome/4285F4" },
+  { name: "Edge", exe: "msedge.exe", iconUrl: "https://cdn.simpleicons.org/microsoftedge/0078D7" },
+  { name: "Firefox", exe: "firefox.exe", iconUrl: "https://cdn.simpleicons.org/firefox/FF7139" },
+  { name: "Brave Browser", exe: "brave.exe", iconUrl: "https://cdn.simpleicons.org/brave/FB542B" },
+  { name: "Discord", exe: "discord.exe", iconUrl: "https://cdn.simpleicons.org/discord/5865F2" },
+  { name: "Spotify", exe: "spotify.exe", iconUrl: "https://cdn.simpleicons.org/spotify/1DB954" },
+  { name: "Steam", exe: "steam.exe", iconUrl: "https://cdn.simpleicons.org/steam/000000" },
+  { name: "Telegram", exe: "telegram.exe", iconUrl: "https://cdn.simpleicons.org/telegram/26A5E4" },
+  { name: "WhatsApp", exe: "whatsapp.exe", iconUrl: "https://cdn.simpleicons.org/whatsapp/25D366" },
+  { name: "VS Code", exe: "code.exe", iconUrl: "https://cdn.simpleicons.org/visualstudiocode/007ACC" },
+  { name: "Notion", exe: "notion.exe", iconUrl: "https://cdn.simpleicons.org/notion/000000" },
+  { name: "OBS Studio", exe: "obs64.exe", iconUrl: "https://cdn.simpleicons.org/obsstudio/302E2F" },
+  { name: "VLC", exe: "vlc.exe", iconUrl: "https://cdn.simpleicons.org/vlcmediaplayer/FF8800" },
 ];
 
 const SOUND_PRESETS = [
@@ -499,6 +502,50 @@ export function PomodoroPanel() {
   const [browserDistractionLogs, setBrowserDistractionLogs] = useState<Array<{ id: string; type: string; domain: string; timestamp: string }>>([]);
   const [detectedDesktopApps, setDetectedDesktopApps] = useState<Array<{ name: string; exe: string; running: boolean }>>([]);
   const [isCompanionActive, setIsCompanionActive] = useState<boolean>(false);
+
+  // Poll Companion App status and live running Windows processes
+  useEffect(() => {
+    let isSubscribed = true;
+
+    const pollCompanionApps = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/running-apps", { signal: AbortSignal.timeout(3000) });
+        if (!res.ok) throw new Error("Companion HTTP Error");
+        const data = await res.json();
+        if (!isSubscribed) return;
+
+        setIsCompanionActive(true);
+
+        if (data.apps && Array.isArray(data.apps)) {
+          const EXCLUDE = new Set(["system", "svchost.exe", "csrss.exe", "lsass.exe", "services.exe", "smss.exe", "wininit.exe", "explorer.exe", "cmd.exe", "powershell.exe", "conhost.exe", "focusnyxcompanion.exe"]);
+          const scannedApps = data.apps
+            .filter((a: string) => typeof a === "string" && a.toLowerCase().endsWith(".exe") && !EXCLUDE.has(a.toLowerCase()))
+            .map((a: string) => {
+              const cleanExe = a.toLowerCase();
+              const nameNoExt = cleanExe.replace(/\.exe$/, "");
+              const displayName = nameNoExt.charAt(0).toUpperCase() + nameNoExt.slice(1);
+              return {
+                name: displayName,
+                exe: cleanExe,
+                running: true,
+              };
+            });
+          setDetectedDesktopApps(scannedApps);
+        }
+      } catch {
+        if (isSubscribed) {
+          setIsCompanionActive(false);
+        }
+      }
+    };
+
+    pollCompanionApps();
+    const timer = setInterval(pollCompanionApps, 4000);
+    return () => {
+      isSubscribed = false;
+      clearInterval(timer);
+    };
+  }, []);
 
   // Load tasks & profile from Supabase on mount
   useEffect(() => {
@@ -1753,8 +1800,7 @@ export function PomodoroPanel() {
                                 handleRemoveApp(app.exe);
                               } else {
                                 const nextApps = [...blockedApps, app.exe];
-                                setBlockedApps(nextApps);
-                                syncBlocklistToAll(blockedSites, nextApps);
+                                void persistWhitelistAndApps(blockedSites, nextApps);
                               }
                             }}
                             className={`flex items-center gap-2.5 rounded-[14px] border-2 border-[var(--foreground)] p-2 text-left text-xs font-bold transition-all ${
@@ -1764,7 +1810,7 @@ export function PomodoroPanel() {
                             }`}
                           >
                             {matchedPreset ? (
-                              <img src={matchedPreset.iconUrl} alt="" className="h-5 w-5 shrink-0 object-contain" />
+                              <img src={matchedPreset.iconUrl} alt={app.name} className="h-5 w-5 shrink-0 object-contain" />
                             ) : (
                               <span className="text-base shrink-0"><Laptop size={16} /></span>
                             )}
@@ -1796,8 +1842,7 @@ export function PomodoroPanel() {
                               handleRemoveApp(app.exe);
                             } else {
                               const nextApps = [...blockedApps, app.exe];
-                              setBlockedApps(nextApps);
-                              syncBlocklistToAll(blockedSites, nextApps);
+                              void persistWhitelistAndApps(blockedSites, nextApps);
                             }
                           }}
                           className={`flex items-center gap-2.5 rounded-[14px] border-2 border-[var(--foreground)] p-2.5 text-left text-xs font-bold transition-all ${
