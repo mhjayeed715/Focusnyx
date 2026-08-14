@@ -121,19 +121,19 @@ const WHITELIST_SUGGESTIONS = [
 ];
 
 const COMMON_APPS = [
-  { name: "Chrome", exe: "chrome.exe", iconUrl: "https://cdn.simpleicons.org/googlechrome/4285F4" },
-  { name: "Edge", exe: "msedge.exe", iconUrl: "https://cdn.simpleicons.org/microsoftedge/0078D7" },
-  { name: "Firefox", exe: "firefox.exe", iconUrl: "https://cdn.simpleicons.org/firefox/FF7139" },
-  { name: "Brave Browser", exe: "brave.exe", iconUrl: "https://cdn.simpleicons.org/brave/FB542B" },
-  { name: "Discord", exe: "discord.exe", iconUrl: "https://cdn.simpleicons.org/discord/5865F2" },
-  { name: "Spotify", exe: "spotify.exe", iconUrl: "https://cdn.simpleicons.org/spotify/1DB954" },
-  { name: "Steam", exe: "steam.exe", iconUrl: "https://cdn.simpleicons.org/steam/000000" },
-  { name: "Telegram", exe: "telegram.exe", iconUrl: "https://cdn.simpleicons.org/telegram/26A5E4" },
-  { name: "WhatsApp", exe: "whatsapp.exe", iconUrl: "https://cdn.simpleicons.org/whatsapp/25D366" },
-  { name: "VS Code", exe: "code.exe", iconUrl: "https://cdn.simpleicons.org/visualstudiocode/007ACC" },
-  { name: "Notion", exe: "notion.exe", iconUrl: "https://cdn.simpleicons.org/notion/000000" },
-  { name: "OBS Studio", exe: "obs64.exe", iconUrl: "https://cdn.simpleicons.org/obsstudio/302E2F" },
-  { name: "VLC", exe: "vlc.exe", iconUrl: "https://cdn.simpleicons.org/vlcmediaplayer/FF8800" },
+  { name: "Chrome", exe: "chrome.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/e/e1/Google_Chrome_icon_%28February_2022%29.svg" },
+  { name: "Edge", exe: "msedge.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/9/98/Microsoft_Edge_logo_%282019%29.svg" },
+  { name: "Firefox", exe: "firefox.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/a/a0/Firefox_logo%2C_2019.svg" },
+  { name: "Brave Browser", exe: "brave.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/5/51/Brave_icon_Lion.svg" },
+  { name: "Discord", exe: "discord.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/7/73/Discord_Color_Logo.svg" },
+  { name: "Spotify", exe: "spotify.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/1/19/Spotify_logo_without_text.svg" },
+  { name: "Steam", exe: "steam.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg" },
+  { name: "Telegram", exe: "telegram.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg" },
+  { name: "WhatsApp", exe: "whatsapp.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" },
+  { name: "VS Code", exe: "code.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/9/9a/Visual_Studio_Code_1.35_icon.svg" },
+  { name: "Notion", exe: "notion.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/e/e9/Notion-logo.svg" },
+  { name: "OBS Studio", exe: "obs64.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/d/d4/OBS_Studio_Icon.svg" },
+  { name: "VLC", exe: "vlc.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/3/38/VLC_icon.svg" },
 ];
 
 const SOUND_PRESETS = [
