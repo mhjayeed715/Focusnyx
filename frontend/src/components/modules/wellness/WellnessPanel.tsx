@@ -488,7 +488,8 @@ function BurnoutCard({ sleepHours, moodKey, hydrationPct, stepsPct, t }: {
 }
 
 export function WellnessPanel() {
-  const { lang } = useLanguage();
+  const { lang, interactionMode } = useLanguage();
+  const isAdhd = interactionMode === "adhd";
   const t = translations[lang];
 
   const [hydration, setHydration] = useState({ glasses: 0, goal: 8 });
@@ -618,6 +619,69 @@ export function WellnessPanel() {
           ))}
         </div>
       </div>
+
+      {/* ADHD 1-Tap Quick Check-in Bar */}
+      {isAdhd && (
+        <div className="rounded-[22px] border-3 border-[var(--foreground)] bg-[#ECFDF5] p-5 shadow-[6px_6px_0_0_#1E293B]">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <span className="text-xs font-black uppercase tracking-[0.16em] text-emerald-900 flex items-center gap-1.5">
+              ⚡ 1-Tap ADHD Quick Wellness Check-in
+            </span>
+            <span className="text-[11px] font-bold text-emerald-800">1-click instant log</span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {/* Quick Water */}
+            <button
+              onClick={() => handleUpdateHydration(Math.min(hydration.goal + 4, hydration.glasses + 1), hydration.goal)}
+              className="flex items-center justify-between rounded-[16px] border-2 border-[var(--foreground)] bg-white p-3 shadow-[2px_2px_0_0_#1E293B] hover:bg-blue-50 transition text-left"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-xl">💧</span>
+                <div>
+                  <p className="text-xs font-black">+1 Glass Water</p>
+                  <p className="text-[10px] text-[var(--muted-fg)]">{hydration.glasses}/{hydration.goal} logged</p>
+                </div>
+              </div>
+              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-black text-blue-700">+1</span>
+            </button>
+
+            {/* Quick Mood */}
+            <div className="rounded-[16px] border-2 border-[var(--foreground)] bg-white p-2.5 shadow-[2px_2px_0_0_#1E293B] flex items-center justify-between">
+              <span className="text-xs font-black pl-1">Mood:</span>
+              <div className="flex gap-1">
+                {(["awful", "sad", "okay", "good", "great"] as const).map((m) => {
+                  const emoji = { awful: "😫", sad: "😔", okay: "😐", good: "😊", great: "🤩" }[m];
+                  return (
+                    <button
+                      key={m}
+                      onClick={() => handleAddMood(m, "")}
+                      className={`grid h-7 w-7 place-items-center rounded-full border border-[var(--foreground)] text-sm transition hover:scale-110 ${latestMoodKey === m ? "bg-amber-200" : "bg-white"}`}
+                      title={m}
+                    >
+                      {emoji}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Quick Steps */}
+            <button
+              onClick={() => handleUpdateActivity(activity.steps + 1000, activity.goal)}
+              className="flex items-center justify-between rounded-[16px] border-2 border-[var(--foreground)] bg-white p-3 shadow-[2px_2px_0_0_#1E293B] hover:bg-emerald-50 transition text-left"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🏃</span>
+                <div>
+                  <p className="text-xs font-black">+1,000 Steps</p>
+                  <p className="text-[10px] text-[var(--muted-fg)]">{activity.steps.toLocaleString()} steps</p>
+                </div>
+              </div>
+              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700">+1k</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       <BurnoutCard sleepHours={latestSleepHours} moodKey={latestMoodKey} hydrationPct={hydrationPct} stepsPct={stepsPct} t={t} />
 

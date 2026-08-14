@@ -40,9 +40,10 @@ import { translations } from "@/lib/translations";
 type TierFilter = "all" | "daily" | "weekly" | "monthly";
 
 export function ProductivityOverview() {
-  const { lang } = useLanguage();
+  const { lang, interactionMode } = useLanguage();
+  const isAdhd = interactionMode === "adhd";
   const t = translations[lang];
-  const [activeTier, setActiveTier] = useState<TierFilter>("all");
+  const [activeTier, setActiveTier] = useState<TierFilter>(isAdhd ? "daily" : "all");
   const [loading, setLoading] = useState(true);
 
   // Live aggregated data states
@@ -386,6 +387,32 @@ export function ProductivityOverview() {
               : "Live multi-tier insights aggregated directly from your real database and activity logs."}
           </p>
         </div>
+
+        {/* ADHD Mode 3-Core Vitals Card */}
+        {isAdhd && (
+          <div className="rounded-[22px] border-3 border-[var(--foreground)] bg-gradient-to-r from-[#F3E8FF] to-[#E9D5FF] p-5 shadow-[6px_6px_0_0_#1E293B]">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <span className="text-xs font-black uppercase tracking-[0.16em] text-purple-950 flex items-center gap-1.5">
+                ⚡ ADHD 3-Core Focus Vitals (Today)
+              </span>
+              <span className="text-[11px] font-bold text-purple-800">Direct instant snapshot</span>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-[16px] border-2 border-[var(--foreground)] bg-white p-3 text-center shadow-[2px_2px_0_0_#1E293B]">
+                <p className="text-[10px] font-black uppercase text-[var(--muted-fg)]">Focus Time</p>
+                <p className="font-display text-2xl font-black text-purple-700 mt-0.5">{totalDailyFocusMinutes}m</p>
+              </div>
+              <div className="rounded-[16px] border-2 border-[var(--foreground)] bg-white p-3 text-center shadow-[2px_2px_0_0_#1E293B]">
+                <p className="text-[10px] font-black uppercase text-[var(--muted-fg)]">Distractions</p>
+                <p className="font-display text-2xl font-black text-red-600 mt-0.5">{todayDistractionsCount}</p>
+              </div>
+              <div className="rounded-[16px] border-2 border-[var(--foreground)] bg-white p-3 text-center shadow-[2px_2px_0_0_#1E293B]">
+                <p className="text-[10px] font-black uppercase text-[var(--muted-fg)]">Tasks Done</p>
+                <p className="font-display text-2xl font-black text-emerald-600 mt-0.5">{dailyTasks.done}/{dailyTasks.total}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tier selector pills */}
         <div className="inline-flex rounded-full border-2 border-[#1E293B] bg-white p-1 shadow-[4px_4px_0_0_#1E293B]">

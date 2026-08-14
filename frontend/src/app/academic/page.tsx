@@ -149,7 +149,8 @@ function InlineMarkdown({ text }: { text: string }) {
 }
 
 export default function AcademicPage() {
-  const { lang } = useLanguage();
+  const { lang, interactionMode } = useLanguage();
+  const isAdhd = interactionMode === "adhd";
   const t = translations[lang];
 
   const [coursesExpanded, setCoursesExpanded] = useState(false);
@@ -389,9 +390,40 @@ export default function AcademicPage() {
   };
   const handleDeleteAssignment = (id: string) => { setAssignmentList((prev) => { const next = prev.filter((a) => a.id !== id); try { localStorage.setItem(STORAGE_ASSIGNMENTS, JSON.stringify(next)); } catch {} return next; }); };
 
+  const nextImmediateDeadline = useMemo(() => {
+    const all = [
+      ...upcomingExams.map(e => ({ title: e.title, date: e.date, time: e.time, type: "exam" as const })),
+      ...assignmentList.map(a => ({ title: a.title, date: a.date, time: a.time, type: "assignment" as const }))
+    ].sort((a, b) => (a.date + (a.time || "")).localeCompare(b.date + (b.time || "")));
+    return all[0] || null;
+  }, [upcomingExams, assignmentList]);
+
   return (
     <AppShell title={t.academicForge}>
       <div className="space-y-6">
+        {/* ADHD Mode Hero Banner: Single Urgent Focal Deadline */}
+        {isAdhd && nextImmediateDeadline && (
+          <div className="rounded-[20px] border-3 border-[var(--foreground)] bg-gradient-to-r from-[#FEF3C7] to-[#FDE68A] p-5 shadow-[6px_6px_0_0_#1E293B]">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border-2 border-[var(--foreground)] bg-white text-lg">⚡</span>
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-900">Next Priority Deadline ({nextImmediateDeadline.type.toUpperCase()})</p>
+                  <p className="font-display text-xl font-black text-[var(--foreground)]">{nextImmediateDeadline.title}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="rounded-full border-2 border-[var(--foreground)] bg-white px-4 py-1.5 text-sm font-black text-amber-900 shadow-[2px_2px_0_0_#1E293B]">
+                  ⏳ {timeUntil(nextImmediateDeadline.date, nextImmediateDeadline.time)}
+                </span>
+                <a href="/focus" className="candy-button inline-flex h-10 items-center justify-center gap-1.5 px-4 text-xs font-black">
+                  Start Study Session →
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Stats Grid */}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <article className="sticker-card bg-[#ECFDF5] p-5 shadow-[8px_8px_0_0_#6EE7B7] hover:translate-y-0">
@@ -450,7 +482,7 @@ export default function AcademicPage() {
                   </div>
                 ) : (
                   <>
-                    {(coursesExpanded ? courses : courses.slice(0, 3)).map((course) => {
+                    {(coursesExpanded ? courses : courses.slice(0, isAdhd ? 2 : 3)).map((course) => {
                       const pc = getNeededFinalForCourse(course);
                       const isGreen = pc.secured || pc.color === "green";
                       const isRed   = !isGreen && (pc.impossible || pc.color === "red");
@@ -486,9 +518,9 @@ export default function AcademicPage() {
                         </div>
                       );
                     })}
-                    {courses.length > 3 && (
+                    {courses.length > (isAdhd ? 2 : 3) && (
                       <button onClick={() => setCoursesExpanded(v => !v)} className="w-full rounded-[12px] border-2 border-dashed border-[var(--foreground)] py-2 text-sm font-black text-[var(--muted-fg)] hover:bg-[var(--muted)]">
-                        {coursesExpanded ? t.showLess : t.viewMore(courses.length - 3, t.courseLabel)}
+                        {coursesExpanded ? t.showLess : t.viewMore(courses.length - (isAdhd ? 2 : 3), t.courseLabel)}
                       </button>
                     )}
                   </>
@@ -506,41 +538,62 @@ export default function AcademicPage() {
               </div>
             </section>
 
-            {/* Previous Semesters */}
-            <section className="sticker-card bg-white p-6 shadow-[8px_8px_0_0_#86EFAC]">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="font-display text-2xl font-black">{t.prevSemestersCgpa}</h2>
-                <span className="rounded-full border-2 border-[var(--foreground)] bg-[#ECFDF5] px-3 py-1 text-xs font-black">{t.average(previousAverageCgpa.toFixed(2))}</span>
-              </div>
-              <div className="mt-4 space-y-2">
-                {(semestersExpanded ? previousSemesters : previousSemesters.slice(0, 3)).map((s, index) => (
-                  <div key={s.id} className="flex items-center justify-between rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
-                    <p className="text-sm font-semibold">{t.semester(index + 1)}: {s.value.toFixed(2)}</p>
-                    <button onClick={() => removePreviousSemester(s.id)} className="inline-flex h-8 items-center justify-center rounded-[10px] border-2 border-[var(--foreground)] bg-white px-2"><Trash2 size={14} strokeWidth={2.5} /></button>
+            {/* Previous Semesters (Collapsible in ADHD Mode) */}
+            {isAdhd ? (
+              <details className="sticker-card bg-white p-5 shadow-[6px_6px_0_0_#86EFAC] group">
+                <summary className="cursor-pointer font-display text-lg font-black flex items-center justify-between list-none">
+                  <span>📊 Previous Semesters ({previousSemesters.length}) & Sum</span>
+                  <span className="rounded-full border-2 border-[var(--foreground)] bg-[#ECFDF5] px-3 py-0.5 text-xs font-black group-open:rotate-180 transition">▼</span>
+                </summary>
+                <div className="mt-4 space-y-2 border-t-2 border-[var(--border)] pt-4">
+                  {previousSemesters.map((s, index) => (
+                    <div key={s.id} className="flex items-center justify-between rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
+                      <p className="text-sm font-semibold">{t.semester(index + 1)}: {s.value.toFixed(2)}</p>
+                      <button onClick={() => removePreviousSemester(s.id)} className="inline-flex h-8 items-center justify-center rounded-[10px] border-2 border-[var(--foreground)] bg-white px-2"><Trash2 size={14} strokeWidth={2.5} /></button>
+                    </div>
+                  ))}
+                  <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+                    <input type="number" min="0" max="4" step="0.01" value={newSemesterCgpa} onChange={(e) => setNewSemesterCgpa(e.target.value)} placeholder={t.enterSemesterCgpa} className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2 outline-none" />
+                    <button onClick={addPreviousSemester} className="candy-button inline-flex h-10 items-center justify-center gap-1 px-4 text-sm"><Plus size={14} strokeWidth={2.5} /> Add</button>
                   </div>
-                ))}
-                {previousSemesters.length > 3 && (
-                  <button onClick={() => setSemestersExpanded(v => !v)} className="w-full rounded-[12px] border-2 border-dashed border-[var(--foreground)] py-2 text-sm font-black text-[var(--muted-fg)] hover:bg-[var(--muted)]">
-                    {semestersExpanded ? t.showLess : t.viewMore(previousSemesters.length - 3, t.semesterLabel)}
-                  </button>
-                )}
-              </div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-                <input type="number" min="0" max="4" step="0.01" value={newSemesterCgpa} onChange={(e) => setNewSemesterCgpa(e.target.value)} placeholder={t.enterSemesterCgpa} className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2 outline-none" />
-                <input type="number" min="1" value={newSemesterNumber} onChange={(e) => setNewSemesterNumber(e.target.value)} placeholder={t.semesterNoOptional} className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2 outline-none" />
-                <button onClick={addPreviousSemester} className="candy-button inline-flex h-10 items-center justify-center gap-2 px-4 text-sm"><Plus size={14} strokeWidth={2.5} /> {t.addSemester}</button>
-              </div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-[12px] border-2 border-[var(--foreground)] bg-[#F8FAFC] px-3 py-2">
-                  <p className="text-xs font-black uppercase tracking-[0.1em] text-[var(--muted-fg)]">{t.totalCgpaSum}</p>
-                  <p className="mt-1 font-display text-2xl font-black">{previousTotal.toFixed(2)}</p>
                 </div>
-                <div className="rounded-[12px] border-2 border-[var(--foreground)] bg-[#F8FAFC] px-3 py-2">
-                  <p className="text-xs font-black uppercase tracking-[0.1em] text-[var(--muted-fg)]">{t.overallWithCurrent}</p>
-                  <p className="mt-1 font-display text-2xl font-black">{overallWithCurrent.toFixed(2)}</p>
+              </details>
+            ) : (
+              <section className="sticker-card bg-white p-6 shadow-[8px_8px_0_0_#86EFAC]">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h2 className="font-display text-2xl font-black">{t.prevSemestersCgpa}</h2>
+                  <span className="rounded-full border-2 border-[var(--foreground)] bg-[#ECFDF5] px-3 py-1 text-xs font-black">{t.average(previousAverageCgpa.toFixed(2))}</span>
                 </div>
-              </div>
-            </section>
+                <div className="mt-4 space-y-2">
+                  {(semestersExpanded ? previousSemesters : previousSemesters.slice(0, 3)).map((s, index) => (
+                    <div key={s.id} className="flex items-center justify-between rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2">
+                      <p className="text-sm font-semibold">{t.semester(index + 1)}: {s.value.toFixed(2)}</p>
+                      <button onClick={() => removePreviousSemester(s.id)} className="inline-flex h-8 items-center justify-center rounded-[10px] border-2 border-[var(--foreground)] bg-white px-2"><Trash2 size={14} strokeWidth={2.5} /></button>
+                    </div>
+                  ))}
+                  {previousSemesters.length > 3 && (
+                    <button onClick={() => setSemestersExpanded(v => !v)} className="w-full rounded-[12px] border-2 border-dashed border-[var(--foreground)] py-2 text-sm font-black text-[var(--muted-fg)] hover:bg-[var(--muted)]">
+                      {semestersExpanded ? t.showLess : t.viewMore(previousSemesters.length - 3, t.semesterLabel)}
+                    </button>
+                  )}
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+                  <input type="number" min="0" max="4" step="0.01" value={newSemesterCgpa} onChange={(e) => setNewSemesterCgpa(e.target.value)} placeholder={t.enterSemesterCgpa} className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2 outline-none" />
+                  <input type="number" min="1" value={newSemesterNumber} onChange={(e) => setNewSemesterNumber(e.target.value)} placeholder={t.semesterNoOptional} className="rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2 outline-none" />
+                  <button onClick={addPreviousSemester} className="candy-button inline-flex h-10 items-center justify-center gap-2 px-4 text-sm"><Plus size={14} strokeWidth={2.5} /> {t.addSemester}</button>
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-[12px] border-2 border-[var(--foreground)] bg-[#F8FAFC] px-3 py-2">
+                    <p className="text-xs font-black uppercase tracking-[0.1em] text-[var(--muted-fg)]">{t.totalCgpaSum}</p>
+                    <p className="mt-1 font-display text-2xl font-black">{previousTotal.toFixed(2)}</p>
+                  </div>
+                  <div className="rounded-[12px] border-2 border-[var(--foreground)] bg-[#F8FAFC] px-3 py-2">
+                    <p className="text-xs font-black uppercase tracking-[0.1em] text-[var(--muted-fg)]">{t.overallWithCurrent}</p>
+                    <p className="mt-1 font-display text-2xl font-black">{overallWithCurrent.toFixed(2)}</p>
+                  </div>
+                </div>
+              </section>
+            )}
           </div>
 
           {/* Right Column */}

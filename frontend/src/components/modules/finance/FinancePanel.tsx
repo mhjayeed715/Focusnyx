@@ -181,7 +181,8 @@ const catColor = (cat: string) => CAT_COLORS[cat] ?? "#94a3b8";
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function FinancePanel() {
-  const { lang } = useLanguage();
+  const { lang, interactionMode } = useLanguage();
+  const isAdhd = interactionMode === "adhd";
   const t = T[lang];
 
   const now = new Date();
@@ -640,6 +641,41 @@ export function FinancePanel() {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* ADHD 1-Tap Quick Expense Logger */}
+      {isAdhd && (
+        <div className="rounded-[22px] border-2 border-[var(--foreground)] bg-[#FFF7D6] p-4 shadow-[4px_4px_0_0_#1E293B]">
+          <div className="flex items-center justify-between gap-2 mb-2.5">
+            <span className="text-xs font-black uppercase tracking-[0.16em] text-amber-900 flex items-center gap-1.5">
+              ⚡ 1-Tap Quick Expense (ADHD)
+            </span>
+            <span className="text-[10px] font-bold text-amber-800">Tap amount to log instantly</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: "+৳50 (Snack)", amt: 50, cat: "Food" },
+              { label: "+৳100 (Meal)", amt: 100, cat: "Food" },
+              { label: "+৳30 (Transport)", amt: 30, cat: "Transport" },
+              { label: "+৳200 (Study)", amt: 200, cat: "Books" },
+              { label: "+৳500 (Bill)", amt: 500, cat: "Tuition" },
+            ].map(({ label, amt, cat }) => (
+              <button
+                key={label}
+                onClick={() => {
+                  setFType("expense");
+                  setFAmount(String(amt));
+                  setFCategory(cat);
+                  setFNote(label.split("(")[1]?.replace(")", "") || "");
+                  setShowForm(true);
+                }}
+                className="rounded-full border-2 border-[var(--foreground)] bg-white px-3 py-1.5 text-xs font-black shadow-[2px_2px_0_0_#1E293B] hover:bg-amber-100 transition"
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
       )}

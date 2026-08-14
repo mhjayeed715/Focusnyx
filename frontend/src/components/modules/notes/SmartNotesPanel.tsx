@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { callGroq } from "@/lib/ai/groq";
 
 import { NoteQuizViewer, QuizData } from "./NoteQuizViewer";
+import { useLanguage } from "@/components/layout/language-context";
 
 const STORAGE_KEY_GROQ     = "academicAiKeyGroqV1";
 const STORAGE_KEY_SUBJECTS = "notesCustomSubjectsV1";
@@ -15,6 +16,8 @@ type Note = { id: string; subject: string; content: string; source: string; crea
 type Lang = "en-US" | "bn-BD";
 
 export function SmartNotesPanel() {
+  const { interactionMode } = useLanguage();
+  const isAdhd = interactionMode === "adhd";
   const [userId,  setUserId]  = useState<string | null>(null);
   const [groqKey, setGroqKey] = useState("");
 
@@ -400,6 +403,14 @@ export function SmartNotesPanel() {
             </button>
           </div>
         </div>
+
+        {/* ADHD Mode Quick Guidance Banner */}
+        {isAdhd && (
+          <div className="flex items-center gap-2 rounded-[14px] border-2 border-purple-300 bg-purple-50 px-3.5 py-2 text-xs font-bold text-purple-900">
+            <span>⚡</span>
+            <span><strong>ADHD Quick Brain Dump:</strong> Record or type your thought immediately. No need to worry about formatting or organizing!</span>
+          </div>
+        )}
 
         <p className="text-xs text-[var(--muted-fg)]">
           Live voice-to-text — words appear as you speak ({lang === "en-US" ? "English" : "বাংলা"})
