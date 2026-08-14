@@ -88,9 +88,14 @@
       }
     }, postStateToWebApp2 = function(state) {
       if (!state) return;
-      const payload = { type: "FOCUSNYX_EXTENSION_EVENT", action: "FOCUS_STATE_CHANGED", state };
-      window.postMessage(payload, "*");
-      if (syncChannel) syncChannel.postMessage(payload);
+      const payload1 = { type: "FOCUSNYX_EXTENSION_EVENT", action: "FOCUS_STATE_CHANGED", state };
+      const payload2 = { type: "FOCUSNYX_EXTENSION_STATE", state };
+      window.postMessage(payload1, "*");
+      window.postMessage(payload2, "*");
+      if (syncChannel) {
+        syncChannel.postMessage(payload1);
+        syncChannel.postMessage(payload2);
+      }
     };
     var syncAuthFromLocalStorage = syncAuthFromLocalStorage2, checkLocalStorageAction = checkLocalStorageAction2, postStateToWebApp = postStateToWebApp2;
     syncAuthFromLocalStorage2();

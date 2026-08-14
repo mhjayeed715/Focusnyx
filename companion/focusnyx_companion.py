@@ -548,6 +548,95 @@ def start_gui():
         except Exception:
             pass
 
+    def ask_6digit_pin(parent):
+        dialog = tk.Toplevel(parent)
+        dialog.title("Emergency Exit")
+        dialog.geometry("340x240")
+        dialog.configure(bg="#0f172a")
+        dialog.resizable(False, False)
+        dialog.transient(parent)
+        dialog.grab_set()
+
+        try:
+            x = parent.winfo_x() + (parent.winfo_width() // 2) - 170
+            y = parent.winfo_y() + (parent.winfo_height() // 2) - 120
+            dialog.geometry(f"+{max(0, x)}+{max(0, y)}")
+        except Exception:
+            pass
+
+        try:
+            dialog.lift()
+            dialog.attributes('-topmost', True)
+            dialog.focus_force()
+        except Exception:
+            pass
+
+        result = {"pin": None}
+
+        title_lbl = tk.Label(
+            dialog, text="🔒 EMERGENCY PIN EXIT", font=("Segoe UI", 12, "bold"),
+            fg="#f97316", bg="#0f172a"
+        )
+        title_lbl.pack(pady=(16, 4))
+
+        sub_lbl = tk.Label(
+            dialog, text="Enter your 6-digit numeric Emergency PIN:", font=("Segoe UI", 9),
+            fg="#94a3b8", bg="#0f172a"
+        )
+        sub_lbl.pack(pady=(0, 10))
+
+        def validate_pin(new_val):
+            if not new_val:
+                return True
+            if len(new_val) > 6:
+                return False
+            return new_val.isdigit()
+
+        vcmd = (dialog.register(validate_pin), '%P')
+
+        pin_var = tk.StringVar()
+        entry = tk.Entry(
+            dialog, textvariable=pin_var, font=("Segoe UI", 18, "bold"),
+            show="●", justify="center", width=10, validate='key', validatecommand=vcmd,
+            bg="#1e293b", fg="#ffffff", insertbackground="#ffffff", bd=2, relief="flat"
+        )
+        entry.pack(pady=10)
+        entry.focus_set()
+
+        def on_confirm():
+            val = pin_var.get().strip()
+            if len(val) != 6 or not val.isdigit():
+                messagebox.showwarning("Invalid PIN", "PIN must be exactly 6 numeric digits.", parent=dialog)
+                return
+            result["pin"] = val
+            dialog.destroy()
+
+        def on_cancel():
+            dialog.destroy()
+
+        entry.bind("<Return>", lambda e: on_confirm())
+        entry.bind("<Escape>", lambda e: on_cancel())
+
+        btn_frame = tk.Frame(dialog, bg="#0f172a")
+        btn_frame.pack(fill="x", padx=20, pady=(12, 16))
+
+        btn_cancel = tk.Button(
+            btn_frame, text="Cancel", font=("Segoe UI", 9, "bold"),
+            bg="#334155", fg="white", activebackground="#475569", activeforeground="white",
+            bd=0, padx=12, pady=7, command=on_cancel, cursor="hand2"
+        )
+        btn_cancel.pack(side="left", expand=True, fill="x", padx=4)
+
+        btn_ok = tk.Button(
+            btn_frame, text="Unlock", font=("Segoe UI", 9, "bold"),
+            bg="#f97316", fg="white", activebackground="#ea580c", activeforeground="white",
+            bd=0, padx=12, pady=7, command=on_confirm, cursor="hand2"
+        )
+        btn_ok.pack(side="right", expand=True, fill="x", padx=4)
+
+        parent.wait_window(dialog)
+        return result["pin"]
+
     def gui_end():
         if not focus_state["is_active"]:
             messagebox.showinfo("Focusnyx", "No active focus session!", parent=root)
@@ -556,21 +645,11 @@ def start_gui():
         if was_blocking:
             keyboard_blocker.stop_blocking()
         try:
-            try:
-                root.lift()
-                root.attributes('-topmost', True)
-                root.focus_force()
-            except Exception:
-                pass
-            pin = simpledialog.askstring("Emergency Exit", "Enter 6-digit Emergency PIN:", show="*", parent=root)
-            try:
-                root.attributes('-topmost', False)
-            except Exception:
-                pass
+            pin = ask_6digit_pin(root)
             if pin is not None:
                 clean_pin = pin.strip()
-                if not clean_pin:
-                    messagebox.showwarning("Emergency Exit", "Please enter your 6-digit PIN.", parent=root)
+                if len(clean_pin) != 6:
+                    messagebox.showwarning("Emergency Exit", "Please enter a valid 6-digit numeric PIN.", parent=root)
                     return
                 success, msg = stop_focus_session(clean_pin)
                 if not success:
@@ -579,10 +658,6 @@ def start_gui():
                     messagebox.showinfo("Emergency Exit", "Focus Lock Released!", parent=root)
                     threading.Thread(target=notify_web_and_extension_stop, daemon=True).start()
         finally:
-            try:
-                root.attributes('-topmost', False)
-            except Exception:
-                pass
             if focus_state["is_active"] and was_blocking:
                 keyboard_blocker.start_blocking()
 

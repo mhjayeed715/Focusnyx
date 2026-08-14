@@ -88,24 +88,54 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.data && event.data.type === "FOCUSNYX_EXTENSION_STATE" && event.data.state) {
-        const { active, remainingTime } = event.data.state;
+      if (!event.data) return;
+      const isExtensionEvent =
+        event.data.type === "FOCUSNYX_EXTENSION_STATE" ||
+        event.data.type === "FOCUSNYX_EXTENSION_EVENT";
+
+      const state = event.data.state;
+      if (isExtensionEvent && state) {
+        const active = state.active ?? state.isActive ?? false;
+        const remainingTime = state.remainingTime ?? (state.focusDuration ? Math.max(0, state.focusDuration - (Date.now() - (state.focusStartTime || Date.now()))) : 0);
         const remainingSecs = Math.max(0, Math.round((remainingTime || 0) / 1000));
-        if (active && remainingSecs > 0) {
-          syncState(remainingSecs, true);
+
+        if (active) {
+          syncState(remainingSecs > 0 ? remainingSecs : defaultMinutes * 60, true);
           setIsLocked(true);
-        } else if (!active) {
+        } else {
           syncState(defaultMinutes * 60, false);
           setIsLocked(false);
         }
       }
     };
     window.addEventListener("message", handleMessage);
+
     if (typeof window !== "undefined") {
       window.postMessage({ type: "FOCUSNYX_WEB_APP_ACTION", action: "getStatus" }, "*");
     }
-    return () => window.removeEventListener("message", handleMessage);
-  }, [syncState, defaultMinutes]);
+
+    // Companion App status polling for timer sync
+    const companionSyncTimer = setInterval(async () => {
+      try {
+        const res = await fetch("http://localhost:5000/status", { signal: AbortSignal.timeout(1500) });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.is_active) {
+            const rem = Number(data.remaining_seconds) || 0;
+            if (rem > 0 && !isRunning) {
+              syncState(rem, true);
+              setIsLocked(true);
+            }
+          }
+        }
+      } catch {}
+    }, 2000);
+
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      clearInterval(companionSyncTimer);
+    };
+  }, [syncState, defaultMinutes, isRunning]);
 
   return (
     <FocusContext.Provider
