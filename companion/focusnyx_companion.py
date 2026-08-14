@@ -243,13 +243,14 @@ def home():
 
 @app.route("/health", methods=["GET"])
 def health():
-    return jsonify({"status": "running", "app": "Focusnyx Companion", "version": "1.0.0", "active": focus_state["is_active"]})
+    return jsonify({"status": "running", "app": "Focusnyx Companion", "version": "1.9.0", "active": focus_state["is_active"]})
 
 @app.route("/status", methods=["GET"])
 def status():
     elapsed = (time.time() - focus_state["start_time"]) if focus_state["start_time"] else 0
     remaining = max(0, (focus_state["duration_minutes"] * 60) - elapsed) if focus_state["is_active"] else 0
     return jsonify({
+        "version": "1.9.0",
         "is_active": focus_state["is_active"],
         "remaining_seconds": int(remaining),
         "duration_minutes": focus_state["duration_minutes"],
@@ -442,7 +443,7 @@ def start_gui():
 
     global root
     root = tk.Tk()
-    root.title("Focusnyx Companion - Focus Lock")
+    root.title("Focusnyx Desktop Companion v1.9.0 - Focus Lock")
     root.geometry("480x620")
     root.configure(bg="#0f172a")
 
@@ -489,7 +490,7 @@ def start_gui():
 
     sub_label = tk.Label(
         header_frame,
-        text="Windows OS-Level Focus Lock Engine v1.0.0",
+        text="Windows OS-Level Focus Lock Engine v1.9.0 • Active Protection",
         font=("Segoe UI", 9),
         fg="#94a3b8",
         bg="#1e293b"
