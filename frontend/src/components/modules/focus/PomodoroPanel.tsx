@@ -120,20 +120,142 @@ const WHITELIST_SUGGESTIONS = [
   "canvas.instructure.com",
 ];
 
+function AppLogo({ exe, className = "h-5 w-5 shrink-0" }: { exe: string; className?: string }) {
+  const clean = exe.toLowerCase();
+
+  if (clean === "chrome.exe") {
+    return (
+      <svg className={className} viewBox="0 0 48 48">
+        <path fill="#4CAF50" d="M44,24c0,11.045-8.955,20-20,20S4,35.045,4,24S12.955,4,24,4s20,8.955,20,20Z"/>
+        <circle fill="#FFF" cx="24" cy="24" r="12"/>
+        <path fill="#FBC02D" d="m42.66,16.5c-2.45-6.3-8.31-10.87-15.33-12.06l-8.66,15c.67-.28,1.4-.44,2.16-.44h19.83s.06,0,.09,0c.66.86,1.24,1.77,1.72,2.75l.19.25Z"/>
+        <path fill="#E53935" d="m24,4c-9.2,0-16.92,6.23-19.25,14.65l9.95,17.23c.85.74,1.83,1.33,2.9,1.74l8.66-15c-.28-.67-.44-1.4-.44-2.16,0-4.42,3.58-8,8-8h-9.82Z"/>
+        <path fill="#1565C0" d="M24,16c4.42,0,8,3.58,8,8s-3.58,8-8,8s-8-3.58-8-8s3.58-8,8-8Z"/>
+      </svg>
+    );
+  }
+  if (clean === "msedge.exe" || clean === "edge.exe") {
+    return (
+      <svg className={className} viewBox="0 0 48 48">
+        <path fill="#0277BD" d="M24 4C12.95 4 4 12.95 4 24c0 7.4 4 13.9 10 17.3V27c0-5.5 4.5-10 10-10h18C39.5 9.5 32.4 4 24 4z"/>
+        <path fill="#00B0FF" d="M14 41.3C16.9 43 20.3 44 24 44c11 0 20-9 20-20 0-2.5-.5-4.8-1.3-7H24c-5.5 0-10 4.5-10 10v14.3z"/>
+        <path fill="#00E676" d="M24 17c-3.9 0-7 3.1-7 7s3.1 7 7 7h17.3C43 28.1 44 24.7 44 21c0-2.2-.4-4.3-1-6.3L34 20c-1.4-1.8-3.6-3-6-3h-4z"/>
+      </svg>
+    );
+  }
+  if (clean === "firefox.exe") {
+    return (
+      <svg className={className} viewBox="0 0 48 48">
+        <circle cx="24" cy="24" r="20" fill="#FF7043"/>
+        <path fill="#FFEE58" d="M24 6c5.8 0 10.6 2.4 14 6.3-4.8-1.5-9.6.1-12.5 3.4-2.9 3.4-3.4 7.7-1 11.1-5.3-1-9.2-5.3-9.2-10.6 0-5.8 4.3-10.2 8.7-10.2z"/>
+        <path fill="#E64A19" d="M24 42c-10.6 0-19.3-8.7-19.3-19.3 0-5.8 2.4-10.6 6.3-14 1.5 4.8-.1 9.6-3.4 12.5-3.4 2.9-7.7 3.4-11.1 1 1 5.3 5.3 9.2 10.6 9.2 5.8 0 10.2-4.3 10.2-8.7z"/>
+        <circle cx="24" cy="24" r="7" fill="#29B6F6"/>
+      </svg>
+    );
+  }
+  if (clean === "brave.exe") {
+    return (
+      <svg className={className} viewBox="0 0 48 48">
+        <path fill="#FF3D00" d="M24 4L7 11v14c0 12 17 21 17 21s17-9 17-21V11L24 4z"/>
+        <path fill="#FFF" d="M24 14l-10 5v10c0 7 10 12 10 12s10-5 10-12V19l-10-5z"/>
+        <path fill="#FF3D00" d="M24 20l-5 2.5v5c0 3.5 5 6 5 6s5-2.5 5-6v-5L24 20z"/>
+      </svg>
+    );
+  }
+  if (clean === "discord.exe") {
+    return (
+      <svg className={className} viewBox="0 0 127.14 96.36" fill="#5865F2">
+        <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a74.4,74.4,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22c2.68-27.42-4.51-51.17-18.9-72.15ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,45.92,53.86,53,48.8,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5.08-12.74,11.44-12.74S96.23,45.92,96.09,53,91,65.69,84.69,65.69Z"/>
+      </svg>
+    );
+  }
+  if (clean === "spotify.exe") {
+    return (
+      <svg className={className} viewBox="0 0 48 48">
+        <circle cx="24" cy="24" r="20" fill="#1DB954"/>
+        <path fill="#FFF" d="M34 20c-7-2-15-1-21 2-1 1-2 1-1 3 1 1 2 1 3 0 5-3 12-4 18-2 1 0 2 0 2-1 1-1 0-2-1-2zm-1 6c-6-2-13-1-18 2-1 0-1 1-1 2 0 1 1 2 2 1 4-2 10-3 15-1 1 0 2 0 2-1 1-1 0-2-1-3zm-2 5c-4-2-9-1-13 1-1 1-1 1 0 2 1 0 1 0 2 0 3-1 8-2 11 0 1 0 2 0 2-1 0-1 0-1-1-2z"/>
+      </svg>
+    );
+  }
+  if (clean === "steam.exe") {
+    return (
+      <svg className={className} viewBox="0 0 48 48">
+        <circle cx="24" cy="24" r="20" fill="#171A21"/>
+        <path fill="#C7D5E0" d="M24 8c-8.8 0-16 6.9-17 15.5l8.8 3.5c1-1.5 3-2.5 5.2-2.5 1.5 0 2.9.5 4 1.5l7.5-5.5v-.5c0-5 4-9 9-9s9 4 9 9-4 9-9 9h-.5l-5.5 7.5c1.5 1 2.5 2.5 2.5 4.3 0 3-2.5 5.2-5.5 5.2-3 0-5.2-2.5-5.2-5.5 0-1.5.5-2.9 1.5-4l-3.5-8.8C13.2 29 8 21.8 8 24c0 8.8 7.2 16 16 16 8.8 0 16-7.2 16-16S32.8 8 24 8z"/>
+      </svg>
+    );
+  }
+  if (clean === "telegram.exe") {
+    return (
+      <svg className={className} viewBox="0 0 48 48">
+        <circle cx="24" cy="24" r="20" fill="#29B6F6"/>
+        <path fill="#FFF" d="M11 23.5l25-9.5c1.5-.5 2.5.5 2 2l-4.5 21c-.5 2-1.5 2.5-3 1.5l-6.5-5-3 3c-.5.5-1 .5-1-.5l.5-7 13-11.5c.5-.5 0-1-1-.5l-16 10-6.5-2c-1.5-.5-1.5-1.5 1.5-2.5z"/>
+      </svg>
+    );
+  }
+  if (clean === "whatsapp.exe") {
+    return (
+      <svg className={className} viewBox="0 0 48 48">
+        <circle cx="24" cy="24" r="20" fill="#25D366"/>
+        <path fill="#FFF" d="M24 10c-7.7 0-14 6.3-14 14 0 2.7.8 5.2 2.2 7.4L10 38l6.8-2.2c2.1 1.2 4.6 1.9 7.2 1.9 7.7 0 14-6.3 14-14S31.7 10 24 10zm7 19.5c-.3.8-1.8 1.6-2.5 1.7-.7.1-1.6.2-2.6-.1-2.2-.7-4.9-2.3-6.8-4.2-2-1.9-3.4-4.5-4.1-6.7-.3-1-.1-1.9 0-2.6.1-.7.9-2.2 1.7-2.5.3-.1.6-.1.8-.1h.8c.3 0 .6 0 .8.6l1 2.5c.2.5.2.9-.1 1.2l-.6.7c-.2.2-.3.4-.1.7.5.9 1.4 2.1 2.6 3.1 1.5 1.2 2.7 1.7 3.6 2.1.3.1.5 0 .7-.2l.8-.9c.3-.4.7-.4 1.1-.2l2.4 1.1c.5.3.6.6.6.9z"/>
+      </svg>
+    );
+  }
+  if (clean === "code.exe" || clean === "vscode.exe") {
+    return (
+      <svg className={className} viewBox="0 0 48 48">
+        <path fill="#0078D7" d="M35 7L13 24l22 17 6-3V10l-6-3z"/>
+        <path fill="#00B0FF" d="M35 7l6 3v28l-6 3L23 24 35 7z"/>
+        <path fill="#0277BD" d="M13 24L7 19l-3 2 9 8 9 8 3-2-12-11z"/>
+      </svg>
+    );
+  }
+  if (clean === "notion.exe") {
+    return (
+      <svg className={className} viewBox="0 0 48 48">
+        <path fill="#000000" d="M12 10h18l7 7v21H12V10zm15 3H15v22h19V18H27v-5z"/>
+        <path fill="#000" d="M18 20h12v3H18zm0 6h12v3H18zm0 6h8v3H18z"/>
+      </svg>
+    );
+  }
+  if (clean === "obs64.exe" || clean === "obs.exe") {
+    return (
+      <svg className={className} viewBox="0 0 48 48">
+        <circle cx="24" cy="24" r="20" fill="#212121"/>
+        <circle cx="24" cy="17" r="5" fill="#FFF"/>
+        <circle cx="18" cy="28" r="5" fill="#FFF"/>
+        <circle cx="30" cy="28" r="5" fill="#FFF"/>
+      </svg>
+    );
+  }
+  if (clean === "vlc.exe") {
+    return (
+      <svg className={className} viewBox="0 0 48 48">
+        <path fill="#FF6D00" d="M24 6L15 32h18L24 6z"/>
+        <path fill="#FFF" d="M18 23h12L24 6 18 23z"/>
+        <path fill="#FF6D00" d="M10 40h28l3 4H7l3-4z"/>
+        <path fill="#FFF" d="M12 35h24l2 5H10l2-5z"/>
+      </svg>
+    );
+  }
+
+  return <Laptop className={className} />;
+}
+
 const COMMON_APPS = [
-  { name: "Chrome", exe: "chrome.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/e/e1/Google_Chrome_icon_%28February_2022%29.svg" },
-  { name: "Edge", exe: "msedge.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/9/98/Microsoft_Edge_logo_%282019%29.svg" },
-  { name: "Firefox", exe: "firefox.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/a/a0/Firefox_logo%2C_2019.svg" },
-  { name: "Brave Browser", exe: "brave.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/5/51/Brave_icon_Lion.svg" },
-  { name: "Discord", exe: "discord.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/7/73/Discord_Color_Logo.svg" },
-  { name: "Spotify", exe: "spotify.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/1/19/Spotify_logo_without_text.svg" },
-  { name: "Steam", exe: "steam.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg" },
-  { name: "Telegram", exe: "telegram.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg" },
-  { name: "WhatsApp", exe: "whatsapp.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" },
-  { name: "VS Code", exe: "code.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/9/9a/Visual_Studio_Code_1.35_icon.svg" },
-  { name: "Notion", exe: "notion.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/e/e9/Notion-logo.svg" },
-  { name: "OBS Studio", exe: "obs64.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/d/d4/OBS_Studio_Icon.svg" },
-  { name: "VLC", exe: "vlc.exe", iconUrl: "https://upload.wikimedia.org/wikipedia/commons/3/38/VLC_icon.svg" },
+  { name: "Chrome", exe: "chrome.exe" },
+  { name: "Edge", exe: "msedge.exe" },
+  { name: "Firefox", exe: "firefox.exe" },
+  { name: "Brave Browser", exe: "brave.exe" },
+  { name: "Discord", exe: "discord.exe" },
+  { name: "Spotify", exe: "spotify.exe" },
+  { name: "Steam", exe: "steam.exe" },
+  { name: "Telegram", exe: "telegram.exe" },
+  { name: "WhatsApp", exe: "whatsapp.exe" },
+  { name: "VS Code", exe: "code.exe" },
+  { name: "Notion", exe: "notion.exe" },
+  { name: "OBS Studio", exe: "obs64.exe" },
+  { name: "VLC", exe: "vlc.exe" },
 ];
 
 const SOUND_PRESETS = [
@@ -1809,11 +1931,7 @@ export function PomodoroPanel() {
                                 : "bg-white text-[var(--foreground)] hover:bg-slate-50 shadow-[2px_2px_0_0_#1E293B]"
                             }`}
                           >
-                            {matchedPreset ? (
-                              <img src={matchedPreset.iconUrl} alt={app.name} className="h-5 w-5 shrink-0 object-contain" />
-                            ) : (
-                              <span className="text-base shrink-0"><Laptop size={16} /></span>
-                            )}
+                            <AppLogo exe={app.exe} />
                             <div className="min-w-0 flex-1">
                               <p className="truncate font-black text-xs" title={app.name}>{app.name}</p>
                               <p className={`text-[10px] font-bold ${isBlocked ? "text-red-700" : app.running ? "text-emerald-700" : "text-slate-500"}`}>
@@ -1851,14 +1969,7 @@ export function PomodoroPanel() {
                               : "bg-white text-[var(--foreground)] hover:bg-slate-50 shadow-[2px_2px_0_0_#1E293B]"
                           }`}
                         >
-                          <img
-                            src={app.iconUrl}
-                            alt={app.name}
-                            className="h-5 w-5 shrink-0 object-contain"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = "none";
-                            }}
-                          />
+                          <AppLogo exe={app.exe} />
                           <div className="min-w-0 flex-1">
                             <p className="truncate font-black text-xs">{app.name}</p>
                             <p className={`text-[10px] font-bold ${isBlocked ? "text-red-700" : "text-slate-500"}`}>
