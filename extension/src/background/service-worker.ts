@@ -323,12 +323,11 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
       let duration = request.duration || (request.durationMinutes ? request.durationMinutes * 60 * 1000 : 25 * 60 * 1000);
       if (duration > 0 && duration <= 1440) duration = duration * 60 * 1000;
 
-      // Build allowedUrls: use incoming allowedUrls if provided, otherwise seed with default whitelisted domains
-      const incoming: string[] = Array.isArray(request.allowedUrls) ? request.allowedUrls : [];
+      // Build allowedUrls: strictly use incoming allowedUrls if passed (even if empty [])
+      const incoming: string[] = Array.isArray(request.allowedUrls) ? request.allowedUrls : (_state.allowedUrls || []);
       console.log("[Focusnyx SW] startFocus received. incoming allowedUrls:", incoming);
-      const listToSeed = incoming.length > 0 ? incoming : DEFAULT_WHITELISTED_DOMAINS;
       const allowedUrls = Array.from(new Set(
-        [...PWA_SEED_URLS, ...listToSeed].map((v) => normalizeDomain(String(v || ""))).filter(Boolean)
+        [...PWA_SEED_URLS, ...incoming].map((v) => normalizeDomain(String(v || ""))).filter(Boolean)
       ));
 
       const pin = request.pin || _state.focusPIN || "";
@@ -382,12 +381,15 @@ function handleMessage(request: any, sender: any, sendResponse: (response?: any)
     return true;
   }
 
-  if (request.action === "updateWhitelist") {
+  if (request.action === "updateWhitelist" || request.action === "syncBlocklist") {
     (async () => {
-      const incoming: string[] = Array.isArray(request.allowedUrls) ? request.allowedUrls : [];
+      const incoming: string[] = Array.isArray(request.allowedUrls)
+        ? request.allowedUrls
+        : (Array.isArray(request.whitelistedSites) ? request.whitelistedSites : []);
       _state.allowedUrls = Array.from(new Set(
         [...PWA_SEED_URLS, ...incoming].map((d) => normalizeDomain(d)).filter(Boolean)
       ));
+      console.log("[Focusnyx SW] Whitelist updated to:", _state.allowedUrls);
       await persistState();
       sendResponse({ ok: true, success: true });
     })();

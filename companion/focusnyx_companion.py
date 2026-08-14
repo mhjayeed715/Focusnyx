@@ -261,8 +261,11 @@ def start_focus():
     if request.method == "OPTIONS":
         return jsonify({"status": "ok"}), 200
     data = request.get_json(silent=True) or {}
-    duration = data.get("duration", 25)
+    duration = data.get("duration") or data.get("duration_minutes") or 25
     pin = data.get("pin")
+    blacklist = data.get("blacklist") or data.get("blockedApps") or data.get("apps")
+    if blacklist and isinstance(blacklist, list):
+        process_monitor.set_blacklist(blacklist)
     user_id = data.get("userId") or data.get("user_id")
     if user_id:
         sync.set_user_id(user_id)
@@ -443,6 +446,15 @@ def start_gui():
     root.geometry("480x620")
     root.configure(bg="#0f172a")
 
+    # Bring window to front immediately
+    try:
+        root.lift()
+        root.attributes('-topmost', True)
+        root.after(150, lambda: root.attributes('-topmost', False))
+        root.focus_force()
+    except Exception:
+        pass
+
     # Set window & taskbar icon
     ico_path = get_asset_path("icon.ico")
     png_path = get_asset_path("icon-128.png")
@@ -538,41 +550,65 @@ def start_gui():
 
     def gui_end():
         if not focus_state["is_active"]:
-            messagebox.showinfo("Focusnyx", "No active focus session!")
+            messagebox.showinfo("Focusnyx", "No active focus session!", parent=root)
             return
         was_blocking = keyboard_blocker.is_blocking
         if was_blocking:
             keyboard_blocker.stop_blocking()
         try:
-            pin = simpledialog.askstring("Emergency Exit", "Enter 6-digit Emergency PIN:", show="*")
+            try:
+                root.lift()
+                root.attributes('-topmost', True)
+                root.focus_force()
+            except Exception:
+                pass
+            pin = simpledialog.askstring("Emergency Exit", "Enter 6-digit Emergency PIN:", show="*", parent=root)
+            try:
+                root.attributes('-topmost', False)
+            except Exception:
+                pass
             if pin is not None:
                 clean_pin = pin.strip()
                 if not clean_pin:
-                    messagebox.showwarning("Emergency Exit", "Please enter your 6-digit PIN.")
+                    messagebox.showwarning("Emergency Exit", "Please enter your 6-digit PIN.", parent=root)
                     return
                 success, msg = stop_focus_session(clean_pin)
                 if not success:
-                    messagebox.showerror("Emergency Exit", msg)
+                    messagebox.showerror("Emergency Exit", msg, parent=root)
                 else:
-                    messagebox.showinfo("Emergency Exit", "Focus Lock Released!")
+                    messagebox.showinfo("Emergency Exit", "Focus Lock Released!", parent=root)
                     threading.Thread(target=notify_web_and_extension_stop, daemon=True).start()
         finally:
+            try:
+                root.attributes('-topmost', False)
+            except Exception:
+                pass
             if focus_state["is_active"] and was_blocking:
                 keyboard_blocker.start_blocking()
 
     def gui_force_unlock():
         if not focus_state["is_active"]:
-            messagebox.showinfo("Focusnyx", "No active focus session!")
+            messagebox.showinfo("Focusnyx", "No active focus session!", parent=root)
             return
         was_blocking = keyboard_blocker.is_blocking
         if was_blocking:
             keyboard_blocker.stop_blocking()
         try:
-            if messagebox.askyesno("Force Unlock", "WARNING: This will forcefully terminate the Focus Lock without a PIN. Use only if you are locked out of your browser. Proceed?"):
+            try:
+                root.lift()
+                root.attributes('-topmost', True)
+                root.focus_force()
+            except Exception:
+                pass
+            if messagebox.askyesno("Force Unlock", "WARNING: This will forcefully terminate the Focus Lock without a PIN. Use only if you are locked out of your browser. Proceed?", parent=root):
                 stop_focus_session(focus_state["pin"])
-                messagebox.showinfo("Force Unlock", "System forcefully unlocked.")
+                messagebox.showinfo("Force Unlock", "System forcefully unlocked.", parent=root)
                 threading.Thread(target=notify_web_and_extension_stop, daemon=True).start()
         finally:
+            try:
+                root.attributes('-topmost', False)
+            except Exception:
+                pass
             if focus_state["is_active"] and was_blocking:
                 keyboard_blocker.start_blocking()
 

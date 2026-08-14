@@ -117,21 +117,6 @@ var ALWAYS_ALLOWED_DOMAINS = [
   "vavppeevglpvyfoorfje.supabase.co",
   "supabase.co"
 ];
-var DEFAULT_WHITELISTED_DOMAINS = [
-  "github.com",
-  "stackoverflow.com",
-  "wikipedia.org",
-  "kaggle.com",
-  "scholar.google.com",
-  "developer.mozilla.org",
-  "w3schools.com",
-  "coursera.org",
-  "khanacademy.org",
-  "arxiv.org",
-  "docs.google.com",
-  "notion.so",
-  "chatgpt.com"
-];
 var PWA_SEED_URLS = ["localhost", "127.0.0.1", "focusnyx.vercel.app", "focusnyx.com"];
 var _state = {
   active: false,
@@ -387,11 +372,10 @@ function handleMessage(request, sender, sendResponse) {
     (async () => {
       let duration = request.duration || (request.durationMinutes ? request.durationMinutes * 60 * 1e3 : 25 * 60 * 1e3);
       if (duration > 0 && duration <= 1440) duration = duration * 60 * 1e3;
-      const incoming = Array.isArray(request.allowedUrls) ? request.allowedUrls : [];
+      const incoming = Array.isArray(request.allowedUrls) ? request.allowedUrls : _state.allowedUrls || [];
       console.log("[Focusnyx SW] startFocus received. incoming allowedUrls:", incoming);
-      const listToSeed = incoming.length > 0 ? incoming : DEFAULT_WHITELISTED_DOMAINS;
       const allowedUrls = Array.from(new Set(
-        [...PWA_SEED_URLS, ...listToSeed].map((v) => normalizeDomain(String(v || ""))).filter(Boolean)
+        [...PWA_SEED_URLS, ...incoming].map((v) => normalizeDomain(String(v || ""))).filter(Boolean)
       ));
       const pin = request.pin || _state.focusPIN || "";
       const token = request.token || _state.token;
@@ -436,12 +420,13 @@ function handleMessage(request, sender, sendResponse) {
     })();
     return true;
   }
-  if (request.action === "updateWhitelist") {
+  if (request.action === "updateWhitelist" || request.action === "syncBlocklist") {
     (async () => {
-      const incoming = Array.isArray(request.allowedUrls) ? request.allowedUrls : [];
+      const incoming = Array.isArray(request.allowedUrls) ? request.allowedUrls : Array.isArray(request.whitelistedSites) ? request.whitelistedSites : [];
       _state.allowedUrls = Array.from(new Set(
         [...PWA_SEED_URLS, ...incoming].map((d) => normalizeDomain(d)).filter(Boolean)
       ));
+      console.log("[Focusnyx SW] Whitelist updated to:", _state.allowedUrls);
       await persistState();
       sendResponse({ ok: true, success: true });
     })();

@@ -113,8 +113,9 @@
           (res) => { if (res) safeSendMessage({ action: "getStatus" }, postStateToWebApp); });
       } else if (action === "getStatus") {
         safeSendMessage({ action: "getStatus" }, postStateToWebApp);
-      } else if (action === "updateWhitelist") {
-        safeSendMessage({ action: "updateWhitelist", allowedUrls: event.data.allowedUrls || (typeof payload === "object" ? payload?.allowedUrls : []) || [] });
+      } else if (action === "updateWhitelist" || action === "syncBlocklist") {
+        const allowed = event.data.allowedUrls || (typeof payload === "object" ? (payload?.allowedUrls || payload?.whitelistedSites) : []) || [];
+        safeSendMessage({ action: "updateWhitelist", allowedUrls: allowed });
       } else if (action === "syncPin") {
         safeSendMessage({ action: "syncPin", pin: pin || event.data.pin });
       }
@@ -140,6 +141,9 @@
             (res) => { if (res) safeSendMessage({ action: "getStatus" }, postStateToWebApp); });
         } else if (action === "getStatus") {
           safeSendMessage({ action: "getStatus" }, postStateToWebApp);
+        } else if (action === "updateWhitelist" || action === "syncBlocklist") {
+          const allowed = event.data.allowedUrls || (typeof payload === "object" ? (payload?.allowedUrls || payload?.whitelistedSites) : []) || [];
+          safeSendMessage({ action: "updateWhitelist", allowedUrls: allowed });
         }
       };
     }

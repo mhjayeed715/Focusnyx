@@ -182,13 +182,14 @@ function notifyExtension(type: string, payload?: any) {
 
 function syncBlocklistToAll(sites: DistractionSite[], apps: string[]) {
   const whitelistedSites = sites.filter((s) => s.enabled).map((s) => s.site);
+  notifyExtension("updateWhitelist", { allowedUrls: whitelistedSites });
   notifyExtension("syncBlocklist", { whitelistedSites, blockedApps: apps });
 
   if (typeof window !== "undefined") {
-    fetch("http://localhost:38124/api/blocked-apps", {
+    fetch("http://localhost:5000/update-blocklist", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ apps }),
+      body: JSON.stringify({ blacklist: apps }),
     }).catch(() => {});
   }
 }
@@ -692,6 +693,39 @@ export function PomodoroPanel() {
     }
   });
 
+  // Bi-directional unlock sync: if unlocked from Companion App or Extension, unlock Web App
+  useEffect(() => {
+    if (!isLocked) return;
+    const handleMsg = (e: MessageEvent) => {
+      if (e.data?.type === "FOCUSNYX_EXTENSION_EVENT" && e.data?.action === "FOCUS_STATE_CHANGED") {
+        if (e.data?.state?.active === false) {
+          setIsLocked(false);
+          pause();
+        }
+      }
+    };
+    window.addEventListener("message", handleMsg);
+
+    const companionUnlockCheck = setInterval(async () => {
+      try {
+        const res = await fetch("http://localhost:5000/status", { signal: AbortSignal.timeout(1500) });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.is_active === false && isLocked) {
+            setIsLocked(false);
+            pause();
+            toast.success("Focus lock released from Companion App.");
+          }
+        }
+      } catch {}
+    }, 2000);
+
+    return () => {
+      window.removeEventListener("message", handleMsg);
+      clearInterval(companionUnlockCheck);
+    };
+  }, [isLocked, pause, setIsLocked]);
+
   // Audio Engine instance ref & playback manager
   const audioEngineRef = useRef<AudioEngine | null>(null);
 
@@ -729,9 +763,17 @@ export function PomodoroPanel() {
     } catch {
       // Fullscreen not supported
     }
+    const whitelistedSites = blockedSites.filter((s) => s.enabled).map((s) => s.site);
     setIsLocked(true);
     start();
-    notifyExtension("startFocus", { durationMinutes, pin: savedPin });
+    notifyExtension("startFocus", { durationMinutes, pin: savedPin, allowedUrls: whitelistedSites });
+    if (typeof window !== "undefined") {
+      fetch("http://localhost:5000/start-focus", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ duration: durationMinutes, pin: savedPin, blacklist: blockedApps }),
+      }).catch(() => {});
+    }
   };
 
   const handleSaveAndStartFocus = async () => {
@@ -763,9 +805,17 @@ export function PomodoroPanel() {
           await document.documentElement.requestFullscreen().catch(() => {});
         }
       } catch {}
+      const whitelistedSites = blockedSites.filter((s) => s.enabled).map((s) => s.site);
       setIsLocked(true);
       start();
-      notifyExtension("startFocus", { durationMinutes, pin: pinVal });
+      notifyExtension("startFocus", { durationMinutes, pin: pinVal, allowedUrls: whitelistedSites });
+      if (typeof window !== "undefined") {
+        fetch("http://localhost:5000/start-focus", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ duration: durationMinutes, pin: pinVal, blacklist: blockedApps }),
+        }).catch(() => {});
+      }
     } catch {
       toast.error("Failed to set PIN. Please try again.");
     }

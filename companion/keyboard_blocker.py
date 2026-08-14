@@ -92,8 +92,10 @@ def _is_focusnyx_window():
 
 def _is_companion_window():
     proc_name, title = _get_foreground_proc_and_title()
-    # Companion app GUI (Python process with Focusnyx title)
-    if ("python" in proc_name or "focusnyxcompanion" in proc_name) and "focusnyx" in title:
+    # Any window owned by Companion App process (including PIN dialogs, popups, and Tkinter frames)
+    if any(p in proc_name for p in ["python", "focusnyxcompanion", "companion"]):
+        return True
+    if any(kw in title for kw in ["focusnyx", "emergency exit", "force unlock", "enter pin", "emergency"]):
         return True
     return False
 
