@@ -6,139 +6,144 @@
 # <p align="center"><img src="frontend/public/icons/focusnyx.png" alt="Focusnyx Logo" width="100" height="100"/><br>Focusnyx</p>
 
 <p align="center">
-  <strong>The Ultimate Student Life OS & Cognitive Shield</strong>
+  <strong>The Ultimate Student Life OS & Cognitive Shield</strong><br>
+  <em>Empowering student productivity, academic momentum, and mental clarity through dual-layer dopamine detox and intelligent study systems.</em>
 </p>
 
 <p align="center">
-  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"/></a>
-  <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Framework-Next.js%2014-black.svg" alt="Next.js"/></a>
-  <a href="https://expressjs.com/"><img src="https://img.shields.io/badge/Backend-Express.js-lightgrey.svg" alt="Express"/></a>
-  <a href="https://supabase.com/"><img src="https://img.shields.io/badge/Database-Supabase%20%2F%20Postgres-blueviolet.svg" alt="Supabase"/></a>
-  <a href="https://developer.chrome.com/docs/extensions/mv3/intro/"><img src="https://img.shields.io/badge/Chrome%20Extension-Manifest%20V3-green.svg" alt="Chrome Extension"/></a>
-  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/OS%20Companion-Python%203.9%2B-blue.svg" alt="Python"/></a>
-  <a href="https://windows.microsoft.com/"><img src="https://img.shields.io/badge/OS%20Compatibility-Windows%2010%20%2F%2011-0078d7.svg" alt="Windows"/></a>
+  <a href="https://focusnyx.vercel.app"><img src="https://img.shields.io/badge/Live%20App-focusnyx.vercel.app-7c3aed?style=for-the-badge&logo=vercel" alt="Live App"/></a>
+  <a href="https://github.com/mhjayeed715/Focusnyx/releases"><img src="https://img.shields.io/badge/Release-v1.9.1-emerald?style=for-the-badge&logo=github" alt="Release"/></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="License"/></a>
+</p>
+
+<p align="center">
+  <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Frontend-Next.js%2014%20App%20Router-black.svg" alt="Next.js"/></a>
+  <a href="https://expressjs.com/"><img src="https://img.shields.io/badge/Backend-Express.js%20%2F%20TypeScript-lightgrey.svg" alt="Express"/></a>
+  <a href="https://supabase.com/"><img src="https://img.shields.io/badge/Database-Supabase%20%2F%20PostgreSQL-blueviolet.svg" alt="Supabase"/></a>
+  <a href="https://developer.chrome.com/docs/extensions/mv3/intro/"><img src="https://img.shields.io/badge/Extension-Chrome%20MV3%20(v1.9.0)-green.svg" alt="Chrome Extension"/></a>
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Companion-Windows%20Native%20(v1.9.0)-0078d7.svg" alt="Windows Companion"/></a>
 </p>
 
 ---
 
 ## 📖 Table of Contents
-- [Project Overview](#-project-overview)
-- [Key Features & Core Modules](#-key-features--core-modules)
-  - [Smart Academic Forge](#1-smart-academic-forge)
-  - [Dopamine Detox Engine](#2-dopamine-detox-engine)
-  - [Smart Notes Vault with AI Quiz Generator](#3-smart-notes-vault-with-ai-quiz-generator)
-  - [AI Behavioral Coach & Focusnyx AI Chatbot](#4-ai-behavioral-coach--focusnyx-ai-chatbot)
-  - [Student Finance Tracker](#5-student-finance-tracker)
-  - [Wellness Shield](#6-wellness-shield)
-  - [3-Tier Productivity Analytics](#7-3-tier-productivity-analytics)
-- [System Architecture & Data Flows](#%EF%B8%8F-system-architecture--data-flows)
-  - [High-Level Architecture](#high-level-architecture)
-  - [Pomodoro Detox Lock Sync Flow](#pomodoro-detox-lock-sync-flow)
-- [Database Schema (Supabase / Postgres)](#-database-schema-supabase--postgres)
-- [Code Structure & Modular Design](#-code-structure--modular-design)
-- [Compatibility & Hardware Hooks](#-compatibility--hardware-hooks)
-- [Installation & Local Setup](#%EF%B8%8F-installation--local-setup)
-- [Contributing & Feedback](#-contributing--feedback)
-- [License](#-license)
-- [Author & Maintainer](#-author--maintainer)
+- [🌟 Project Overview](#-project-overview)
+- [⚡ ADHD Mode vs. Standard Mode](#-adhd-mode-vs-standard-mode)
+- [🛠️ Key Features & Core Modules](#%EF%B8%8F-key-features--core-modules)
+  - [1. Smart Academic Forge](#1-smart-academic-forge)
+  - [2. Dopamine Detox Engine & Focus Lock](#2-dopamine-detox-engine--focus-lock)
+  - [3. Smart Notes Vault with AI Quiz Generator](#3-smart-notes-vault-with-ai-quiz-generator)
+  - [4. AI Behavioral Coach & Focusnyx AI Chatbot](#4-ai-behavioral-coach--focusnyx-ai-chatbot)
+  - [5. Student Finance Tracker](#5-student-finance-tracker)
+  - [6. Wellness Shield & Burnout Prevention](#6-wellness-shield--burnout-prevention)
+  - [7. 3-Tier Productivity Analytics](#7-3-tier-productivity-analytics)
+- [⚙️ System Architecture & Data Flows](#%EF%B8%8F-system-architecture--data-flows)
+  - [High-Level Hybrid Architecture](#high-level-hybrid-architecture)
+  - [Two-Way Real-Time Timer & Lock Synchronization](#two-way-real-time-timer--lock-synchronization)
+- [🗄️ Database Schema (Supabase / PostgreSQL)](#%EF%B8%8F-database-schema-supabase--postgresql)
+- [📂 Code Structure & Modular Design](#-code-structure--modular-design)
+- [💻 Hardware Hooks & OS Permissions](#-hardware-hooks--os-permissions)
+- [🚀 Quick Downloads & Installation Guide](#-quick-downloads--installation-guide)
+  - [Direct Pre-Built Downloads](#direct-pre-built-downloads)
+  - [Local Development Setup](#local-development-setup)
+- [🤝 Contributing & Feedback](#-contributing--feedback)
+- [📜 License](#-license)
+- [👨‍💻 Author & Maintainer](#-author--maintainer)
 
 ---
 
 ## 🌟 Project Overview
 
-**Focusnyx** is a modern, enterprise-ready **Student Life OS** and digital cognitive shield designed specifically for university students. Operating as a hybrid system, it merges a Next.js Progressive Web App (PWA) with a Chrome Web Extension (Manifest V3) and a native Windows Python Companion. Focusnyx helps students manage their GPA, tracks wellness indicators, maintains budgets, and enforces a strict, distraction-free **Dopamine Detox** by locking down web browsers and OS environments during focus intervals.
+**Focusnyx** is a full-stack **Student Life OS** and digital cognitive shield designed specifically for university students and neurodivergent learners. Operating as an interconnected hybrid ecosystem, it unifies:
 
-![Homepage](docs/assets/screenshots/homepage.png)
+1. **Progressive Web Application (PWA)**: Built with Next.js 14 App Router and Neo-Brutalist design tokens.
+2. **Chrome Extension (Manifest V3)**: Provides browser-level URL blocking, declarative request filtering, and in-tab focus overlays.
+3. **Windows Native Companion App**: A Python/Flask system tray service with low-level Win32 hooks to intercept shortcut keys (`Alt+Tab`, `Win`, `Ctrl+Esc`), manage window focus, and enforce distraction-free desktop environments.
 
-![Main Dashboard](docs/assets/screenshots/dashboard.png)
+Focusnyx balances rigorous time management with holistic student wellness, grade estimation, peer-to-peer finance tracking, continuous bilingual voice notes, and AI-powered personalized study assistance.
+
+🌐 **Live Web Application**: [https://focusnyx.vercel.app](https://focusnyx.vercel.app)
+
+---
+
+## ⚡ ADHD Mode vs. Standard Mode
+
+Focusnyx features a global **ADHD / Standard Interaction Mode Switcher** accessible from the top navigation bar at all times.
+
+| Core Feature | ⚡ ADHD Mode (Low Friction & Cognitive Ease) | 🏛️ Standard Mode (Comprehensive Detail) |
+| :--- | :--- | :--- |
+| **Academic Forge** | Top focal countdown banner for the single immediate deadline with 1-click study session launch. Historical semesters tucked into collapsible accordion. | Full semester overview, detailed course credit lists, SGPA projection sliders, and grading scale tables. |
+| **Focus Workstation** | Prominently centered hyperfocus timer, single focal task with 1-tap subtasks, and pre-filled 25m/5m/50m presets. App blocklists tucked in drawer. | Full multi-tab blocklist managers, custom domain whitelist tables, ambient lo-fi sound mix consoles. |
+| **Smart Notes Vault** | "⚡ Quick Brain Dump" prompt with instant 1-click voice dictation (EN/BN) and 1-tap 5-MCQ quiz presets. | Rich note editor, subject tag creation, custom question count sliders (MCQ, Short Q&A, Broad Essay). |
+| **Finance Tracker** | 3 essential big numbers (Balance, Expenses, Budget) + 1-tap quick expense chips (`+৳50`, `+৳100`, `+৳500`). Collapsible debts/savings. | Full multi-category breakdown bars, interactive transaction history tables, savings goal deposit logs. |
+| **Wellness Shield** | 1-tap daily quick check-in (`💧 +1 Glass Water`, `Mood Emojis`, `🏃 +1,000 Steps`) + bold single-card burnout meter. | Detailed bedtime/wake time forms, medication manager logs, multi-week sleep correlation charts. |
+| **AI Behavioral Coach** | "⚡ ADHD Golden Action of the Week" hero banner with top 3 actionable bullet points. Collapsible deep report. | Full multi-paragraph AI behavioral diagnostic, metric breakdown chips, and complete historical reports. |
+| **Analytics Overview** | 3-Core Focus Vitals (Today's Focus Mins, Distractions Blocked, Tasks Done) + single-day focus view. | 3-Tier Multi-Period Analytics (Daily, Weekly, Monthly) with CGPA momentum charts and sleep vs. focus correlations. |
 
 ---
 
 ## 🛠️ Key Features & Core Modules
 
 ### 1. Smart Academic Forge
-An academic powerhouse that tracks your semester progression and studies:
-- **GPAs Momentum Estimator**: Input semester course target grades and actual mid-term/finals marks. Estimate SGPAs and project overall CGPAs.
-- **Academic Tasks**: Manage study items, exams, and projects with integrated subtasks and completion weights.
-- **Gamified Rewards**: Complete tasks to earn Experience Points (XP) and build streaks, leveling up your profile.
-
-![Academic Forge Page](docs/assets/screenshots/academic_forge.png)
+- **CGPA & SGPA Momentum Calculator**: Input course credits, midterms, and finals to accurately project semester GPA and cumulative CGPA.
+- **Immediate Focal Deadline Countdown**: ADHD-friendly countdown banner highlighting the next upcoming exam or assignment.
+- **Course & Task Boards**: Organize academic deliverables with weighted subtasks and deadline prioritization.
+- **Gamified XP & Level Progression**: Earn Experience Points (XP) for completed tasks, unlocking streak multipliers.
 
 ---
 
-### 2. Dopamine Detox Engine
-A strict, dual-layer concentration lock designed to interrupt feedback loops from instant gratification apps:
-- **Browser Lock (Chrome Extension)**: Intercepts web navigation, tab switches, and new tab creations. Redirects unallowed domains back to Focusnyx with custom-injected overlays.
-- **Operating System Lock (Windows Companion)**: Hooking system intercepts productivity-breaking shortcuts (e.g., `Alt+Tab`, `Windows Key`, `Ctrl+Esc`), disables Task Manager / Registry Editor via user-mode keys, and forcefully minimizes non-browser apps.
-- **Locked Browser Enforcement**: Forces Chrome/Edge to stay "Always-on-Top" using active Win32 window handles.
-- **Emergency Rescue PIN**: Prevents impulsive exits. The only way to stop a focus lock session prematurely is to enter a pre-configured 6-digit emergency PIN, logging it as an escape event.
-
-![Detox Engine Active Lock State](docs/assets/screenshots/dopamine_detox_lock.png)
+### 2. Dopamine Detox Engine & Focus Lock
+- **Browser Lock (Chrome Extension Manifest V3)**: Intercepts distracting domain navigation, new tabs, and tab switches, redirecting to a motivation-focused block page.
+- **Desktop Lockdown (Windows Companion)**: Intercepts distraction apps (games, social media, messaging) and brings study windows back to the foreground.
+- **Shortcut Interception**: Blocks `Alt+Tab`, `Windows Key`, `Ctrl+Esc`, and disables Task Manager / Registry Editor during active sessions.
+- **Strict 6-Digit Emergency Rescue PIN**: Prevents impulsive session termination. Locked with a strict 6-digit numeric validation modal.
+- **Two-Way Synchronization**: Starting or stopping a timer in the Chrome Extension, Companion App, or Web App immediately updates all connected clients in real time.
 
 ---
 
 ### 3. Smart Notes Vault with AI Quiz Generator
-A study-focused notes assistant that transforms typing and speech into active recall materials:
-- **Continuous Voice Notes (Speech-to-Text)**: Leverages the Web Speech API (`webkitSpeechRecognition`) for hands-free study recording. Full bilingual support for English (US) and Bangla (BD) with an automatic audio processing engine to prevent infinite loops.
-- **AI Quiz Generator**: Generates custom practice sets from note contents via Llama-3.1 or Gemini. 
-  - **Interactive MCQs**: Includes live score indicators, instant option feedback (correct/incorrect styling), and comprehensive explanations.
-  - **Short Q&A practice**: Flashcard style cards for quick conceptual checks.
-  - **Broad essay-style questions**: Prepare for university examinations with full structural model answers.
-
-![Smart Notes Dashboard & Quiz Panel](docs/assets/screenshots/smart_notes_quiz.png)
-![Smart Notes Dashboard & Quiz Panel](docs/assets/screenshots/smart_notes_quiz2.png)
+- **Continuous Bilingual Voice Dictation**: Hands-free live Speech-to-Text supporting **English (US)** and **Bangla (BD)** via the Web Speech API with automatic loop prevention.
+- **AI Quiz Generator**: Generates custom practice sets from note contents via Llama-3.1 or Gemini:
+  - **Interactive MCQs**: Instant score indicators, correct/incorrect visual feedback, and explanations.
+  - **Short Q&A practice**: Flashcard-style conceptual checks.
+  - **Broad Essay Questions**: University-style practice questions with comprehensive model answers.
 
 ---
 
 ### 4. AI Behavioral Coach & Focusnyx AI Chatbot
-An intelligent coaching layer providing structural cognitive behavioral therapy (CBT) inspired guidance:
-- **Focusnyx AI Chatbot**: A floating assistant embedded globally in the App Shell layout.
-- **Knowledge Boundaries**: Governed by strict system prompts. It only answers questions related to Focusnyx app features, productivity, study habits, and academic topics. Politely declines off-topic prompts (e.g., celebrity gossip, gaming, movies, politics) in English or Bangla.
-- **Free Tier Restrictions**: Implements client-side counters and Supabase backend updates to restrict users to a limit of 5 requests daily (resetting according to Bangladesh Standard Time - Asia/Dhaka).
-- **Custom API Key Fallback**: Users can paste their personal Groq or Gemini keys in Settings to enjoy unlimited AI chat services.
-- **Weekly Progress Coach**: Correlates notes, finance categories, completed tasks, wellness sleep patterns, and logs of distraction incidents to construct comprehensive weekly reports and behavioral feedback.
-
-![Focusnyx AI Floating Chatbot UI](docs/assets/screenshots/ai_chatbot.png)
+- **Focusnyx AI Assistant**: Floating AI assistant available globally throughout the web app.
+- **Knowledge Guardrails**: Strict system prompts ensure the AI focuses exclusively on study habits, academics, productivity, and Focusnyx features while declining off-topic prompts.
+- **Dual Language Support**: Seamless interaction in both English and Bangla.
+- **Free Tier Daily Quota & Custom Keys**: Free daily allowance (resetting according to Asia/Dhaka time) with optional BYOK (Bring Your Own Key) for unlimited Groq or Gemini queries.
+- **Weekly Progress Report**: Aggregates focus sessions, distraction logs, wellness data, and task completions into personalized weekly action plans.
 
 ---
 
 ### 5. Student Finance Tracker
-A lightweight micro-budget ledger designed to alleviate student financial stress:
-- **Transactions**: Log income and expenses across custom categories.
-- **Monthly Budgets**: Establish spending limits with real-time progress indicators.
-- **Lent/Borrowed Debts**: Keep track of pending loans with peers, tracking settled/unsettled statuses.
-- **Savings Goals**: Plan for devices or tuition, adding deposits and tracking target timelines.
-
-![Student Finance Tracker](docs/assets/screenshots/finance_tracker.png)
+- **Ledger Management**: Record income and expense entries across student-focused categories (Food, Tuition, Books, Transport, etc.).
+- **1-Tap Quick Expense Chips**: Pre-filled quick logging buttons for immediate recording without typing.
+- **Peer Debt Tracker**: Track lent and borrowed money with friends and classmates.
+- **Savings Goals**: Set visual targets for tuition, electronics, or emergency funds.
 
 ---
 
-### 6. Wellness Shield
-Maintains awareness of physiological wellness alongside study logs:
-- **Sleep & Mood Tracker**: Log sleep hours and subjective moods.
-- **Work-Rest Balance**: Graphically visualizes ratios of study hours against rest intervals, identifying burnout thresholds.
-
-![Wellness Shield](docs/assets/screenshots/wellness_shield.png)
+### 6. Wellness Shield & Burnout Prevention
+- **1-Tap Quick Wellness Logger**: Log glasses of water, mood emojis, and step counts in a single click.
+- **Burnout Shield**: Dynamically computes burnout risk scores based on sleep duration, hydration levels, study hours, and mood trends.
+- **Study-Rest Balance Advisor**: Provides contextual recommendations when sleep or hydration levels drop below healthy thresholds.
 
 ---
 
 ### 7. 3-Tier Productivity Analytics
-Transforms passive logs into behavioral insights:
-1. **Tier 1 (Daily Dashboard)**: Displays today's XP gains, task completions, and active focus time.
-2. **Tier 2 (Weekly Analysis)**: Displays distraction log categories, frequency of blocked websites, and sleep duration ratios.
-3. **Tier 3 (Macro Patterns)**: Reveals correlation tables showing how hours slept affect student focus scores and SGPA.
-
-![3-Tier Productivity Analytics](docs/assets/screenshots/analytics1.png)
-![3-Tier Productivity Analytics](docs/assets/screenshots/analytics2.png)
-![3-Tier Productivity Analytics](docs/assets/screenshots/analytics3.png)
+1. **Tier 1 (Daily)**: Focus minutes by session, recorded distraction spikes, and task completion rates.
+2. **Tier 2 (Weekly)**: Top blocked distraction categories, best focus day, and average sleep vs. study duration.
+3. **Tier 3 (Monthly / Macro)**: CGPA momentum trajectory and monthly expense vs. budget adherence.
 
 ---
 
 ## ⚙️ System Architecture & Data Flows
 
-### High-Level Architecture
-
-The diagram below details the integration between client applications, background processes, backend APIs, and the database:
+### High-Level Hybrid Architecture
 
 ```mermaid
 graph TD
@@ -147,73 +152,73 @@ graph TD
     classDef backend fill:#fef3c7,stroke:#d97706,stroke-width:2px;
     classDef db fill:#ecfdf5,stroke:#059669,stroke-width:2px;
 
-    PWA[Focusnyx PWA <br> Next.js / Tailwind CSS / PWA App]:::client
+    PWA[Focusnyx PWA <br> Next.js 14 / TypeScript / PWA]:::client
     Ext[Chrome Focus Lock Extension <br> MV3 / Content Script / Service Worker]:::client
-    Comp[Windows Companion App <br> Python / Flask API / win32 hooks]:::os
+    Comp[Windows Companion App <br> Python / Flask localhost:5000 / win32 hooks]:::os
     API[Express API Backend <br> Node.js / TypeScript]:::backend
     Supa[Supabase Database & Auth <br> PostgreSQL]:::db
 
-    %% Interconnections
-    PWA <-->|OAuth / DB Queries| Supa
-    PWA <-->|REST API Requests| API
-    PWA <-->|Localhost API / Lock Commands| Comp
-    Ext <-->|Sync State / Block rules| PWA
-    Comp <-->|Log Distractions / Distraction Logs| Supa
+    %% Real-time Sync & Interconnections
+    PWA <-->|PostgreSQL Queries & Realtime| Supa
+    PWA <-->|window.postMessage / DOM Events| Ext
+    PWA <-->|HTTP REST /status /start-focus| Comp
+    Ext <-->|Local Storage & Web Request Rules| Ext
+    Comp <-->|Log Distraction Events| Supa
     API <-->|Admin Database Operations| Supa
-    Ext <-->|Fetch Active Sessions| API
 ```
 
 ---
 
-### Pomodoro Detox Lock Sync Flow
-
-The lifecycle of a distraction-free Pomodoro session across the PWA, Chrome Extension, and Windows Companion:
+### Two-Way Real-Time Timer & Lock Synchronization
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Student as Student User
-    participant PWA as Focusnyx PWA (Browser)
+    participant PWA as Focusnyx Web App
     participant Ext as Chrome Extension (MV3)
     participant Comp as Windows Companion (Flask)
-    participant DB as Supabase DB
+    participant DB as Supabase PostgreSQL
 
-    Student->>PWA: Click "Start Pomodoro Session"
-    PWA->>DB: Write Focus Session (Active status)
-    PWA->>Ext: Dispatch "startFocus" command
-    Note over Ext: Activates blocklist overlay<br/>Intercepts tab switching & navigation
-    PWA->>Comp: Trigger Lock Webhook (POST /start-lock)
-    Note over Comp: Hooks Keyboard (Alt+Tab, Win)<br/>Sets registry (Disable TaskMgr)<br/>Launches process & window monitors
-    Comp-->>PWA: Lock Activated Confirmation
-    
-    Note over Student: Student attempts distraction (e.g. Steam, Discord)
-    Comp->>Comp: Kills distracting process
-    Comp->>DB: Log Distraction Attempt (type: process_blocked)
+    alt Start from Extension Popup
+        Student->>Ext: Click "Start Focus Session"
+        Ext->>Ext: Activate Declarative Net Request Rules
+        Ext->>PWA: Dispatch FOCUSNYX_EXTENSION_STATE event
+        PWA->>Comp: POST http://localhost:5000/start-focus
+        Note over Comp: Hook Keyboard (Alt+Tab, Win)<br/>Enforce App Blocklist
+        PWA->>DB: Record Active Focus Session
+    else Start from Web App
+        Student->>PWA: Click "Start Focus" (Focus Workstation)
+        PWA->>Ext: window.postMessage("START_FOCUS")
+        PWA->>Comp: POST http://localhost:5000/start-focus
+        PWA->>DB: Record Active Focus Session
+    end
 
-    Note over Student: Student attempts visiting facebook.com
-    Ext->>Ext: Blocks navigation & displays block screen
-    Ext->>DB: Log Distraction Attempt (type: navigation_blocked)
+    Note over Student: Distraction attempt during active session
+    opt Block Distracting Web URL
+        Ext->>Ext: Intercept URL & Redirect to blocked.html
+        Ext->>DB: Insert Distraction Log (navigation_blocked)
+    end
+    opt Block Distracting Windows App
+        Comp->>Comp: Minimize / Terminate Blacklisted Process
+        Comp->>DB: Insert Distraction Log (process_blocked)
+    end
 
-    alt Normal Session End
-        Note over PWA: Pomodoro Timer reaches 0
-        PWA->>DB: Close Focus Session (Status: completed)
-        PWA->>Ext: Dispatch "endFocus" command
-        PWA->>Comp: Trigger Unlock Webhook (POST /end-lock)
-        Note over Comp: Unhooks keyboard, restores registry, stops process killer
-    else Emergency Unlock
-        Student->>PWA: Click "Emergency Unlock"
-        PWA->>Student: Prompt for 4-digit PIN
-        Student->>PWA: Enter PIN
-        PWA->>Ext: Dispatch "endFocus" (with PIN validation)
-        PWA->>Comp: Trigger Unlock Webhook (POST /end-lock with PIN)
+    alt Emergency Exit with 6-Digit PIN
+        Student->>Comp: Click "Emergency Exit"
+        Comp->>Student: Prompt 6-Digit Numeric Modal Dialog
+        Student->>Comp: Enter Valid PIN
+        Comp->>PWA: Unlock State Notification
+        Comp->>Ext: Release Blocking Hooks
+        Comp->>DB: Record Early Exit Escape Event
     end
 ```
 
 ---
 
-## 🗄️ Database Schema (Supabase / Postgres)
+## 🗄️ Database Schema (Supabase / PostgreSQL)
 
-Focusnyx utilizes a PostgreSQL schema managed via Supabase. Below is a structural outline of the database relations:
+Focusnyx utilizes a PostgreSQL schema managed via Supabase:
 
 ```
   ┌──────────────────┐          ┌───────────────────┐
@@ -221,10 +226,9 @@ Focusnyx utilizes a PostgreSQL schema managed via Supabase. Below is a structura
   ├──────────────────┤          ├───────────────────┤
   │ id (PK, FK)      │          │ id (PK)           │
   │ university_email │          │ user_id (FK)      │
-  │ display_name     │          │ title             │
-  │ preferred_lang   │          │ subject           │
-  │ level, total_xp  │          │ subtasks (jsonb)  │
-  │ streak, score    │          │ due_at            │
+  │ display_name     │          │ title, subject    │
+  │ total_xp, streak │          │ subtasks (jsonb)  │
+  │ emergency_pin    │          │ due_at            │
   └──────────────────┘          └───────────────────┘
            ▲
            │                    ┌───────────────────┐
@@ -233,7 +237,7 @@ Focusnyx utilizes a PostgreSQL schema managed via Supabase. Below is a structura
            │                    │ id (PK)           │
            │                    │ user_id (FK)      │
            │                    │ subject, content  │
-           │                    │ source            │
+           │                    │ source (voice/type)│
            │                    └───────────────────┘
            │
            │                    ┌───────────────────┐
@@ -241,7 +245,7 @@ Focusnyx utilizes a PostgreSQL schema managed via Supabase. Below is a structura
            │                    ├───────────────────┤
            │                    │ id (PK)           │
            │                    │ user_id (FK)      │
-           │                    │ started_at        │
+           │                    │ started_at, end   │
            │                    │ planned_minutes   │
            │                    └───────────────────┘
            │
@@ -255,186 +259,117 @@ Focusnyx utilizes a PostgreSQL schema managed via Supabase. Below is a structura
                                 └───────────────────┘
 ```
 
-### Table Definitions
-
-1. **`profiles`**
-   - Stores user progress, gamification variables, and custom AI configurations.
-   - Primary key `id` references Supabase auth user system.
-   - Key attributes: `university_email`, `total_xp`, `streak`, `focus_score`, `emergency_pin`.
-
-2. **`academic_tasks` & `academic_courses`**
-   - Manage courses, grade trackers, and student task boards.
-   - `subtasks` is stored as a JSONB array for lightweight client nested parsing.
-
-3. **`focus_sessions` & `distraction_logs`**
-   - Stores active sessions and records blocked events (processes, websites) for productivity metrics.
-
-4. **`notes`**
-   - Manages notes content, tag mappings (`subject`), and audit records representing whether the source is `typed` or `voice-whisper`.
-
-5. **`transactions`, `budgets`, `debts`, `savings_goals`**
-   - Track ledger movements, month limit aggregates, peer-lent logs, and goal deadlines.
-
 ---
 
 ## 📂 Code Structure & Modular Design
-
-Focusnyx uses a highly modular monorepo structure designed for clarity and reusability:
 
 ```
 Focusnyx/
 ├── backend/                  # REST API server (Express / TypeScript)
 │   ├── src/
-│   │   ├── config/           # App settings and environment verification
-│   │   ├── controllers/      # Route handler controllers
-│   │   ├── middleware/       # JWT auth & error interceptors
-│   │   ├── routes/           # Domain-split routers (academic, wellness, etc.)
-│   │   └── services/         # Third-party integrations (Supabase, Resend)
-│   └── supabase/             # Database migration and SQL schema
+│   │   ├── config/           # App configuration and environment loaders
+│   │   ├── controllers/      # Route controllers (academic, wellness, finance)
+│   │   ├── middleware/       # JWT authentication & error handlers
+│   │   └── routes/           # Domain-split REST routers
+│   └── supabase/             # Database migration and schema.sql
 │
 ├── frontend/                 # Progressive Web Application (Next.js 14 App Router)
-│   ├── public/               # Static icons, audio assets, and PWA manifest
-│   ├── src/
-│   │   ├── app/              # Folder-based pages (dashboard, notes, finance)
-│   │   ├── components/       # Reusable Neo-brutalist UI components
-│   │   ├── context/          # Global focus locks and language states
-│   │   └── hooks/            # Custom hooks (e.g. Speech-to-text hooks)
+│   ├── public/               # Static icons, sounds, and downloadable ZIPs
+│   │   └── downloads/        # Packaged Extension & Companion executables
+│   └── src/
+│       ├── app/              # App router pages (/academic, /focus, /notes, /finance, etc.)
+│       ├── components/       # Neo-Brutalist modular UI components
+│       ├── context/          # Global FocusContext and Language/ADHD Mode context
+│       └── lib/              # Supabase client, AI Groq/Gemini integrations
 │
 ├── extension/                # Focus Lock Chrome Extension (Manifest V3)
-│   ├── manifest.json         # Extension permissions and scope filters
-│   ├── blocked.html          # Custom redirect blockpage layout
+│   ├── manifest.json         # Extension configuration (v1.9.0)
+│   ├── blocked.html          # Custom redirect block page
 │   └── src/
-│       ├── background/       # Tab interceptions and background listener
-│       └── content/          # Content scripts and DOM overlay injections
+│       ├── background/       # Service worker & declarative net request logic
+│       ├── content/          # Content script & DOM overlay bridges
+│       └── popup/            # Extension popup GUI with status controls
 │
-└── companion/                # Windows Focus Lock Companion App (Python 3.9)
-    ├── focusnyx_companion.py # Main system tray lifecycle, Flask loop, hooks
-    ├── keyboard_blocker.py   # Windows low-level keyboard hooks hooker
-    ├── registry_manager.py   # Task Manager & Registry locker (user keys)
-    ├── process_monitor.py    # Native process scanner and process killer
-    └── window_manager.py     # Win32 window always-on-top focus manager
+└── companion/                # Windows Focus Lock Companion App (Python 3.9+)
+    ├── focusnyx_companion.py # System tray, Flask localhost API, Tkinter GUI (v1.9.0)
+    ├── keyboard_blocker.py   # Windows low-level keyboard interception
+    ├── registry_manager.py   # Task Manager & Registry lockdown
+    ├── process_monitor.py    # Native process scanner and app blocker
+    ├── window_manager.py     # Win32 window always-on-top manager
+    └── package_zip.py        # Automated PyInstaller & ZIP packaging script
 ```
 
 ---
 
-## 💻 Compatibility & Hardware Hooks
+## 💻 Hardware Hooks & OS Permissions
 
-Focusnyx achieves high system reliability without requiring kernel-level drivers:
-
-| Component | Target System | Hook Mechanism | Permissions |
+| Component | Target System | Hook Mechanism | Permissions Required |
 | :--- | :--- | :--- | :--- |
-| **PWA Web App** | Web Browsers / Mobile | Service Workers, Web Speech API | Mic, Push Notifications |
-| **Chrome Extension** | Chrome / Edge / Chromium | `chrome.webRequest`, `chrome.tabs` | `webRequest`, `storage`, `<all_urls>` |
-| **Companion App** | Windows 10 & 11 | `win32gui`, `win32process`, `keyboard` | Windows Administrator (UAC Elevated) |
-
-- **Administrator Privileges & Keyboard Hooks**: Required for low-level OS keyboard interception (`Alt+Tab`, `Win Key`, `Ctrl+Esc`), taskbar lockdown, and system-wide process enforcement via UAC elevation (`uac_admin=True`).
-- **Always-On-Top Browser**: Keeps browser focus by calling `SetWindowPos` from the Win32 API repeatedly inside a window check thread.
+| **PWA Web App** | Web Browsers / Mobile | Service Workers, Web Speech API | Microphone, Notifications |
+| **Chrome Extension** | Chrome / Edge / Brave | `declarativeNetRequest`, `webNavigation`, `storage` | `tabs`, `storage`, `<all_urls>` |
+| **Companion App** | Windows 10 & 11 | `win32gui`, `win32process`, `keyboard`, `ctypes` | Windows Administrator (UAC Elevated) |
 
 ---
 
-## 🚀 Installation & Local Setup
+## 🚀 Quick Downloads & Installation Guide
 
-### Prerequisites
+### Direct Pre-Built Downloads
+
+You can download the pre-compiled packages directly:
+- 📦 **Chrome Extension (`v1.9.0`)**: Available directly from the web app at `https://focusnyx.vercel.app/downloads/Focusnyx-Chrome-Extension.zip`
+- 🖥️ **Windows Desktop Companion (`v1.9.0`)**: Available directly from the web app at `https://focusnyx.vercel.app/downloads/FocusnyxCompanionApp-Windows.zip`
+
+---
+
+### Local Development Setup
+
+#### Prerequisites
 - [Node.js v18+](https://nodejs.org/en)
-- [Python v3.9+](https://www.python.org/) (specifically for Windows devices)
+- [Python v3.9+](https://www.python.org/) (for Windows Companion development)
 - [Git](https://git-scm.com/)
 
----
+#### 1. Clone the Repository
+```bash
+git clone https://github.com/mhjayeed715/Focusnyx.git
+cd Focusnyx
+```
 
-### Step 1: Clone and Database Setup
-1. Clone the repository to your system:
-   ```bash
-   git clone https://github.com/your-username/Focusnyx.git
-   cd Focusnyx
-   ```
-2. Create a project at [Supabase](https://supabase.com/).
-3. Open the **SQL Editor** in your Supabase Dashboard, copy the contents of [schema.sql](file:///e:/Users/Desktop/AI%20PROJECT/Focusnyx/backend/supabase/schema.sql) and run it to set up all tables and indexes.
+#### 2. Database Setup (Supabase)
+1. Create a project at [Supabase](https://supabase.com/).
+2. Open the **SQL Editor** in your Supabase Dashboard and run the contents of [`backend/supabase/schema.sql`](file:///e:/Users/Desktop/AI%20PROJECT/Focusnyx/backend/supabase/schema.sql).
 
----
+#### 3. Frontend Setup (PWA)
+```bash
+cd frontend
+cp .env.example .env.local
+# Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local
+npm install
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### Step 2: Configure and Start the Backend
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
-2. Create your `.env` file using the example:
-   ```bash
-   cp .env.example .env
-   ```
-3. Open `.env` and fill in your Supabase credentials:
-   - `PORT=8080`
-   - `SUPABASE_URL=your_supabase_project_url`
-   - `SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_secret`
-   - `GROQ_API_KEY=your_groq_api_key_here` (Optional)
-4. Install dependencies and start the development server:
-   ```bash
-   npm install
-   npm run dev
-   ```
+#### 4. Chrome Extension Setup
+1. Open `chrome://extensions/` in Chrome or Edge.
+2. Enable **Developer mode** (top-right).
+3. Click **Load unpacked** and select the `extension` folder.
 
----
-
-### Step 3: Configure and Start the PWA Frontend
-1. Navigate to the frontend directory:
-   ```bash
-   cd ../frontend
-   ```
-2. Create your `.env.local` file:
-   ```bash
-   cp .env.example .env.local
-   ```
-3. Configure your API keys in `.env.local`:
-   - `NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_public_key`
-4. Install dependencies and start the development server:
-   ```bash
-   npm install
-   npm run dev
-   ```
-5. Open [http://localhost:3000](http://localhost:3000) in your web browser.
-
----
-
-### Step 4: Install the Chrome Focus Lock Extension
-1. Open Google Chrome (or Microsoft Edge) and navigate to `chrome://extensions/`.
-2. Toggle **Developer mode** on (top-right corner).
-3. Click **Load unpacked** (top-left corner).
-4. Select the `extension` folder from this repository.
-5. The extension is now active and will sync with your localhost PWA.
-
----
-
-### Step 5: Start the Windows Companion App
-1. Open a command prompt as **Administrator** (required to register Windows hooks and registry locks) and navigate to the companion directory:
-   ```bash
-   cd ../companion
-   ```
-2. Install Python requirements:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Set your Supabase parameters in `.env`:
-   - `SUPABASE_URL=your_supabase_project_url`
-   - `SUPABASE_KEY=your_supabase_anon_key`
-   - `COMPANION_PORT=5000`
-4. Start the companion app client:
-   ```bash
-   python focusnyx_companion.py
-   ```
-5. Alternatively, compile into a standalone Windows `.exe` using the automated build script:
-   ```bash
-   build_exe.bat
-   ```
-   *The compiled app will reside in the `/dist` directory.*
-
----
+#### 5. Windows Companion Setup
+```bash
+cd companion
+pip install -r requirements.txt
+python focusnyx_companion.py
+```
+*To build the standalone Windows executable:*
+```bash
+build_exe.bat
+```
 
 ---
 
 ## 🤝 Contributing & Feedback
 
-Contributions, issues, and feature requests are welcome!  
-Feel free to check the [Issues Page](https://github.com/mhjayeed715/Focusnyx/issues) or submit a Pull Request.
+Contributions, issues, and feature requests are warmly welcomed!  
+Feel free to open an issue or submit a pull request on the [GitHub Repository](https://github.com/mhjayeed715/Focusnyx).
 
 1. **Fork** the Repository
 2. **Create** your Feature Branch (`git checkout -b feature/AmazingFeature`)
@@ -458,17 +393,14 @@ Copyright (c) 2026 S. M. Mehrab Hossain Jayeed
 ## 👨‍💻 Author & Maintainer
 
 **S. M. Mehrab Hossain Jayeed**  
-🎓 *Developed as part of an academic initiative for student productivity & cognitive wellness.*
+🎓 *Developed as part of an academic initiative for student productivity, cognitive wellness, and neurodivergent study support.*
 
 - 🔗 **GitHub Profile**: [@mhjayeed715](https://github.com/mhjayeed715)
 - 📌 **Repository**: [https://github.com/mhjayeed715/Focusnyx](https://github.com/mhjayeed715/Focusnyx)
-
----
-
-> 🚧 *Note: Focusnyx is actively maintained and built as part of an academic initiative. Contributions, feedback, and star ⭐ ratings are warmly welcomed!*
+- 🌐 **Live Web Application**: [https://focusnyx.vercel.app](https://focusnyx.vercel.app)
 
 ---
 
 <p align="center">
-  <sub style="color: #666;">Dedicated to Stella.</sub>
+  <sub style="color: #888;">Dedicated to Stella.</sub>
 </p>
