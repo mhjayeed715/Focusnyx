@@ -64,6 +64,16 @@ Focusnyx balances rigorous time management with holistic student wellness, grade
 
 🌐 **Live Web Application**: [https://focusnyx.vercel.app](https://focusnyx.vercel.app)
 
+<br>
+
+<p align="center">
+  <img src="docs/assets/screenshots/homepage.png" alt="Focusnyx Landing Page" width="850"/>
+</p>
+
+<p align="center">
+  <img src="docs/assets/screenshots/dashboard.png" alt="Focusnyx Main Dashboard" width="850"/>
+</p>
+
 ---
 
 ## ⚡ ADHD Mode vs. Standard Mode
@@ -90,6 +100,10 @@ Focusnyx features a global **ADHD / Standard Interaction Mode Switcher** accessi
 - **Course & Task Boards**: Organize academic deliverables with weighted subtasks and deadline prioritization.
 - **Gamified XP & Level Progression**: Earn Experience Points (XP) for completed tasks, unlocking streak multipliers.
 
+<p align="center">
+  <img src="docs/assets/screenshots/academic_forge.png" alt="Academic Forge Page" width="850"/>
+</p>
+
 ---
 
 ### 2. Dopamine Detox Engine & Focus Lock
@@ -98,6 +112,10 @@ Focusnyx features a global **ADHD / Standard Interaction Mode Switcher** accessi
 - **Shortcut Interception**: Blocks `Alt+Tab`, `Windows Key`, `Ctrl+Esc`, and disables Task Manager / Registry Editor during active sessions.
 - **Strict 6-Digit Emergency Rescue PIN**: Prevents impulsive session termination. Locked with a strict 6-digit numeric validation modal.
 - **Two-Way Synchronization**: Starting or stopping a timer in the Chrome Extension, Companion App, or Web App immediately updates all connected clients in real time.
+
+<p align="center">
+  <img src="docs/assets/screenshots/dopamine_detox_lock.png" alt="Detox Engine Active Lock State" width="850"/>
+</p>
 
 ---
 
@@ -108,6 +126,13 @@ Focusnyx features a global **ADHD / Standard Interaction Mode Switcher** accessi
   - **Short Q&A practice**: Flashcard-style conceptual checks.
   - **Broad Essay Questions**: University-style practice questions with comprehensive model answers.
 
+<p align="center">
+  <img src="docs/assets/screenshots/smart_notes_quiz.png" alt="Smart Notes Dashboard & Quiz Panel" width="850"/>
+</p>
+<p align="center">
+  <img src="docs/assets/screenshots/smart_notes_quiz2.png" alt="Interactive Quiz View" width="850"/>
+</p>
+
 ---
 
 ### 4. AI Behavioral Coach & Focusnyx AI Chatbot
@@ -117,6 +142,10 @@ Focusnyx features a global **ADHD / Standard Interaction Mode Switcher** accessi
 - **Free Tier Daily Quota & Custom Keys**: Free daily allowance (resetting according to Asia/Dhaka time) with optional BYOK (Bring Your Own Key) for unlimited Groq or Gemini queries.
 - **Weekly Progress Report**: Aggregates focus sessions, distraction logs, wellness data, and task completions into personalized weekly action plans.
 
+<p align="center">
+  <img src="docs/assets/screenshots/ai_chatbot.png" alt="Focusnyx AI Floating Chatbot UI" width="850"/>
+</p>
+
 ---
 
 ### 5. Student Finance Tracker
@@ -125,6 +154,10 @@ Focusnyx features a global **ADHD / Standard Interaction Mode Switcher** accessi
 - **Peer Debt Tracker**: Track lent and borrowed money with friends and classmates.
 - **Savings Goals**: Set visual targets for tuition, electronics, or emergency funds.
 
+<p align="center">
+  <img src="docs/assets/screenshots/finance_tracker.png" alt="Student Finance Tracker" width="850"/>
+</p>
+
 ---
 
 ### 6. Wellness Shield & Burnout Prevention
@@ -132,12 +165,26 @@ Focusnyx features a global **ADHD / Standard Interaction Mode Switcher** accessi
 - **Burnout Shield**: Dynamically computes burnout risk scores based on sleep duration, hydration levels, study hours, and mood trends.
 - **Study-Rest Balance Advisor**: Provides contextual recommendations when sleep or hydration levels drop below healthy thresholds.
 
+<p align="center">
+  <img src="docs/assets/screenshots/wellness_shield.png" alt="Wellness Shield" width="850"/>
+</p>
+
 ---
 
 ### 7. 3-Tier Productivity Analytics
 1. **Tier 1 (Daily)**: Focus minutes by session, recorded distraction spikes, and task completion rates.
 2. **Tier 2 (Weekly)**: Top blocked distraction categories, best focus day, and average sleep vs. study duration.
 3. **Tier 3 (Monthly / Macro)**: CGPA momentum trajectory and monthly expense vs. budget adherence.
+
+<p align="center">
+  <img src="docs/assets/screenshots/analytics1.png" alt="3-Tier Productivity Analytics - Daily Focus & Spikes" width="850"/>
+</p>
+<p align="center">
+  <img src="docs/assets/screenshots/analytics2.png" alt="3-Tier Productivity Analytics - Weekly Trends" width="850"/>
+</p>
+<p align="center">
+  <img src="docs/assets/screenshots/analytics3.png" alt="3-Tier Productivity Analytics - CGPA Momentum & Macro Patterns" width="850"/>
+</p>
 
 ---
 
