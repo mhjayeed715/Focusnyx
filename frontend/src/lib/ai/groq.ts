@@ -88,7 +88,7 @@ export async function callGroq(apiKey: string, prompt: string, systemPrompt?: st
   const hasCustomKey = Boolean(apiKey && apiKey.trim().length > 10);
 
   if (hasCustomKey) {
-    const candidateModels = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "llama3-70b-8192", "mixtral-8x7b-32768"];
+    const candidateModels = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "gemma2-9b-it", "llama-3.3-70b-specdec"];
     let lastError = "";
     let succeeded = false;
     let successfulData: any = null;
