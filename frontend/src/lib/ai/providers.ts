@@ -63,13 +63,25 @@ export async function generateStudyPlan(
 ): Promise<string> {
   const prompt = `Create a concise ADHD-friendly weekly study plan for "${input.subject}". Exam date: ${input.examDate}. Available hours per week: ${input.availableHours}. Use bullet points, keep it under 300 words.`;
 
-  if (provider === "groq") {
-    const key = await getStoredApiKeyAsync("groq");
-    return callGroq(key, prompt, "You are a concise academic study coach. Respond in plain text with bullet points.");
+  const key = await getStoredApiKeyAsync(provider);
+  const systemPrompt = "You are a concise academic study coach. Respond in plain text with bullet points.";
+
+  if (provider === "gemini" && key && key.trim().length > 10) {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(key.trim())}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ parts: [{ text: prompt }] }],
+      }),
+    });
+    if (!res.ok) throw new Error("Gemini plan generation failed.");
+    const d = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+    return d.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
   }
 
-  // Gemini stub (not yet implemented)
-  throw new Error("Gemini not yet configured. Switch to Groq in Settings.");
+  // Fallback to Groq (custom key or free tier server proxy)
+  return callGroq(key, prompt, systemPrompt);
 }
 
 export async function askAiCoach(question: string): Promise<string> {
@@ -80,9 +92,20 @@ export async function askAiCoach(question: string): Promise<string> {
 You MUST ONLY answer questions regarding Focusnyx app features, study planning, academic subjects (math, science, programming, literature, engineering, etc.), and student productivity.
 If the user asks about off-topic subjects (movies, sports, pop culture gossip, gaming, general chit-chat), politely decline and state that you only answer Focusnyx app and educational questions.`;
 
-  if (provider === "groq") {
-    return callGroq(key, question, systemPrompt);
+  if (provider === "gemini" && key && key.trim().length > 10) {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(key.trim())}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ parts: [{ text: question }] }],
+      }),
+    });
+    if (!res.ok) throw new Error("Gemini AI Coach request failed.");
+    const d = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+    return d.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
   }
 
-  throw new Error("Gemini not yet configured. Switch to Groq in Settings.");
+  // Fallback to Groq (custom key or free tier server proxy)
+  return callGroq(key, question, systemPrompt);
 }

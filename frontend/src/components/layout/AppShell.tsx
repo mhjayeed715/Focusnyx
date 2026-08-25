@@ -31,6 +31,7 @@ import { useLanguage } from "./language-context";
 import { useFocusContext } from "@/context/FocusContext";
 import { translations } from "@/lib/translations";
 import { trackGroqCall } from "@/lib/ai/groq";
+import { getBdtDateString } from "@/lib/aiUsageLimiter";
 
 const NAV_ITEMS = [
   { key: "navDashboard", href: APP_ROUTES.dashboard, icon: LayoutDashboard },
@@ -156,10 +157,7 @@ function ShellContent({
         const sb = createClient();
         const { data: { user } } = await sb.auth.getUser();
         if (user) {
-          const now = new Date();
-          const bdtTimeStr = now.toLocaleString("en-US", { timeZone: "Asia/Dhaka" });
-          const bdtTime = new Date(bdtTimeStr);
-          const bdtDateString = `${bdtTime.getFullYear()}-${bdtTime.getMonth() + 1}-${bdtTime.getDate()}`;
+          const bdtDateString = getBdtDateString();
           
           if (user.user_metadata?.ai_usage_date === bdtDateString) {
             setGroqUsage(user.user_metadata?.ai_usage_count || 0);
@@ -221,10 +219,8 @@ function ShellContent({
     const msg = (overrideMsg || chatInput).trim();
     if (!msg || chatLoading) return;
     const apiKey = provider === "gemini" ? geminiKey.trim() : groqKey.trim();
-    if (!apiKey && provider === "gemini") {
-      setChatMessages(p => [...p, { id: `a-${Date.now()}`, role: "assistant", content: lang === "bn" ? "চ্যাট করার আগে সেটিংসে আপনার Gemini API কী যোগ করুন।" : "Please add your Gemini API key in Settings before chatting." }]);
-      return;
-    }
+    const hasCustomKey = Boolean(apiKey && apiKey.length > 10);
+
     const FOCUSNYX_CHAT_SYSTEM_PROMPT = `You are the Focusnyx AI Academic & Productivity Assistant, designed strictly for university students using the Focusnyx app.
 
 YOUR STRICT DOMAIN BOUNDARIES:
@@ -253,7 +249,7 @@ YOUR STRICT DOMAIN BOUNDARIES:
 
     try {
       let text = "";
-      if (provider === "gemini") {
+      if (provider === "gemini" && hasCustomKey) {
         const geminiContents = updatedMessages.slice(-10).map(m => ({
           role: m.role === "assistant" ? "model" : "user",
           parts: [{ text: m.content }]
@@ -275,8 +271,8 @@ YOUR STRICT DOMAIN BOUNDARIES:
           ...updatedMessages.slice(-10).map(m => ({ role: m.role, content: m.content }))
         ];
         
-        let res;
-        if (apiKey) {
+        let res: Response;
+        if (hasCustomKey) {
           res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
@@ -290,18 +286,18 @@ YOUR STRICT DOMAIN BOUNDARIES:
           });
         }
 
-        const d = await res.json();
+        const d = await res.json().catch(() => ({}));
         
         if (!res.ok) {
-          throw new Error(d.error || "Groq request failed.");
+          throw new Error(d.error || (d.details ? JSON.stringify(d.details) : "AI request failed."));
         }
         
-        if (!apiKey && d.currentUsage !== undefined) {
+        if (!hasCustomKey && d.currentUsage !== undefined) {
           setGroqUsage(d.currentUsage);
         }
 
         text = d.choices?.[0]?.message?.content?.trim() ?? "";
-        if (apiKey) trackGroqCall();
+        if (hasCustomKey) trackGroqCall();
       }
       setChatMessages(p => [...p, { id: `a-${Date.now()}`, role: "assistant", content: text || "No response." }]);
     } catch (e) {

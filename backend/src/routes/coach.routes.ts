@@ -53,8 +53,14 @@ coachRoutes.post("/chat", async (request: Request, response: Response, next: Nex
     } else {
       // 2. Free tier check: 5 requests per day, resetting at 12:00 AM BDT
       const bdtDate = getBdtDateString();
-      const { data: userData } = await supabase.auth.admin.getUserById(user.id);
-      const metadata = userData?.user?.user_metadata || {};
+      let metadata: Record<string, any> = (user as any).user_metadata || {};
+      
+      try {
+        const { data: userData } = await supabase.auth.admin.getUserById(user.id);
+        if (userData?.user?.user_metadata) {
+          metadata = userData.user.user_metadata;
+        }
+      } catch {}
 
       let usageDate = metadata.ai_usage_date;
       let usageCount = Number(metadata.ai_usage_count || 0);
@@ -77,14 +83,16 @@ coachRoutes.post("/chat", async (request: Request, response: Response, next: Nex
       const nextCount = usageCount + 1;
       currentUsage = nextCount;
 
-      // Update user_metadata asynchronously via admin client
-      await supabase.auth.admin.updateUserById(user.id, {
-        user_metadata: {
-          ...metadata,
-          ai_usage_date: bdtDate,
-          ai_usage_count: nextCount,
-        },
-      }).catch(() => {});
+      // Update user_metadata asynchronously via admin client if available
+      try {
+        await supabase.auth.admin.updateUserById(user.id, {
+          user_metadata: {
+            ...metadata,
+            ai_usage_date: bdtDate,
+            ai_usage_count: nextCount,
+          },
+        });
+      } catch {}
 
       apiKey = env.GROQ_API_KEY || process.env.GROQ_API_KEY || "";
       if (!apiKey) {
@@ -93,7 +101,32 @@ coachRoutes.post("/chat", async (request: Request, response: Response, next: Nex
       }
     }
 
-    // 3. Make completion request to Groq API
+    // 3. Make completion request
+    if (provider === "gemini" && isCustomKey) {
+      const geminiContents = (body.messages || []).map((m: any) => ({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: m.content || "" }]
+      }));
+      const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: geminiContents }),
+      });
+      if (!geminiRes.ok) {
+        const errorData = await geminiRes.json().catch(() => ({}));
+        response.status(geminiRes.status).json({ error: "Gemini API error", details: errorData });
+        return;
+      }
+      const data = await geminiRes.json();
+      response.json({
+        ...data,
+        currentUsage,
+        limit,
+        isCustomKey,
+      });
+      return;
+    }
+
     const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
