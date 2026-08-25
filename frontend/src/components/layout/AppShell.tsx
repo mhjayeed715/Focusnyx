@@ -276,13 +276,13 @@ YOUR STRICT DOMAIN BOUNDARIES:
           res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-            body: JSON.stringify({ model: "llama-3.1-8b-instant", messages: groqMessages, temperature: 0.3 }),
+            body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: groqMessages, temperature: 0.3 }),
           });
         } else {
           res = await fetch("/api/ai/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ model: "llama-3.1-8b-instant", messages: groqMessages, temperature: 0.3 }),
+            body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: groqMessages, temperature: 0.3 }),
           });
         }
 

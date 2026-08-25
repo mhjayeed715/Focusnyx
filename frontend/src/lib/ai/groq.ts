@@ -1,7 +1,7 @@
 // Groq free tier limits: ~14,400 req/day, 6,000 tokens/min
 // Strategy: cache responses by prompt hash, use fastest/cheapest model, track daily calls
 
-const MODEL = "llama-3.1-8b-instant"; // fastest & cheapest on Groq free tier
+const MODEL = "llama-3.3-70b-versatile"; // primary flagship model on Groq
 const MAX_TOKENS = 1024;               // keep responses short
 const CACHE_TTL_MS = 1000 * 60 * 60 * 6; // 6-hour cache per prompt
 const CACHE_KEY_PREFIX = "groq_cache_v1_";
@@ -88,19 +88,54 @@ export async function callGroq(apiKey: string, prompt: string, systemPrompt?: st
   const hasCustomKey = Boolean(apiKey && apiKey.trim().length > 10);
 
   if (hasCustomKey) {
-    res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey.trim()}`,
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages,
-        max_tokens: MAX_TOKENS,
-        temperature: 0.7,
-      }),
-    });
+    const candidateModels = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "llama3-70b-8192", "mixtral-8x7b-32768"];
+    let lastError = "";
+    let succeeded = false;
+    let successfulData: any = null;
+
+    for (const model of candidateModels) {
+      try {
+        const directRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey.trim()}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages,
+            max_tokens: MAX_TOKENS,
+            temperature: 0.7,
+          }),
+        });
+
+        if (directRes.ok) {
+          successfulData = await directRes.json();
+          succeeded = true;
+          break;
+        }
+
+        const err = (await directRes.json().catch(() => ({}))) as Record<string, unknown>;
+        const msg = (err?.error as Record<string, unknown>)?.message ?? (err?.error as string) ?? directRes.statusText;
+        lastError = String(msg);
+        if (!lastError.toLowerCase().includes("model") && !lastError.toLowerCase().includes("not exist") && !lastError.toLowerCase().includes("access")) {
+          break;
+        }
+      } catch (e: any) {
+        lastError = e?.message || "Network error";
+      }
+    }
+
+    if (!succeeded) {
+      throw new Error(`Groq error: ${lastError}`);
+    }
+
+    const text = successfulData?.choices?.[0]?.message?.content?.trim() ?? "";
+    if (text) {
+      setCached(prompt, text);
+      incrementCounter();
+    }
+    return text;
   } else {
     // Route through backend server proxy with 5 free daily usage quota resetting at 12:00 AM BDT
     res = await fetch("/api/ai/chat", {

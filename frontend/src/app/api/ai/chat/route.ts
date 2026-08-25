@@ -52,30 +52,61 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Server AI key is missing. Add your own Groq key in Settings." }, { status: 500 });
     }
 
-    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${groqKey}`
-      },
-      body: JSON.stringify({
-        model: body.model || "llama-3.1-8b-instant",
-        messages: body.messages || [],
-        temperature: body.temperature ?? 0.7,
-        max_tokens: body.max_tokens ?? 800,
-      }),
-    });
+    const requestedModel = body.model || "llama-3.3-70b-versatile";
+    const candidateModels = [
+      requestedModel,
+      "llama-3.3-70b-versatile",
+      "llama-3.1-8b-instant",
+      "llama3-70b-8192",
+      "mixtral-8x7b-32768"
+    ];
+    const modelsToTry = Array.from(new Set(candidateModels.filter(Boolean)));
 
-    if (!groqRes.ok) {
-      const errorData = await groqRes.json().catch(() => ({}));
-      const errorMsg = errorData?.error?.message || "Groq API error";
-      return NextResponse.json({ error: errorMsg, details: errorData }, { status: groqRes.status });
+    let responseData: any = null;
+    let lastStatus = 500;
+    let lastErrorMessage = "Groq API error";
+
+    for (const model of modelsToTry) {
+      try {
+        const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${groqKey}`
+          },
+          body: JSON.stringify({
+            model,
+            messages: body.messages || [],
+            temperature: body.temperature ?? 0.7,
+            max_tokens: body.max_tokens ?? 800,
+          }),
+        });
+
+        if (groqRes.ok) {
+          responseData = await groqRes.json();
+          break;
+        }
+
+        const errorData = await groqRes.json().catch(() => ({}));
+        lastStatus = groqRes.status;
+        lastErrorMessage = errorData?.error?.message || "Groq API error";
+
+        const errLower = lastErrorMessage.toLowerCase();
+        // Only cycle to the next model if it's a model not found / access issue
+        if (!errLower.includes("model") && !errLower.includes("not exist") && !errLower.includes("access")) {
+          break;
+        }
+      } catch (err: any) {
+        lastErrorMessage = err?.message || "Network error";
+      }
     }
 
-    const data = await groqRes.json();
+    if (!responseData) {
+      return NextResponse.json({ error: lastErrorMessage }, { status: lastStatus });
+    }
 
     return NextResponse.json({
-      ...data,
+      ...responseData,
       currentUsage: usageCheck.currentUsage,
       limit: usageCheck.limit,
       isCustomKey: usageCheck.isCustomKey,

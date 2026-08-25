@@ -691,13 +691,13 @@ export default function AcademicPage() {
                           const data = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
                           text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
                         } else if (apiKey && apiKey.trim().length > 10) {
-                          const res = await fetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` }, body: JSON.stringify({ model: "llama-3.1-8b-instant", messages: [{ role: "user", content: prompt }], temperature: 0.4 }) });
+                          const res = await fetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` }, body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "user", content: prompt }], temperature: 0.4 }) });
                           if (!res.ok) throw new Error();
                           const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
                           text = data.choices?.[0]?.message?.content?.trim() || "";
                           if (text) trackGroqCall();
                         } else {
-                          const res = await fetch("/api/ai/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "llama-3.1-8b-instant", messages: [{ role: "user", content: prompt }], temperature: 0.4 }) });
+                          const res = await fetch("/api/ai/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "user", content: prompt }], temperature: 0.4 }) });
                           const data = await res.json();
                           if (!res.ok) throw new Error(data.error || t.aiEnhanceFailed);
                           text = data.choices?.[0]?.message?.content?.trim() || "";
