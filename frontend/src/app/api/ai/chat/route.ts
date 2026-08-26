@@ -56,9 +56,7 @@ export async function POST(req: NextRequest) {
     const candidateModels = [
       requestedModel,
       "llama-3.3-70b-versatile",
-      "llama-3.1-8b-instant",
-      "gemma2-9b-it",
-      "llama-3.3-70b-specdec"
+      "llama-3.1-8b-instant"
     ];
     const modelsToTry = Array.from(new Set(candidateModels.filter(Boolean)));
 

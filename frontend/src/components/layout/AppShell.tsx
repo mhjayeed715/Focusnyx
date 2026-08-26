@@ -279,7 +279,7 @@ YOUR STRICT DOMAIN BOUNDARIES:
         let lastErrorMsg = "AI request failed.";
 
         if (hasCustomKey) {
-          const candidateModels = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "gemma2-9b-it", "llama-3.3-70b-specdec"];
+          const candidateModels = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
           for (const model of candidateModels) {
             try {
               const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -294,9 +294,11 @@ YOUR STRICT DOMAIN BOUNDARIES:
                 break;
               }
               const errObj = json.error || json.details || json;
-              lastErrorMsg = typeof errObj === "string" ? errObj : (errObj?.message || JSON.stringify(errObj));
-              const errLower = lastErrorMsg.toLowerCase();
-              if (!errLower.includes("model") && !errLower.includes("not exist") && !errLower.includes("access")) {
+              const rawMsg = typeof errObj === "string" ? errObj : (errObj?.message || JSON.stringify(errObj));
+              lastErrorMsg = rawMsg;
+              
+              if (res.status === 401 || rawMsg.toLowerCase().includes("invalid api key") || rawMsg.toLowerCase().includes("access")) {
+                lastErrorMsg = "Your custom Groq API key is invalid or expired. Please generate a new key at console.groq.com/keys and update it in Settings, or click 'Remove Key' in Settings to use the 5 free daily requests.";
                 break;
               }
             } catch (err: any) {
@@ -306,12 +308,13 @@ YOUR STRICT DOMAIN BOUNDARIES:
         }
 
         if (!succeeded) {
+          if (hasCustomKey) {
+            throw new Error(lastErrorMsg);
+          }
+
           const res = await fetch("/api/ai/chat", {
             method: "POST",
-            headers: { 
-              "Content-Type": "application/json",
-              ...(hasCustomKey ? { "x-custom-ai-key": apiKey } : {})
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: groqMessages, temperature: 0.3 }),
           });
 
@@ -321,7 +324,7 @@ YOUR STRICT DOMAIN BOUNDARIES:
             const msg = typeof errObj === "string" 
               ? errObj 
               : (errObj?.message || (typeof errObj?.error === "string" ? errObj.error : JSON.stringify(errObj)));
-            throw new Error(msg || lastErrorMsg);
+            throw new Error(msg || "AI request failed.");
           }
           d = json;
         }

@@ -131,9 +131,7 @@ coachRoutes.post("/chat", async (request: Request, response: Response, next: Nex
     const candidateModels = [
       requestedModel,
       "llama-3.3-70b-versatile",
-      "llama-3.1-8b-instant",
-      "gemma2-9b-it",
-      "llama-3.3-70b-specdec"
+      "llama-3.1-8b-instant"
     ];
     const modelsToTry = Array.from(new Set(candidateModels.filter(Boolean)));
 

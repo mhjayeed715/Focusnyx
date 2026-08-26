@@ -88,7 +88,7 @@ export async function callGroq(apiKey: string, prompt: string, systemPrompt?: st
   const hasCustomKey = Boolean(apiKey && apiKey.trim().length > 10);
 
   if (hasCustomKey) {
-    const candidateModels = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "gemma2-9b-it", "llama-3.3-70b-specdec"];
+    const candidateModels = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
     let lastError = "";
     let succeeded = false;
     let successfulData: any = null;
@@ -118,7 +118,10 @@ export async function callGroq(apiKey: string, prompt: string, systemPrompt?: st
         const err = (await directRes.json().catch(() => ({}))) as Record<string, unknown>;
         const msg = (err?.error as Record<string, unknown>)?.message ?? (err?.error as string) ?? directRes.statusText;
         lastError = String(msg);
-        if (!lastError.toLowerCase().includes("model") && !lastError.toLowerCase().includes("not exist") && !lastError.toLowerCase().includes("access")) {
+        
+        const errLower = lastError.toLowerCase();
+        if (directRes.status === 401 || errLower.includes("invalid api key") || errLower.includes("access")) {
+          lastError = "Your Groq API key is invalid or expired. Please update or remove it in Settings.";
           break;
         }
       } catch (e: any) {
