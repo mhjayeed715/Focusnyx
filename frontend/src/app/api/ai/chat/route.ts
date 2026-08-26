@@ -89,7 +89,14 @@ export async function POST(req: NextRequest) {
 
         const errorData = await groqRes.json().catch(() => ({}));
         lastStatus = groqRes.status;
-        lastErrorMessage = errorData?.error?.message || "Groq API error";
+        
+        const rawMsg = errorData?.error?.message || errorData?.message || (typeof errorData?.error === "string" ? errorData.error : "");
+        lastErrorMessage = rawMsg || "Groq API error";
+
+        if (lastStatus === 401 || lastErrorMessage.toLowerCase().includes("invalid api key")) {
+          lastErrorMessage = "Server Groq API key is invalid or revoked. Please add your own valid Groq or Gemini API key in Settings → AI Provider.";
+          break;
+        }
 
         const errLower = lastErrorMessage.toLowerCase();
         // Only cycle to the next model if it's a model not found / access issue
@@ -102,7 +109,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!responseData) {
-      return NextResponse.json({ error: lastErrorMessage }, { status: lastStatus });
+      return NextResponse.json({ error: String(lastErrorMessage) }, { status: lastStatus });
     }
 
     return NextResponse.json({

@@ -139,6 +139,9 @@ function ShellContent({
   const [groqUsage,   setGroqUsage]   = useState(0);
   const [isContactOpen, setIsContactOpen] = useState(false);
 
+  const activeCustomKey = provider === "gemini" ? geminiKey.trim() : groqKey.trim();
+  const hasCustomKey = Boolean(activeCustomKey && activeCustomKey.length > 10);
+
   useEffect(() => {
     async function loadKeys() {
       let g = "";
@@ -289,7 +292,11 @@ YOUR STRICT DOMAIN BOUNDARIES:
         const d = await res.json().catch(() => ({}));
         
         if (!res.ok) {
-          throw new Error(d.error || (d.details ? JSON.stringify(d.details) : "AI request failed."));
+          const errObj = d.error || d.details || d;
+          const msg = typeof errObj === "string" 
+            ? errObj 
+            : (errObj?.message || (typeof errObj?.error === "string" ? errObj.error : JSON.stringify(errObj)));
+          throw new Error(msg || "AI request failed.");
         }
         
         if (!hasCustomKey && d.currentUsage !== undefined) {
@@ -297,11 +304,15 @@ YOUR STRICT DOMAIN BOUNDARIES:
         }
 
         text = d.choices?.[0]?.message?.content?.trim() ?? "";
+        if (typeof text !== "string" || !text) {
+          text = typeof d.text === "string" ? d.text : (typeof d.message === "string" ? d.message : "");
+        }
         if (hasCustomKey) trackGroqCall();
       }
       setChatMessages(p => [...p, { id: `a-${Date.now()}`, role: "assistant", content: text || "No response." }]);
-    } catch (e) {
-      setChatMessages(p => [...p, { id: `a-${Date.now()}`, role: "assistant", content: e instanceof Error ? e.message : "Unable to chat right now." }]);
+    } catch (e: any) {
+      const errText = e instanceof Error ? e.message : (typeof e === "string" ? e : (e?.message || JSON.stringify(e)));
+      setChatMessages(p => [...p, { id: `a-${Date.now()}`, role: "assistant", content: errText || "Unable to chat right now." }]);
     } finally {
       setChatLoading(false);
     }
@@ -490,8 +501,15 @@ YOUR STRICT DOMAIN BOUNDARIES:
                 <Image src="/icons/focusnyx.png" alt="Focusnyx" width={24} height={24} className="rounded-md border border-[var(--foreground)] shadow-[1px_1px_0_0_#1E293B]" />
                 <div>
                   <p className="font-display text-base font-black leading-none">Focusnyx AI</p>
-                  {!groqKey && provider === "groq" && (
-                    <p className="text-[10px] font-bold text-amber-600 mt-1">{groqUsage}/5 AI calls today</p>
+                  {!hasCustomKey ? (
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className={`inline-block h-2 w-2 rounded-full ${groqUsage >= 5 ? "bg-red-500" : "bg-emerald-500"} animate-pulse`} />
+                      <p className={`text-[10px] font-bold ${groqUsage >= 5 ? "text-red-600" : "text-amber-600"}`}>
+                        {groqUsage}/5 Free AI Calls Used
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-[10px] font-bold text-emerald-600 mt-1">✨ Unlimited ({provider === "gemini" ? "Gemini" : "Groq"} BYOK)</p>
                   )}
                 </div>
               </div>
@@ -515,11 +533,10 @@ YOUR STRICT DOMAIN BOUNDARIES:
               <div ref={chatEndRef} />
             </div>
             <div className="border-t-2 border-[var(--border)] p-3">
-              {!groqKey && provider === "groq" && groqUsage >= 5 && (
-                <p className="mb-2 rounded-[10px] border-2 border-amber-400 bg-amber-50 px-2 py-1.5 text-xs font-semibold text-amber-700">Limit reached. Add your Groq API key in Settings.</p>
-              )}
-              {!geminiKey && provider === "gemini" && (
-                <p className="mb-2 rounded-[10px] border-2 border-amber-400 bg-amber-50 px-2 py-1.5 text-xs font-semibold text-amber-700">{String(t.addApiKeyFirst)}</p>
+              {!hasCustomKey && groqUsage >= 5 && (
+                <p className="mb-2 rounded-[10px] border-2 border-amber-400 bg-amber-50 px-2 py-1.5 text-xs font-semibold text-amber-700">
+                  Daily free limit reached (5/5). Resets at 12:00 AM BDT. Add your own Groq/Gemini API key in Settings for unlimited AI usage!
+                </p>
               )}
               
               <div className="mb-3 flex gap-2 overflow-x-auto pb-1 no-scrollbar">
@@ -550,7 +567,12 @@ YOUR STRICT DOMAIN BOUNDARIES:
                   placeholder={lang === "bn" ? "যেকোনো প্রশ্ন করুন..." : "Ask anything..."}
                   className="flex-1 rounded-[12px] border-2 border-[var(--foreground)] bg-white px-3 py-2 text-sm outline-none"
                 />
-                <button onClick={() => void sendChat()} disabled={chatLoading || (!groqKey && !geminiKey)} className="candy-button inline-flex h-10 w-10 items-center justify-center disabled:opacity-50">
+                <button 
+                  onClick={() => void sendChat()} 
+                  disabled={chatLoading || (!hasCustomKey && groqUsage >= 5)} 
+                  className="candy-button inline-flex h-10 w-10 items-center justify-center disabled:opacity-50"
+                  title="Send message"
+                >
                   <Send size={14} strokeWidth={2.5} />
                 </button>
               </div>
