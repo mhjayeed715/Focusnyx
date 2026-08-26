@@ -52,11 +52,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Server AI key is missing. Add your own Groq key in Settings." }, { status: 500 });
     }
 
-    const requestedModel = body.model || "llama-3.3-70b-versatile";
     const candidateModels = [
-      requestedModel,
+      body.model,
+      "openai/gpt-oss-120b",
       "llama-3.3-70b-versatile",
-      "llama-3.1-8b-instant"
+      "llama-3.1-8b-instant",
+      "openai/gpt-oss-20b",
+      "qwen/qwen3.8-27b",
+      "groq/compound"
     ];
     const modelsToTry = Array.from(new Set(candidateModels.filter(Boolean)));
 

@@ -145,11 +145,35 @@ export default function SettingsPage() {
 
   const saveToDatabase = async (geminiVal = geminiApiKey, groqVal = groqApiKey, provVal = provider, pinVal = emergencyPin) => {
     try {
-      localStorage.setItem(STORAGE_KEY_GEMINI, geminiVal);
-      localStorage.setItem(STORAGE_KEY_GROQ, groqVal);
+      const cleanGemini = geminiVal.trim();
+      const cleanGroq = groqVal.trim();
+
+      if (cleanGemini) {
+        localStorage.setItem(STORAGE_KEY_GEMINI, cleanGemini);
+      } else {
+        localStorage.removeItem(STORAGE_KEY_GEMINI);
+      }
+
+      if (cleanGroq) {
+        localStorage.setItem(STORAGE_KEY_GROQ, cleanGroq);
+      } else {
+        localStorage.removeItem(STORAGE_KEY_GROQ);
+      }
+
+      if (!cleanGemini && !cleanGroq) {
+        localStorage.setItem("focusnyx_custom_key_cleared", "true");
+      } else {
+        localStorage.removeItem("focusnyx_custom_key_cleared");
+      }
+
       localStorage.setItem(STORAGE_AI_PROVIDER, provVal);
       localStorage.setItem(STORAGE_KEY_PIN, pinVal);
       if (userId) localStorage.setItem(`focusnyxEmergencyPinV1_${userId}`, pinVal);
+
+      // Broadcast key update in real-time to AppShell and all components
+      window.dispatchEvent(new CustomEvent("focusnyx_ai_keys_updated", {
+        detail: { groqKey: cleanGroq, geminiKey: cleanGemini, provider: provVal }
+      }));
 
       // Sync to extension
       window.postMessage({ type: "FOCUSNYX_WEB_APP_ACTION", action: "syncPin", pin: pinVal }, "*");
@@ -159,8 +183,8 @@ export default function SettingsPage() {
       const { data: { user } } = await sb.auth.getUser();
       if (user) {
         await sb.from("profiles").update({
-          groq_api_key: groqVal.trim(),
-          gemini_api_key: geminiVal.trim(),
+          groq_api_key: cleanGroq || null,
+          gemini_api_key: cleanGemini || null,
           ai_provider: provVal,
           emergency_pin: pinVal,
         }).eq("id", user.id);

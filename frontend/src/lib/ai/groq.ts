@@ -88,7 +88,7 @@ export async function callGroq(apiKey: string, prompt: string, systemPrompt?: st
   const hasCustomKey = Boolean(apiKey && apiKey.trim().length > 10);
 
   if (hasCustomKey) {
-    const candidateModels = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
+    const candidateModels = ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "llama-3.1-8b-instant", "openai/gpt-oss-20b", "qwen/qwen3.8-27b", "groq/compound"];
     let lastError = "";
     let succeeded = false;
     let successfulData: any = null;

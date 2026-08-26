@@ -142,6 +142,44 @@ function ShellContent({
   const activeCustomKey = provider === "gemini" ? geminiKey.trim() : groqKey.trim();
   const hasCustomKey = Boolean(activeCustomKey && activeCustomKey.length > 10);
 
+  const handleRemoveCustomKey = async () => {
+    setGroqKey("");
+    setGeminiKey("");
+    try {
+      localStorage.removeItem(STORAGE_KEY_GROQ);
+      localStorage.removeItem(STORAGE_KEY_GEMINI);
+      localStorage.setItem("focusnyx_custom_key_cleared", "true");
+      window.dispatchEvent(new CustomEvent("focusnyx_ai_keys_updated", {
+        detail: { groqKey: "", geminiKey: "", provider }
+      }));
+      const sb = createClient();
+      const { data: { user } } = await sb.auth.getUser();
+      if (user) {
+        await sb.from("profiles").update({
+          groq_api_key: null,
+          gemini_api_key: null,
+        }).eq("id", user.id);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    const handleKeysUpdated = (e: any) => {
+      const detail = e.detail;
+      if (detail) {
+        if (detail.groqKey !== undefined) setGroqKey(detail.groqKey);
+        if (detail.geminiKey !== undefined) setGeminiKey(detail.geminiKey);
+        if (detail.provider !== undefined) setProvider(detail.provider);
+      }
+    };
+    window.addEventListener("focusnyx_ai_keys_updated", handleKeysUpdated);
+    window.addEventListener("storage", handleKeysUpdated);
+    return () => {
+      window.removeEventListener("focusnyx_ai_keys_updated", handleKeysUpdated);
+      window.removeEventListener("storage", handleKeysUpdated);
+    };
+  }, []);
+
   useEffect(() => {
     async function loadKeys() {
       let g = "";
@@ -175,8 +213,9 @@ function ShellContent({
             .maybeSingle();
 
           if (profile) {
-            if (profile.groq_api_key) r = profile.groq_api_key;
-            if (profile.gemini_api_key) g = profile.gemini_api_key;
+            const isCleared = localStorage.getItem("focusnyx_custom_key_cleared") === "true";
+            if (profile.groq_api_key && !isCleared && !r) r = profile.groq_api_key;
+            if (profile.gemini_api_key && !isCleared && !g) g = profile.gemini_api_key;
             if (profile.ai_provider && (profile.ai_provider === "gemini" || profile.ai_provider === "groq")) {
               p = profile.ai_provider as AiProvider;
             }
@@ -279,7 +318,14 @@ YOUR STRICT DOMAIN BOUNDARIES:
         let lastErrorMsg = "AI request failed.";
 
         if (hasCustomKey) {
-          const candidateModels = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
+          const candidateModels = [
+            "openai/gpt-oss-120b",
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant",
+            "openai/gpt-oss-20b",
+            "qwen/qwen3.8-27b",
+            "groq/compound"
+          ];
           for (const model of candidateModels) {
             try {
               const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -297,7 +343,7 @@ YOUR STRICT DOMAIN BOUNDARIES:
               const rawMsg = typeof errObj === "string" ? errObj : (errObj?.message || JSON.stringify(errObj));
               lastErrorMsg = rawMsg;
               
-              if (res.status === 401 || rawMsg.toLowerCase().includes("invalid api key") || rawMsg.toLowerCase().includes("access")) {
+              if (res.status === 401 || rawMsg.toLowerCase().includes("invalid api key")) {
                 lastErrorMsg = "Your custom Groq API key is invalid or expired. Please generate a new key at console.groq.com/keys and update it in Settings, or click 'Remove Key' in Settings to use the 5 free daily requests.";
                 break;
               }
@@ -539,7 +585,17 @@ YOUR STRICT DOMAIN BOUNDARIES:
                       </p>
                     </div>
                   ) : (
-                    <p className="text-[10px] font-bold text-emerald-600 mt-1">✨ Unlimited ({provider === "gemini" ? "Gemini" : "Groq"} BYOK)</p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <p className="text-[10px] font-bold text-emerald-600">✨ Unlimited ({provider === "gemini" ? "Gemini" : "Groq"} BYOK)</p>
+                      <button
+                        type="button"
+                        onClick={() => void handleRemoveCustomKey()}
+                        className="rounded border border-red-300 bg-red-50 px-1.5 py-0.5 text-[9px] font-black text-red-600 hover:bg-red-100 transition"
+                        title="Remove custom key and switch to 5 free daily calls"
+                      >
+                        ✕ Remove
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
