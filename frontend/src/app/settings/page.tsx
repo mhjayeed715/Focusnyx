@@ -380,18 +380,39 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="flex items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void saveToDatabase()}
-                    className="candy-button rounded-[10px] border-2 border-[var(--foreground)] px-4 py-2 text-xs font-black"
-                  >
-                    Save API Key
-                  </button>
-                  <span className="text-[11px] text-[var(--muted-fg)]">Saved to Profile & Browser</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void saveToDatabase()}
+                      className="candy-button rounded-[10px] border-2 border-[var(--foreground)] px-4 py-2 text-xs font-black"
+                    >
+                      Save API Key
+                    </button>
+                    {(provider === 'gemini' ? geminiApiKey : groqApiKey) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (provider === 'gemini') {
+                            setGeminiApiKey('');
+                            void saveToDatabase('', groqApiKey, provider);
+                          } else {
+                            setGroqApiKey('');
+                            void saveToDatabase(geminiApiKey, '', provider);
+                          }
+                        }}
+                        className="rounded-[10px] border-2 border-red-400 bg-red-50 hover:bg-red-100 text-red-700 px-3 py-2 text-xs font-black transition"
+                      >
+                        Remove Key
+                      </button>
+                    )}
+                  </div>
+                  <span className="text-[11px] font-bold text-[var(--muted-fg)]">
+                    {(provider === 'gemini' ? geminiApiKey : groqApiKey) ? "✨ Custom BYOK Active" : "🟢 5/5 Free Daily Quota"}
+                  </span>
                 </div>
 
                 <div className="flex items-center justify-between text-xs text-[var(--muted-fg)]">
-                  <span>Synced securely with your Focusnyx profile</span>
+                  <span>Auto-saved to your Focusnyx profile & browser</span>
                   {provider === 'groq' && (
                     <a
                       href="https://console.groq.com/keys"

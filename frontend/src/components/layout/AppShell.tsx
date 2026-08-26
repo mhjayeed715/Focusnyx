@@ -274,29 +274,56 @@ YOUR STRICT DOMAIN BOUNDARIES:
           ...updatedMessages.slice(-10).map(m => ({ role: m.role, content: m.content }))
         ];
         
-        let res: Response;
+        let d: any = null;
+        let succeeded = false;
+        let lastErrorMsg = "AI request failed.";
+
         if (hasCustomKey) {
-          res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-            body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: groqMessages, temperature: 0.3 }),
-          });
-        } else {
-          res = await fetch("/api/ai/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: groqMessages, temperature: 0.3 }),
-          });
+          const candidateModels = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "gemma2-9b-it", "llama-3.3-70b-specdec"];
+          for (const model of candidateModels) {
+            try {
+              const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+                body: JSON.stringify({ model, messages: groqMessages, temperature: 0.3 }),
+              });
+              const json = await res.json().catch(() => ({}));
+              if (res.ok) {
+                d = json;
+                succeeded = true;
+                break;
+              }
+              const errObj = json.error || json.details || json;
+              lastErrorMsg = typeof errObj === "string" ? errObj : (errObj?.message || JSON.stringify(errObj));
+              const errLower = lastErrorMsg.toLowerCase();
+              if (!errLower.includes("model") && !errLower.includes("not exist") && !errLower.includes("access")) {
+                break;
+              }
+            } catch (err: any) {
+              lastErrorMsg = err?.message || "Network error";
+            }
+          }
         }
 
-        const d = await res.json().catch(() => ({}));
-        
-        if (!res.ok) {
-          const errObj = d.error || d.details || d;
-          const msg = typeof errObj === "string" 
-            ? errObj 
-            : (errObj?.message || (typeof errObj?.error === "string" ? errObj.error : JSON.stringify(errObj)));
-          throw new Error(msg || "AI request failed.");
+        if (!succeeded) {
+          const res = await fetch("/api/ai/chat", {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              ...(hasCustomKey ? { "x-custom-ai-key": apiKey } : {})
+            },
+            body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: groqMessages, temperature: 0.3 }),
+          });
+
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            const errObj = json.error || json.details || json;
+            const msg = typeof errObj === "string" 
+              ? errObj 
+              : (errObj?.message || (typeof errObj?.error === "string" ? errObj.error : JSON.stringify(errObj)));
+            throw new Error(msg || lastErrorMsg);
+          }
+          d = json;
         }
         
         if (!hasCustomKey && d.currentUsage !== undefined) {
