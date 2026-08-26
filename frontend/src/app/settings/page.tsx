@@ -53,19 +53,18 @@ export default function SettingsPage() {
         if (savedProvider === "gemini" || savedProvider === "groq") prov = savedProvider;
       } catch {}
 
-      // Fetch from Supabase DB to restore keys if cache was cleared
       try {
         const sb = createClient();
         const { data: { user } } = await sb.auth.getUser();
         if (user) {
+          setUserId(user.id);
           const { data: profile } = await sb
             .from("profiles")
-            .select("groq_api_key, gemini_api_key, ai_provider, emergency_pin")
+            .select("emergency_pin")
             .eq("id", user.id)
             .maybeSingle();
 
           if (profile) {
-            setUserId(user.id);
             if (profile.emergency_pin && profile.emergency_pin.trim().length === 6) {
               pin = profile.emergency_pin;
               localStorage.setItem(STORAGE_KEY_PIN, pin);
@@ -80,30 +79,14 @@ export default function SettingsPage() {
                 localStorage.removeItem(`focusnyxEmergencyPinV1_${user.id}`);
               }
             }
-            if (profile.groq_api_key && !rKey) rKey = profile.groq_api_key;
-            if (profile.gemini_api_key && !gKey) gKey = profile.gemini_api_key;
-            if (profile.ai_provider && (profile.ai_provider === "gemini" || profile.ai_provider === "groq")) {
-              prov = profile.ai_provider as AiProvider;
-            }
           }
         }
       } catch {}
 
-      if (gKey) setGeminiApiKey(gKey);
-      if (rKey) setGroqApiKey(rKey);
+      setGeminiApiKey(gKey);
+      setGroqApiKey(rKey);
       setEmergencyPin(pin);
       setProvider(prov);
-
-      try {
-        if (gKey) localStorage.setItem(STORAGE_KEY_GEMINI, gKey);
-        if (rKey) localStorage.setItem(STORAGE_KEY_GROQ, rKey);
-        localStorage.setItem(STORAGE_KEY_PIN, pin);
-        localStorage.setItem(STORAGE_AI_PROVIDER, prov);
-        
-        // Sync PIN to extension on load
-        window.postMessage({ type: "FOCUSNYX_WEB_APP_ACTION", action: "syncPin", pin }, "*");
-      } catch {}
-
       setReady(true);
     }
 
@@ -113,8 +96,12 @@ export default function SettingsPage() {
   // Persist changes to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY_GEMINI, geminiApiKey);
-      localStorage.setItem(STORAGE_KEY_GROQ, groqApiKey);
+      if (geminiApiKey) localStorage.setItem(STORAGE_KEY_GEMINI, geminiApiKey);
+      else localStorage.removeItem(STORAGE_KEY_GEMINI);
+
+      if (groqApiKey) localStorage.setItem(STORAGE_KEY_GROQ, groqApiKey);
+      else localStorage.removeItem(STORAGE_KEY_GROQ);
+
       localStorage.setItem(STORAGE_AI_PROVIDER, provider);
     } catch {}
   }, [geminiApiKey, groqApiKey, provider]);

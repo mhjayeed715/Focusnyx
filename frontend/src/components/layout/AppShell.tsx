@@ -193,7 +193,7 @@ function ShellContent({
         if (prov === "gemini" || prov === "groq") p = prov;
       } catch {}
 
-      // Fallback query to Supabase DB if cache was cleared
+      // Check daily free usage count for user
       try {
         const sb = createClient();
         const { data: { user } } = await sb.auth.getUser();
@@ -205,33 +205,12 @@ function ShellContent({
           } else {
             setGroqUsage(0);
           }
-
-          const { data: profile } = await sb
-            .from("profiles")
-            .select("groq_api_key, gemini_api_key, ai_provider")
-            .eq("id", user.id)
-            .maybeSingle();
-
-          if (profile) {
-            const isCleared = localStorage.getItem("focusnyx_custom_key_cleared") === "true";
-            if (profile.groq_api_key && !isCleared && !r) r = profile.groq_api_key;
-            if (profile.gemini_api_key && !isCleared && !g) g = profile.gemini_api_key;
-            if (profile.ai_provider && (profile.ai_provider === "gemini" || profile.ai_provider === "groq")) {
-              p = profile.ai_provider as AiProvider;
-            }
-          }
         }
       } catch {}
 
-      if (g) setGeminiKey(g);
-      if (r) setGroqKey(r);
+      setGeminiKey(g);
+      setGroqKey(r);
       setProvider(p);
-
-      try {
-        if (g) localStorage.setItem(STORAGE_KEY_GEMINI, g);
-        if (r) localStorage.setItem(STORAGE_KEY_GROQ, r);
-        localStorage.setItem(STORAGE_AI_PROVIDER, p);
-      } catch {}
     }
 
     void loadKeys();

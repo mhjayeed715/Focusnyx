@@ -65,26 +65,6 @@ export function SmartNotesPanel() {
         key = localStorage.getItem(STORAGE_KEY_GROQ) ?? "";
       } catch {}
 
-      // Fallback query to Supabase DB if cache was cleared
-      try {
-        const sb = createClient();
-        const { data: { user } } = await sb.auth.getUser();
-        if (user) {
-          const { data: profile } = await sb
-            .from("profiles")
-            .select("groq_api_key")
-            .eq("id", user.id)
-            .maybeSingle();
-
-          if (profile?.groq_api_key && !key) {
-            key = profile.groq_api_key;
-            try {
-              localStorage.setItem(STORAGE_KEY_GROQ, key);
-            } catch {}
-          }
-        }
-      } catch {}
-
       setGroqKey(key);
     }
 

@@ -285,36 +285,10 @@ export default function AcademicPage() {
 
   const getAiConfig = async () => {
     if (typeof window === "undefined") return { provider: "groq", apiKey: "" };
-    let provider = localStorage.getItem("academicAiProviderV1") || "groq";
-    let apiKey = provider === "gemini" ? (localStorage.getItem("academicAiKeyGeminiV1") || "") : (localStorage.getItem("academicAiKeyGroqV1") || "");
-
-    if (!apiKey) {
-      try {
-        const sb = createClient();
-        const { data: { user } } = await sb.auth.getUser();
-        if (user) {
-          const { data: profile } = await sb
-            .from("profiles")
-            .select("groq_api_key, gemini_api_key, ai_provider")
-            .eq("id", user.id)
-            .maybeSingle();
-
-          if (profile) {
-            if (profile.groq_api_key) {
-              apiKey = profile.groq_api_key;
-              localStorage.setItem("academicAiKeyGroqV1", profile.groq_api_key);
-            }
-            if (profile.gemini_api_key) {
-              localStorage.setItem("academicAiKeyGeminiV1", profile.gemini_api_key);
-            }
-            if (profile.ai_provider) {
-              provider = profile.ai_provider;
-              localStorage.setItem("academicAiProviderV1", profile.ai_provider);
-            }
-          }
-        }
-      } catch {}
-    }
+    const provider = localStorage.getItem("academicAiProviderV1") || "groq";
+    const apiKey = provider === "gemini" 
+      ? (localStorage.getItem("academicAiKeyGeminiV1") || "") 
+      : (localStorage.getItem("academicAiKeyGroqV1") || "");
 
     return { provider, apiKey };
   };

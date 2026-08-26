@@ -22,33 +22,11 @@ export function getStoredApiKey(provider: AiProvider): string {
 }
 
 export async function getStoredApiKeyAsync(provider: AiProvider): Promise<string> {
-  let key = getStoredApiKey(provider);
-  if (key) return key;
+  return getStoredApiKey(provider);
+}
 
-  try {
-    const { createClient } = await import("@/lib/supabase/client");
-    const sb = createClient();
-    const { data: { user } } = await sb.auth.getUser();
-    if (user) {
-      const { data: profile } = await sb
-        .from("profiles")
-        .select("groq_api_key, gemini_api_key")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (profile) {
-        if (provider === "groq" && profile.groq_api_key) {
-          key = profile.groq_api_key;
-          try { localStorage.setItem(STORAGE_KEY_GROQ, key); } catch {}
-        } else if (provider === "gemini" && profile.gemini_api_key) {
-          key = profile.gemini_api_key;
-          try { localStorage.setItem(STORAGE_KEY_GEMINI, key); } catch {}
-        }
-      }
-    }
-  } catch {}
-
-  return key;
+export async function getOrFetchApiKey(provider: "groq" | "gemini"): Promise<string> {
+  return getStoredApiKey(provider);
 }
 
 export interface GeneratePlanInput {
