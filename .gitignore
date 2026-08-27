@@ -8,6 +8,7 @@ node_modules/
 dist/
 build/
 coverage/
+*.tsbuildinfo
 
 # Keep compiled extension dist so users can load it without building
 !extension/dist/
@@ -30,3 +31,8 @@ Thumbs.db
 !.vscode/extensions.json
 !.vscode/settings.json
 .vercel
+
+# Brag video artifacts
+brag-output/
+brag-output*
+-p/

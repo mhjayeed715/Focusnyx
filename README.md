@@ -117,6 +117,12 @@ Focusnyx features a global **ADHD / Standard Interaction Mode Switcher** accessi
   <img src="docs/assets/screenshots/dopamine_detox_lock.png" alt="Detox Engine Active Lock State" width="850"/>
 </p>
 
+<p align="center">
+  <img src="docs/assets/screenshots/extension.png" alt="Focusnyx Chrome Extension (MV3)" width="410"/>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/screenshots/companion_app.png" alt="Focusnyx Windows Companion App" width="410"/>
+</p>
+
 ---
 
 ### 3. Smart Notes Vault with AI Quiz Generator
