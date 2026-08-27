@@ -67,11 +67,11 @@ Focusnyx balances rigorous time management with holistic student wellness, grade
 <br>
 
 <p align="center">
-  <img src="docs/assets/screenshots/homepage.png" alt="Focusnyx Landing Page" width="850"/>
+  <img src="docs/assets/screenshots/homepage.png?raw=true" alt="Focusnyx Landing Page" width="850"/>
 </p>
 
 <p align="center">
-  <img src="docs/assets/screenshots/dashboard.png" alt="Focusnyx Main Dashboard" width="850"/>
+  <img src="docs/assets/screenshots/dashboard.png?raw=true" alt="Focusnyx Main Dashboard" width="850"/>
 </p>
 
 ---
@@ -101,7 +101,7 @@ Focusnyx features a global **ADHD / Standard Interaction Mode Switcher** accessi
 - **Gamified XP & Level Progression**: Earn Experience Points (XP) for completed tasks, unlocking streak multipliers.
 
 <p align="center">
-  <img src="docs/assets/screenshots/academic_forge.png" alt="Academic Forge Page" width="850"/>
+  <img src="docs/assets/screenshots/academic_forge.png?raw=true" alt="Academic Forge Page" width="850"/>
 </p>
 
 ---
@@ -114,13 +114,13 @@ Focusnyx features a global **ADHD / Standard Interaction Mode Switcher** accessi
 - **Two-Way Synchronization**: Starting or stopping a timer in the Chrome Extension, Companion App, or Web App immediately updates all connected clients in real time.
 
 <p align="center">
-  <img src="docs/assets/screenshots/dopamine_detox_lock.png" alt="Detox Engine Active Lock State" width="850"/>
+  <img src="docs/assets/screenshots/dopamine_detox_lock.png?raw=true" alt="Detox Engine Active Lock State" width="850"/>
 </p>
 
 <p align="center">
-  <img src="docs/assets/screenshots/extension.png" alt="Focusnyx Chrome Extension (MV3)" width="410"/>
+  <img src="docs/assets/screenshots/extension.png?raw=true" alt="Focusnyx Chrome Extension (MV3)" width="410"/>
   &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/screenshots/companion_app.png" alt="Focusnyx Windows Companion App" width="410"/>
+  <img src="docs/assets/screenshots/companion_app.png?raw=true" alt="Focusnyx Windows Companion App" width="410"/>
 </p>
 
 ---
@@ -133,10 +133,10 @@ Focusnyx features a global **ADHD / Standard Interaction Mode Switcher** accessi
   - **Broad Essay Questions**: University-style practice questions with comprehensive model answers.
 
 <p align="center">
-  <img src="docs/assets/screenshots/smart_notes_quiz.png" alt="Smart Notes Dashboard & Quiz Panel" width="850"/>
+  <img src="docs/assets/screenshots/smart_notes_quiz.png?raw=true" alt="Smart Notes Dashboard & Quiz Panel" width="850"/>
 </p>
 <p align="center">
-  <img src="docs/assets/screenshots/smart_notes_quiz2.png" alt="Interactive Quiz View" width="850"/>
+  <img src="docs/assets/screenshots/smart_notes_quiz2.png?raw=true" alt="Interactive Quiz View" width="850"/>
 </p>
 
 ---
@@ -149,7 +149,7 @@ Focusnyx features a global **ADHD / Standard Interaction Mode Switcher** accessi
 - **Weekly Progress Report**: Aggregates focus sessions, distraction logs, wellness data, and task completions into personalized weekly action plans.
 
 <p align="center">
-  <img src="docs/assets/screenshots/ai_chatbot.png" alt="Focusnyx AI Floating Chatbot UI" width="850"/>
+  <img src="docs/assets/screenshots/ai_chatbot.png?raw=true" alt="Focusnyx AI Floating Chatbot UI" width="850"/>
 </p>
 
 ---
@@ -161,7 +161,7 @@ Focusnyx features a global **ADHD / Standard Interaction Mode Switcher** accessi
 - **Savings Goals**: Set visual targets for tuition, electronics, or emergency funds.
 
 <p align="center">
-  <img src="docs/assets/screenshots/finance_tracker.png" alt="Student Finance Tracker" width="850"/>
+  <img src="docs/assets/screenshots/finance_tracker.png?raw=true" alt="Student Finance Tracker" width="850"/>
 </p>
 
 ---
@@ -172,7 +172,7 @@ Focusnyx features a global **ADHD / Standard Interaction Mode Switcher** accessi
 - **Study-Rest Balance Advisor**: Provides contextual recommendations when sleep or hydration levels drop below healthy thresholds.
 
 <p align="center">
-  <img src="docs/assets/screenshots/wellness_shield.png" alt="Wellness Shield" width="850"/>
+  <img src="docs/assets/screenshots/wellness_shield.png?raw=true" alt="Wellness Shield" width="850"/>
 </p>
 
 ---
@@ -183,13 +183,13 @@ Focusnyx features a global **ADHD / Standard Interaction Mode Switcher** accessi
 3. **Tier 3 (Monthly / Macro)**: CGPA momentum trajectory and monthly expense vs. budget adherence.
 
 <p align="center">
-  <img src="docs/assets/screenshots/analytics1.png" alt="3-Tier Productivity Analytics - Daily Focus & Spikes" width="850"/>
+  <img src="docs/assets/screenshots/analytics1.png?raw=true" alt="3-Tier Productivity Analytics - Daily Focus & Spikes" width="850"/>
 </p>
 <p align="center">
-  <img src="docs/assets/screenshots/analytics2.png" alt="3-Tier Productivity Analytics - Weekly Trends" width="850"/>
+  <img src="docs/assets/screenshots/analytics2.png?raw=true" alt="3-Tier Productivity Analytics - Weekly Trends" width="850"/>
 </p>
 <p align="center">
-  <img src="docs/assets/screenshots/analytics3.png" alt="3-Tier Productivity Analytics - CGPA Momentum & Macro Patterns" width="850"/>
+  <img src="docs/assets/screenshots/analytics3.png?raw=true" alt="3-Tier Productivity Analytics - CGPA Momentum & Macro Patterns" width="850"/>
 </p>
 
 ---
